@@ -1,0 +1,29 @@
+project:
+  type: book
+  output-dir: documentation
+
+book:
+  title: "genesis docs"
+  description: |
+    Документация библиотеки genesis
+  version: 0.0.1
+  author: "Малютин О.С., Матеров Е.Н., Бабенышев С.В."
+  date: today
+  repo-url: https://github.com/Obsidian-pb/genesis
+  repo-actions: [edit]
+  downloads: [pdf, epub]
+  chapters:
+    - index.qmd
+    - rapid_start.qmd
+    - references.qmd
+
+bibliography: references.bib
+
+format:
+  html:
+    theme: cosmo
+  pdf:
+    documentclass: scrreprt
+
+
+
