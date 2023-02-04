@@ -6,4 +6,4 @@
 *.qgs
 
 # Пока запретил отпракву папки с готовой документацией в GitHub, чтобы не загружать репозиторий.
-*work/documentation/*
+*work/documentation/*.DS_Store
