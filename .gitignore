@@ -6,4 +6,7 @@
 *.qgs
 
 # Пока запретил отпракву папки с готовой документацией в GitHub, чтобы не загружать репозиторий.
-*work/documentation/*.DS_Store
+*work/documentation/*
+
+# Для MAC
+*.DS_Store
