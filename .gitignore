@@ -1,12 +1,12 @@
-*work/.quarto
-*work/data/*
-*work/fire_data/*
+work/.quarto
+work/data/*
+work/fire_data/*
 
 # любые проекты карты QGIS (подразумевается, что пользователь сам загрузит все что нужно)
 *.qgs
 
 # Пока запретил отпракву папки с готовой документацией в GitHub, чтобы не загружать репозиторий.
-*work/documentation/*
+work/documentation/*
 
 # Для MAC
 *.DS_Store
