@@ -15,6 +15,8 @@ book:
   chapters:
     - index.qmd
     - rapid_start.qmd
+    - usage.qmd           # Тут описывается применение библиотеки
+    - documentation.qmd   # Тут документация по формулам
     - references.qmd
 
 bibliography: references.bib
