@@ -1,4 +1,4 @@
 
 
-def calc_max(G):
+def calc_max():
     return 10

@@ -9,9 +9,12 @@
     1.5 Полным перебором
 
 ''' 
+print('__file__={0:<35} | __name__={1:<25} | __package__={2:<25}'.format(__file__,__name__,str(__package__)))
 
 import networkx as nx
-from ..metrics import calc_max
+import sys
+sys.path.append("..")
+from metrics import calc_max
 
 
 def get_center_by_perifery(G):
@@ -57,4 +60,4 @@ def get_best_node_full(G:nx.MultiDiGraph, func=None, weight:str='weight'):
 
 # test:
 if __name__ == "__main__":
-    print(calc_max)
+    print(calc_max())
