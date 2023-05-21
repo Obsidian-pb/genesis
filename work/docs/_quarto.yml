@@ -14,10 +14,16 @@ book:
   downloads: [pdf, epub]
   chapters:
     - index.qmd
-    - rapid_start.qmd
-    - usage.qmd           # Тут описывается применение библиотеки
-    - documentation.qmd   # Тут документация по формулам
-    - references.qmd
+    - pages/rapid_start.qmd
+    - pages/installation.qmd
+    - part: pages/usage.qmd           # Тут описывается применение библиотеки
+      chapters:
+      - pages/usage/gds_download.qmd
+    - part: pages/documentation.qmd         # Тут документация по формулам
+      chapters:
+      - pages/documentation/algorithms.qmd
+    - pages/terms.qmd
+    - pages/references.qmd
 
 bibliography: references.bib
 
