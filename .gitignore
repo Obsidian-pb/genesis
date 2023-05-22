@@ -10,3 +10,5 @@ work/documentation/*
 
 # Для MAC
 *.DS_Store
+
+*__pycache__*
