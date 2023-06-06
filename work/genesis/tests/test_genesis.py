@@ -1,11 +1,3 @@
-"""
-Тестовый запуск библиотеки
-"""
-
-# from genesis.algorithms import graph
-
-# print(graph.tr(3,4))
-
 import osmnx as ox
 import networkx as nx
 from genesis.tools import metrics
@@ -14,17 +6,10 @@ from genesis.tools import metrics
 def test_calc_max():
     G = ox.load_graphml("tests/data/test_rng.ml")
     start_node = list(G.nodes())[100]
-
     lngs = nx.single_source_dijkstra_path_length(G, start_node, weight='length')
     max_time_node = max(lngs, key=lngs.get)
     max_time_t = nx.dijkstra_path_length(G, start_node, max_time_node, weight='length')
-    # print(list(G.edges(data=True))[0])
-    # print(list(G.nodes())[100])
+
     max_time = metrics.max_time(G, start_node, weight='length')
-    print(max_time_t, max_time)
     assert max_time_t==max_time
-    # print(max_time)
 
-
-if __name__=='__main__':
-    test_calc_max()
