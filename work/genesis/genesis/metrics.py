@@ -3,7 +3,7 @@
 '''
 
 import networkx as nx
-from settings import *
+from . import settings
 
 def metric_calc(G:nx.MultiDiGraph, node:int, func=None, weight: str = "weight"):
     '''
@@ -35,14 +35,13 @@ def metric_calc(G:nx.MultiDiGraph, node:int, func=None, weight: str = "weight"):
     if not node in G.nodes():
         raise Exception(f"Узел {node} отсутствует в графе G")
     
-    # route_lens = nx.single_source_dijkstra_path_length(G, node, weight=weight)
-    # route_lens = settings.single_source_forward_path_length(G, node, weight=weight)
-    route_lens = single_source_forward_path_length(G, node, weight=weight)   
+    # route_lens = settings.single_source_forward_path_length(G, node, weight=weight)   
+    route_lens = settings.ssfpl(G, node, weight=weight)      
 
     if func==None:
         return max(route_lens.values())
     else:
-        return func(route_lens.values())
+        return func(list(route_lens.values()))
 
 
 def max_time(G:nx.MultiDiGraph, node:int, weight: str = "weight"):

@@ -15,8 +15,8 @@ genesis позволяет проводить расчеты оптимальн�
 # from ._api import *
 from ._version import __version__
 
-from . import algorithms
-from . import tools
+# from . import algorithms
+# from . import tools
 
 # Тесты - при публикации закомментировать!
 # from . import tests
