@@ -5,7 +5,7 @@
 # print('__file__={0:<35} | __name__={1:<25} | __package__={2:<25}'.format(__file__,__name__,str(__package__)))
 
 import networkx as nx
-from .calcalators import calc_max
+# from .calculators import calc_max
 
 
 class Graphs(object):
