@@ -18,7 +18,8 @@ class Metrics(object):
                     node:int, 
                     path_function, 
                     metric_function, 
-                    weight: str = "weight"):
+                    weight: str = "weight",
+                    precision: int = 2):
         '''
         Базовая функция расчета метрик.
         Возвращает значение стандартной целевой метрики.
@@ -42,6 +43,9 @@ class Metrics(object):
             Имя поля содержащего вес ребер, или функция позволяющая вычислять 
             вес динамически.
 
+        `precision`: int 
+            Точность округления
+
         Возвращает
         ----------
         `metric_val`: float
@@ -58,17 +62,21 @@ class Metrics(object):
 
         try:
             val = metric_function(pd.Series(route_lens))
-            return val
+            return round(val, precision)
         except Exception as exc:
             raise TypeError(
                 "Данный тип функций не применим для аргумента с типом Series"
                 ) from exc
 
     @staticmethod
-    def calc_ip(route_times:pd.Series, ip_val=10, rv=2):
+    def calc_ip(route_times:pd.Series, 
+                ip_val=10,
+                precision: int = 2):
         '''
         Расчет индекса прикрытия.
 
+        Аргументы
+        ---------
         `route_times`:pd.Series
             Серия данных о временах прибытия в узлы ГДС 
             (или вообще произвольных данных о временах прибытия)
@@ -77,6 +85,14 @@ class Metrics(object):
             Пороговое значение для определения индекса прикрытия.
             Рекомендуется использовать 10 для городских населенных пунктов и 
             20 для сельских.
+        
+        `precision`: int 
+            Точность округления
+        
+        Возвращает
+        ----------
+        `metric_val`: float
+            Значение целевой метрики
         '''
         if not isinstance(route_times, pd.Series):
             raise TypeError("Аргумент route_times может быть только типа pd.Series")
@@ -85,7 +101,7 @@ class Metrics(object):
         if tot_len==0:
             return 0
         ip_len = sum(route_times<=ip_val)
-        return round(100*ip_len/tot_len, rv)
+        return round(100*ip_len/tot_len, precision)
 
     # @staticmethod
     # def calc_common():
