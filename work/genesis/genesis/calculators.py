@@ -3,10 +3,8 @@
 '''
 
 import pandas as pd
-# import networkx as nx
 from .models import Environment
-# from . import swiss_knife as knife
-# from .swiss_knife import ssfpl
+
 
 
 class Metrics(object):
@@ -18,7 +16,7 @@ class Metrics(object):
                     node:int, 
                     path_function, 
                     metric_function, 
-                    weight: str = "weight",
+                    weight: str = "travel_time",
                     precision: int = 2):
         '''
         Базовая функция расчета метрик.
@@ -50,6 +48,40 @@ class Metrics(object):
         ----------
         `metric_val`: float
             Значение целевой метрики
+
+        Пример
+        ------  
+        Создание модели окружения на основе некоторого ГДС `G`:
+            ```
+            from genesis.calculators import Metrics
+            from genesis.swiss_knife import ssfpl
+            from genesis.models import Environment
+            import numpy as np
+
+            Environment(G)
+            ```
+        Расчет времени следования до наиболее удаленного узла:
+            ```
+            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.max)
+            ```
+        Расчет среднего времени прибытия в любой из узлов, с точностью до 4 знаков после'.':
+            ```
+            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
+                precision=4)
+            ```
+        Расчет ИП-10, по полю 'edge_weight':
+            ```
+            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
+                weight='edge_weight')
+            ```
+
+        Переопределение
+        ---------------
+        В случаях, когда имеющегося функционала не достаточно, функция может быть заменена
+        пользовательской функцией с интерфейсом:
+            ```
+            def I_calc_metric(E:Environment, **kwargs): float
+            ```
         '''
         if not isinstance(E, Environment):
             raise TypeError("Аргумент E должен быть моделью окружения!")
@@ -69,7 +101,7 @@ class Metrics(object):
                 ) from exc
 
     @staticmethod
-    def calc_ip(route_times:pd.Series, 
+    def calc_ip( 
                 ip_val=10,
                 precision: int = 2):
         '''
@@ -77,10 +109,6 @@ class Metrics(object):
 
         Аргументы
         ---------
-        `route_times`:pd.Series
-            Серия данных о временах прибытия в узлы ГДС 
-            (или вообще произвольных данных о временах прибытия)
-
         `ip_val`:int
             Пороговое значение для определения индекса прикрытия.
             Рекомендуется использовать 10 для городских населенных пунктов и 
@@ -93,15 +121,38 @@ class Metrics(object):
         ----------
         `metric_val`: float
             Значение целевой метрики
-        '''
-        if not isinstance(route_times, pd.Series):
-            raise TypeError("Аргумент route_times может быть только типа pd.Series")
 
-        tot_len = len(route_times)
-        if tot_len==0:
-            return 0
-        ip_len = sum(route_times<=ip_val)
-        return round(100*ip_len/tot_len, precision)
+        Пример
+        ------
+        Вызывается как результат выполнения функции с заданными параметрами:
+
+        для расчета ИП-10:
+            `calc_ip()` или `calc_ip(ip_val=10)`
+        для расчета ИП-20:
+            `calc_ip(ip_val=20)`
+        для расчета ИП-10 с точностью до 4 знаков после запятой:
+            `calc_ip(precision = 4)` или `calc_ip(ip_val=10, precision = 4)`
+        '''
+        def _calc_ip(route_times:pd.Series):
+            '''Расчет индекса прикрытия.
+
+            Аргументы
+            ---------
+            `route_times`:pd.Series
+                Серия данных о временах прибытия в узлы ГДС 
+                (или вообще произвольных данных о временах прибытия)
+            '''
+            if not isinstance(route_times, pd.Series):
+                raise TypeError(
+                    "Аргумент route_times может быть только типа pd.Series"
+                    )
+
+            tot_len = len(route_times)
+            if tot_len==0:
+                return 0
+            ip_len = sum(route_times<=ip_val)
+            return round(100*ip_len/tot_len, precision)
+        return _calc_ip
 
     # @staticmethod
     # def calc_common():
