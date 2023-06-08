@@ -112,6 +112,13 @@ def test_calc_median(load_E):
                                    weight='travel_time')
     assert median_time_t==median_time
 
+@pytest.mark.xfail()
+def test_calc_ip_wrong_argument_type():
+    '''Тест передачи на вход некорректного формата данных'''
+    lst = [3,4,5,6,7,6,10,  12,13,14]
+    ip = Metrics.calc_ip()(lst)
+    assert 70.==ip
+
 def test_calc_ip_correct_10():
     lst = [3,4,5,6,7,6,10,  12,13,14]
     ip = Metrics.calc_ip()(pd.Series(lst))

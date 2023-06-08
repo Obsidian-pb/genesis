@@ -28,7 +28,7 @@ class Graphs(object):
         return list(G.nodes)[0]
 
     @staticmethod
-    def get_best_node_full(G:nx.MultiDiGraph, func=None, weight:str='weight'):
+    def get_best_node_full(G:nx.MultiDiGraph, metric_function=None, weight:str='travel_time'):
         '''
         Поиск лучшего узла полным перебором. 
         Могут быть возвращены только узлы из которых можно попасть в любой другой узел графа.
@@ -39,7 +39,7 @@ class Graphs(object):
         ---------
         `G` : MultiDiGraph
             Граф дорожной сети
-        `func` : function
+        `metric_function` : function
             Функция оценки. Если не указана, используется оценка минимальному расстоянию.
         `weight` : str
             имя поля ребер ГДС содержащего вес пути (в данном случае имеется в виду время следования)
