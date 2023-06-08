@@ -103,7 +103,8 @@ Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
 Расчет ИП-20, по полю 'edge_weight':
 
 ```{.python}
-Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
+Metrics.calc_metric(E, node=1, path_function=ssfpl, 
+    metric_function=Metrics.calc_ip(ip_val=20),
     weight='edge_weight')
 ```
 
@@ -132,4 +133,24 @@ def calc_metric(E:Environment,
 
 # Применение:
 metric_value = calc_metric(E, start_node)
+print(metric_value)
+```
+
+## Переопределение стандартной функции расчета метрики
+
+В ряде случаев, когда для расчета метрики требуется только проанализировать времена прибытия в узлы графа, не обязательно полностью переопределять базовую функцию, а достаточно переопределить только функцию расчета метрики. Так например реализован расчет ИП-10 и ИП-20. Ниже приведен пример того как пользователь может написать и использовать собственную функцию расчета метрики ИП-15 (индекс прикрытия для 15-ти минутной зоны):
+
+```{.python}
+def calc_ip_15(route_times:pd.Series):
+    # общий размер датасета
+    tot_len = len(route_times)
+    # размер датасета лежащего в пределах 15 минут
+    ip_15_len = sum(route_times<=15)
+    # Возвращаем отношение ip_15_len к tot_len, с точностью округления 2
+    return round(100*ip_15_len/tot_len, 2)
+
+# Применение:
+metric_value = Metrics.calc_metric(E, node=1, path_function=ssfpl, 
+    metric_function=calc_ip_15)
+print(metric_value)
 ```

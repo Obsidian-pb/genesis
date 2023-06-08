@@ -172,3 +172,19 @@ def test_calc_base_overload(load_E):
     E = load_E
     start_node = list(E.G.nodes())[2000]
     assert calc_metric(E, start_node)==0.05
+
+def test_calc_simple_overload(load_E):
+    def calc_ip_15(route_times:pd.Series):
+        # общий размер датасета
+        tot_len = len(route_times)
+        # размер датасета лежащего в пределах 15 минут
+        ip_15_len = sum(route_times<=15)
+        # Возвращаем отношение ip_15_len к tot_len, с точностью округления 2
+        return round(100*ip_15_len/tot_len, 2)
+
+    # Применение:
+    E = load_E
+    start_node = list(E.G.nodes())[2000]
+    metric_value = Metrics.calc_metric(E, node=start_node, path_function=ssfpl, 
+        metric_function=calc_ip_15)
+    assert metric_value==34.01
