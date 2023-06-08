@@ -32,10 +32,19 @@ class Metrics(object):
             Узел для которого производится расчет
 
         `path_function`: function
-            Функция расчета кратчайших путей
+            Функция расчета кратчайших путей от единственного источника. 
+            В качестве функции могут быть переданы реализации алгоритмов из пакета
+            `networkx`. Например, реализация алгоритма Дейкстры: `nx.single_source_dijkstra_path_length`.
+            Рекомендуется использовать функции указанные в `swiss_knife.ssfpl`.
+            Пользователь может использовать собственные функции с
+            интерфейсом `func(G: Graph, source: Any, cutoff: Any | None = None, weight: str = "weight")`
 
         `metric_function`: function
-            Целевая функция расчета метрики.
+            Целевая функция расчета метрики. 
+            В качестве функции могут быть переданы статистические функции пакета numpy,
+            такие как `np.max`, `np.mean` и т.д. А т.ж. функция `Metrics.calc_ip`.
+            Кроме того пользователь может использовать собственные функции с
+            интерфейсом `func(route_times:pd.Series)`
         
         `weight`:str или function
             Имя поля содержащего вес ребер, или функция позволяющая вычислять 
@@ -58,7 +67,7 @@ class Metrics(object):
             from genesis.models import Environment
             import numpy as np
 
-            Environment(G)
+            E = Environment(G)
             ```
         Расчет времени следования до наиболее удаленного узла:
             ```
@@ -69,9 +78,9 @@ class Metrics(object):
             Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
                 precision=4)
             ```
-        Расчет ИП-10, по полю 'edge_weight':
+        Расчет ИП-20, по полю 'edge_weight':
             ```
-            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
+            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
                 weight='edge_weight')
             ```
 

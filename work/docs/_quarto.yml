@@ -19,6 +19,7 @@ book:
     - part: pages/usage.qmd           # Тут описывается применение библиотеки
       chapters:
       - pages/usage/gds_download.qmd
+      - pages/usage/metrics_calc.qmd
     - part: pages/documentation.qmd         # Тут документация по формулам
       chapters:
       - pages/documentation/algorithms.qmd

@@ -154,3 +154,21 @@ def test_calc_ip20(load_E):
 #  'median': 17.114336285714288,
 #  'ip10': 11.26,
 #  'ip20': 74.04}
+
+def test_calc_base_overload(load_E):
+    def calc_metric(E:Environment, 
+                    node:int, 
+                    # path_function, 
+                    # metric_function, 
+                    # weight: str = "travel_time",
+                    # precision: int = 2,
+                    **kwargs):
+        route_lens = nx.single_source_dijkstra_path_length(
+            E.G, node, weight='length'
+            )
+        less_1000 = [1 if d<1000 else 0 for d in route_lens.values()]
+        return round(sum(less_1000)/len(less_1000), 2)
+
+    E = load_E
+    start_node = list(E.G.nodes())[2000]
+    assert calc_metric(E, start_node)==0.05
