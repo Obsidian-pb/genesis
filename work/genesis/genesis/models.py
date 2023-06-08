@@ -4,7 +4,7 @@
 
 from networkx import MultiDiGraph
 
-from genesis.calculators import kmh_to_mm
+from genesis.tools import kmh_to_mm
 
 
 class Environment(object):
@@ -26,7 +26,7 @@ class SpeedProfile(object):
     def __init__(self, precision=2):
         self._sp = {}
         self.kmh_to_mm_precision = precision
-        # первоначальная инициализация 
+        # первоначальная инициализация
         self.set_speeds_5([40,30,25,10,5])
 
     def set_speeds(self, speeds:dict):
@@ -55,8 +55,8 @@ class SpeedProfile(object):
         '''
         if not isinstance(speeds, dict):
             raise TypeError("Аргумент speeds должен быть только типа dict!")
-        # self._sp = speeds
-        for k,v in self._sp.items():
+
+        for k,v in speeds.items():
             self._sp[k]=v
 
     def set_speeds_5(self, speeds:list):
@@ -162,7 +162,6 @@ class SpeedProfile(object):
         '''
         Текущий профиль скоростей
         '''
-        return {k: kmh_to_mm(v, precision=self.kmh_to_mm_precision) 
-                for k,v in self._sp.items()}
+        return {k: kmh_to_mm(v, precision=self.kmh_to_mm_precision) for k,v in self._sp.items()}
 
 

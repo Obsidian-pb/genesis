@@ -1,3 +1,8 @@
+'''
+
+pytest tests/test_models.py  
+'''
+
 import pytest
 
 import osmnx as ox
@@ -14,6 +19,8 @@ def load_G():
 def test_environment_creation(load_G):
     E = Environment(load_G)
     assert isinstance(E, Environment)
+
+
 
 
 # Тесты профиля скоростей
@@ -48,7 +55,7 @@ def test_SpeedProfile_set_speeds_from_dict():
         "service": 30,
         "pedestrian":15
     })
-    assert sp.sp["living_street"]==500
+    assert sp.sp["living_street"]==416.67
 
 @pytest.mark.xfail()
 def test_SpeedProfile_set_not_5():

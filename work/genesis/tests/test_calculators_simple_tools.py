@@ -4,7 +4,7 @@
 
 import pytest
 
-from genesis.calculators import kmh_to_mm
+from genesis.tools import kmh_to_mm
 
 def test_kmh_to_mm():
     kmh = 30
