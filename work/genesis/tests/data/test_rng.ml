@@ -128758,8 +128758,8 @@
       <data key="d14">238.366</data>
       <data key="d15">0.47673200000000004</data>
     </edge>
-    <data key="d0">2023-06-07 18:19:54</data>
-    <data key="d1">OSMnx 1.3.0</data>
+    <data key="d0">2023-06-10 23:21:05</data>
+    <data key="d1">OSMnx 1.3.1.post0</data>
     <data key="d2">epsg:4326</data>
   </graph>
 </graphml>
