@@ -5,9 +5,9 @@
 from networkx import MultiDiGraph
 
 from genesis.tools import kmh_to_mm
+from genesis.interfaces import IEnvironment
 
-
-class Environment(object):
+class Environment(IEnvironment):
     '''
     Модель окружения. 
     В нее входит ГДС, размещение подразделений, объектов, и т.д.
@@ -16,6 +16,14 @@ class Environment(object):
         if not isinstance(G, MultiDiGraph):
             raise TypeError("Аргумент G должен быть мультиграфом!") 
         self.G = G
+
+    def add_spatial_feature(self, spatial_feature):
+        '''Добавка пространственных данных'''
+        # Нужно проверить наследует ли spatial_feature интерфейсу ISpatialFeature
+        pass
+
+    def test(self):
+        pass
 
 
 class SpeedProfile(object):
