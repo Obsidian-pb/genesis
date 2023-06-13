@@ -4,6 +4,8 @@
 
 import pandas as pd
 from .models import Environment
+import networkx as nx
+
 
 
 
@@ -12,8 +14,8 @@ class Metrics(object):
     Функции расчета метрик.
     '''
     @staticmethod
-    def calc_metric(E:Environment, 
-                    node:int, 
+    def calc_metric(G: nx.MultiDiGraph, 
+                    node:int,
                     path_function, 
                     metric_function, 
                     weight: str = "travel_time",
@@ -25,8 +27,8 @@ class Metrics(object):
 
         Аргументы
         ---------
-        `E`:Environment, 
-            Окружение.
+        `G`:nx.MultiDiGraph, 
+            Граф дорожной сети
         
         `node`:int
             Узел для которого производится расчет
@@ -60,6 +62,7 @@ class Metrics(object):
 
         Пример
         ------  
+        ПЕРЕДЕЛАТЬ!!!
         Создание модели окружения на основе некоторого ГДС `G`:
             ```
             from genesis.calculators import Metrics
@@ -71,16 +74,16 @@ class Metrics(object):
             ```
         Расчет времени следования до наиболее удаленного узла:
             ```
-            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.max)
+            Metrics.calc_metric(G, node=1, path_function=ssfpl, metric_function=np.max)
             ```
         Расчет среднего времени прибытия в любой из узлов, с точностью до 4 знаков после'.':
             ```
-            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
+            Metrics.calc_metric(G, node=1, path_function=ssfpl, metric_function=np.mean,
                 precision=4)
             ```
         Расчет ИП-20, по полю 'edge_weight':
             ```
-            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
+            Metrics.calc_metric(G, node=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
                 weight='edge_weight')
             ```
 
@@ -89,17 +92,17 @@ class Metrics(object):
         В случаях, когда имеющегося функционала не достаточно, функция может быть заменена
         пользовательской функцией с интерфейсом:
             ```
-            def I_calc_metric(E:Environment, **kwargs): float
+            def I_calc_metric(G, nx.MultiDiGraph, **kwargs): float
             ```
         '''
-        if not isinstance(E, Environment):
-            raise TypeError("Аргумент E должен быть моделью окружения!")
+        if not isinstance(G, nx.MultiDiGraph):
+            raise TypeError("Аргумент E должен быть мультидиграфом!")
         if not isinstance(node, int):
             raise TypeError("Идентификатор узла должен иметь тип данных int!")
-        if not node in E.G.nodes():
+        if not node in G.nodes():
             raise KeyError(f"Узел {node} отсутствует в графе G")
 
-        route_lens = path_function(E.G, node, weight=weight)
+        route_lens = path_function(G, node, weight=weight)
 
         try:
             val = metric_function(pd.Series(route_lens))
@@ -110,7 +113,7 @@ class Metrics(object):
                 ) from exc
 
     @staticmethod
-    def calc_ip( 
+    def calc_ip(
                 ip_val=10,
                 precision: int = 2):
         '''
@@ -162,10 +165,3 @@ class Metrics(object):
             ip_len = sum(route_times<=ip_val)
             return round(100*ip_len/tot_len, precision)
         return _calc_ip
-
-    # @staticmethod
-    # def calc_common():
-
-
-
-

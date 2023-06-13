@@ -2,25 +2,59 @@
 Интерфейсы
 '''
 
-import networkx as nx
+# from abc import ABCMeta, abstractmethod, abstractproperty
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+import networkx as nx
+from shapely.geometry import Polygon, MultiPolygon
+
+
+
+
+class ISpatialFeature():
+    '''
+    Интерфейс пространственных данных
+    '''
+
+    def frame(self, polygon: Polygon or MultiPolygon, **attr):
+        '''
+        Представление данных в некоторой области ограниченной полигоном
+
+        Аргументы
+        ---------
+        `polygon`: Polygon или MultiPolygon
+            Полигон или мультиполигон которым следует обрезать
+            пространственные данные
+
+        Возвращает
+        ----------
+        Данные того же типа обрезанные по полигону area
+        '''
+
 
 class IEnvironment():
     '''
     Интерфейс модели окружения
     '''
-    __metaclass__=ABCMeta
+    # __metaclass__=ABCMeta
 
-    # @abstractproperty
-    # def 
 
-    @abstractmethod
-    def add_spatial_feature(self, spatial_feature):
+    # @abstractmethod
+    def add_spatial_feature(self, spatial_feature: ISpatialFeature, **attr):
         '''Добавить пространственные данные'''
 
+    def add_data(self, data):
+        '''Добавление непространственных данных'''
 
-    @abstractmethod
+    def frame(self, polygon: Polygon or MultiPolygon, **attr):
+        '''Получение фрагмента Окружения'''
+
+    def load(self, **attr):
+        '''Загрузка модели'''
+
+    def save(self, **attr):
+        '''Сохранение модели'''
+
+    # @abstractmethod
     def test(self):
         '''Проверить корректность модели'''
 
@@ -36,8 +70,9 @@ class IModel():
 
     delay_time = 1
 
-    @abstractmethod
+    # @abstractmethod
     def execute(self):
         '''
         Запуск вычислений
         '''
+

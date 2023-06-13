@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from genesis.models import Environment
+# from genesis.models import Environment
 from genesis.calculators import Metrics
 from genesis.swiss_knife import ssfpl
 
@@ -23,11 +23,11 @@ from genesis.swiss_knife import ssfpl
 
 
 @pytest.fixture()
-def load_E():
-    return Environment(ox.load_graphml("tests/data/test_rng.ml"))
+def load_G():
+    return ox.load_graphml("tests/data/test_rng.ml")
 
 @pytest.fixture()
-def create_E():
+def create_G():
     '''
         max: 21
         mean: 8.67
@@ -69,43 +69,38 @@ def create_E():
     G.add_edge(11, 12, key=0, travel_time=7)
     G.add_edge(11, 15, key=0, travel_time=7)
     G.add_edge(12, 13, key=0, travel_time=8)
-    return Environment(G)
+    return G
 
-def test_calc_max(load_E):
-    E = load_E
-    start_node = list(E.G.nodes())[2000]
-    # lngs = nx.single_source_dijkstra_path_length(E.G, start_node, weight='length')
-    # max_time_node = max(lngs, key=lngs.get)
-    # max_time_t = nx.dijkstra_path_length(E.G, start_node, max_time_node, weight='length')
+def test_calc_max(load_G):
+    G = load_G
+    start_node = list(G.nodes())[2000]
 
     max_time_t = 27.88
-    max_time = Metrics.calc_metric(E,
+    max_time = Metrics.calc_metric(G,
                                    start_node,
                                    path_function=ssfpl,
                                    metric_function=np.max,
                                    weight='travel_time')
     assert max_time_t==max_time
 
-def test_calc_mean(load_E):
-    E = load_E
-    start_node = list(E.G.nodes())[2000]
-    # lngs = nx.single_source_dijkstra_path_length(E.G, start_node, weight='length')
-    # mean_time_t = np.mean(list(lngs.values()))
+def test_calc_mean(load_G):
+    G = load_G
+    start_node = list(G.nodes())[2000]
+
     mean_time_t = 16.32
-    mean_time = Metrics.calc_metric(E,
+    mean_time = Metrics.calc_metric(G,
                                    start_node,
                                    path_function=ssfpl,
                                    metric_function=np.mean,
                                    weight='travel_time')
     assert mean_time_t==mean_time
 
-def test_calc_median(load_E):
-    E = load_E
-    start_node = list(E.G.nodes())[2000]
-    # lngs = nx.single_source_dijkstra_path_length(E.G, start_node, weight='length')
-    # mean_time_t = np.median(list(lngs.values()))
+def test_calc_median(load_G):
+    G = load_G
+    start_node = list(G.nodes())[2000]
+
     median_time_t = 17.11
-    median_time = Metrics.calc_metric(E, 
+    median_time = Metrics.calc_metric(G, 
                                    start_node, 
                                    path_function=ssfpl,
                                    metric_function=np.median,
@@ -133,22 +128,22 @@ def test_calc_ip_zero_len():
     ip = Metrics.calc_ip()(pd.Series())
     assert ip == 0
 
-def test_calc_ip10(load_E):
-    E = load_E
-    start_node = list(E.G.nodes())[2000]
+def test_calc_ip10(load_G):
+    G = load_G
+    start_node = list(G.nodes())[2000]
     ip_real = 11.26
-    ip_test = Metrics.calc_metric(E, 
+    ip_test = Metrics.calc_metric(G, 
                                    start_node, 
                                    path_function=ssfpl,
                                    metric_function=Metrics.calc_ip(),
                                    weight='travel_time')
     assert ip_real==ip_test
 
-def test_calc_ip20(load_E):
-    E = load_E
-    start_node = list(E.G.nodes())[2000]
+def test_calc_ip20(load_G):
+    G = load_G
+    start_node = list(G.nodes())[2000]
     ip_real = 74.04
-    ip_test = Metrics.calc_metric(E, 
+    ip_test = Metrics.calc_metric(G, 
                                    start_node, 
                                    path_function=ssfpl,
                                    metric_function=Metrics.calc_ip(ip_val=20),
@@ -162,8 +157,8 @@ def test_calc_ip20(load_E):
 #  'ip10': 11.26,
 #  'ip20': 74.04}
 
-def test_calc_base_overload(load_E):
-    def calc_metric(E:Environment, 
+def test_calc_base_overload(load_G):
+    def calc_metric(G:nx.MultiDiGraph, 
                     node:int, 
                     # path_function, 
                     # metric_function, 
@@ -171,16 +166,16 @@ def test_calc_base_overload(load_E):
                     # precision: int = 2,
                     **kwargs):
         route_lens = nx.single_source_dijkstra_path_length(
-            E.G, node, weight='length'
+            G, node, weight='length'
             )
         less_1000 = [1 if d<1000 else 0 for d in route_lens.values()]
         return round(sum(less_1000)/len(less_1000), 2)
 
-    E = load_E
-    start_node = list(E.G.nodes())[2000]
-    assert calc_metric(E, start_node)==0.05
+    G = load_G
+    start_node = list(G.nodes())[2000]
+    assert calc_metric(G, start_node)==0.05
 
-def test_calc_simple_overload(load_E):
+def test_calc_simple_overload(load_G):
     def calc_ip_15(route_times:pd.Series):
         # общий размер датасета
         tot_len = len(route_times)
@@ -190,8 +185,8 @@ def test_calc_simple_overload(load_E):
         return round(100*ip_15_len/tot_len, 2)
 
     # Применение:
-    E = load_E
-    start_node = list(E.G.nodes())[2000]
-    metric_value = Metrics.calc_metric(E, node=start_node, path_function=ssfpl, 
+    G = load_G
+    start_node = list(G.nodes())[2000]
+    metric_value = Metrics.calc_metric(G, node=start_node, path_function=ssfpl,
         metric_function=calc_ip_15)
     assert metric_value==34.01
