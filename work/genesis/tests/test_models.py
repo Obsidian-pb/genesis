@@ -10,12 +10,62 @@ import osmnx as ox
 # import numpy as np
 
 from genesis.models import Environment, RoadNetworkGraph
+from genesis.interfaces import IFeature, ISpatialFeature
 # from genesis.models import SpeedProfile
 
 @pytest.fixture()
 def load_G():
     return ox.load_graphml("tests/data/test_rng.ml")
 
+# === Тесты RoadNetworkGraph
+class TestRNG():
+    '''
+    Тесты работы с RoadNetworkGraph
+    '''
+    def test_RNG_creation(self, load_G):
+        G = RoadNetworkGraph(load_G)
+        assert isinstance(G, RoadNetworkGraph)
+        assert isinstance(G, IFeature)
+        assert isinstance(G, ISpatialFeature)
+
+    def test_RNG_props(self, load_G):
+        G = RoadNetworkGraph(load_G)
+        assert 'RNG'==G.name
+        assert 'data/rng.ml'==G.path
+
+    def test_RNG_props_set(self, load_G):
+        G = RoadNetworkGraph(load_G)
+        G.name = 'rng'
+        G.path = 'data/new.ml'
+        assert 'rng'==G.name
+        assert 'data/new.ml'==G.path
+
+    def test_RNG_load(self):
+        G = RoadNetworkGraph(path='tests/data/test_rng.ml')
+        G.load()
+        assert isinstance(G, RoadNetworkGraph)
+
+    @pytest.fixture(scope="session")
+    def ml_file(self, tmp_path_factory):
+        g = ox.load_graphml("tests/data/test_rng.ml")
+        tmp_path = tmp_path_factory.mktemp("tests") / "test_rng2.ml"
+        G = RoadNetworkGraph(g, path=tmp_path)
+        # G.load()
+        G.save()
+        return tmp_path
+
+    def test_RNG_save(self, ml_file):
+        G = RoadNetworkGraph(path=ml_file)
+        G.load()
+        assert isinstance(G, RoadNetworkGraph)
+
+
+# === Тесты DataFeature
+
+
+
+
+# === Тесты Environment 
 def test_environment_creation():
     E = Environment()
     assert isinstance(E, Environment)
@@ -82,3 +132,20 @@ def test_environment_G_addition_name(load_G):
 #     sp = SpeedProfile()
 #     sp.set_speeds_5([50,40,30,20])
 #     assert sp.sp["living_street"]==500
+
+
+
+# === Тесты StationsState
+ 
+
+
+
+
+
+
+# === Тесты UnitsState
+
+
+
+
+# === Тесты ObjectsState

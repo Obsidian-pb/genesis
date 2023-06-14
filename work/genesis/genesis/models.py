@@ -2,34 +2,102 @@
 Модели используемые в расчетах
 '''
 
+import pandas as pd
 import networkx as nx
 import osmnx as ox
 from shapely.geometry import MultiPolygon, Polygon
 
-from genesis.tools import kmh_to_mm
-from genesis.interfaces import IEnvironment, ISpatialFeature, IModel
+# from genesis.tools import kmh_to_mm
+from genesis.interfaces import IFeature, IEnvironment, ISpatialFeature, IModel
 
 
-class Environment(IEnvironment):        # Это уже реализация!!!
+class Environment(IEnvironment, ISpatialFeature):        # Это уже реализация!!!
     '''
     Базовая реализация модели окружения. 
     В нее входит ГДС, размещение подразделений, объектов, и т.д.
     '''
     def __init__(self):
         self.spatial_data = {}
+        self.data = {}
 
-    def add_spatial_feature(self, spatial_feature: ISpatialFeature):
-        '''Добавка пространственных данных'''
-        # Нужно проверить наследует ли spatial_feature интерфейсу ISpatialFeature
+    def add_spatial_feature(self, spatial_feature: ISpatialFeature, **attr):
+        '''
+        Добавление пространственных данных
+        
+        Аргументы
+        ---------
+        `spatial_feature`: ISpatialFeature
+            Пространственные данные.
+            Могут быть любым типом пространственных данных.
+            Но наиболее распространенные - gpd.GeoDataFrame и
+            nx.MultiDiGraph. Для передачи в функцию он должны
+            реализовывать интерфейс ISpatialFeature
+
+        Возвращает
+        ----------
+        `self`: Environment
+            Ссылка на самого себя
+        '''
+
+        if not isinstance(spatial_feature, IFeature):
+            raise TypeError("аргумент 'spatial_feature' должен \
+                            реализовывать интерфейс 'IFeature'!")
         if not isinstance(spatial_feature, ISpatialFeature):
             raise TypeError("аргумент 'spatial_feature' должен \
-                            реализовывать интерфейс 'ISpatialFeature'!")
+                            реализовывать интерфейс 'ISpatialFeature'")
 
         self.spatial_data[spatial_feature.name] = spatial_feature
         return self
 
+    def add_data(self, data: pd.DataFrame, **attr):
+        '''
+        Добавление непространственных данных
+
+        Аргументы
+        ---------
+        `data`: pd.DataFrame
+            Датафрайм данных
+
+        Возвращает
+        ----------
+        `self`: Environment
+            Ссылка на самого себя
+        '''
+
+        if not isinstance(data, pd.DataFrame):
+            raise TypeError("Аргумент 'data' должен \
+                            иметь тип данных 'pd.DataFrame'!")
+        if data.name=='':
+            raise NameError("Для аргумента 'data' \
+                            не указано имя!")
+        self.data[data.name] = data
+        return self
+
+    def frame(self, polygon: Polygon | MultiPolygon, feature_names:list=None, **attr):
+        '''
+        Получение фрагмента Окружения
+        
+        Аргументы
+        ---------
+        `polygon`: Polygon | MultiPolygon
+            Полигон или мультиполигон которым следует обрезать
+            пространственные данные
+        `feature_names`: list
+            Список имен пространственных данных. 
+            Если указан, происходит выбор данных только для
+            указанных наборов. 
+            Иначе для всех наборов пространственных данных.
+        '''
+
+    def load(self, **attr):
+        '''Загрузка модели'''
+
+    def save(self, **attr):
+        '''Сохранение модели'''
+
     def test(self):
-        pass
+        '''Проверить корректность модели'''
+
 
 
 class Model(IModel):                    # Это уже реализация!!!
@@ -37,18 +105,40 @@ class Model(IModel):                    # Это уже реализация!!!
     Базовая реализация расчетной модели
     '''
 
-class RoadNetworkGraph(nx.MultiDiGraph, ISpatialFeature):
+
+class RoadNetworkGraph(nx.MultiDiGraph, IFeature, ISpatialFeature):
     '''
     Граф дорожной сети.
     '''
-    def __init__(self, incoming_graph_data=None, multigraph_input=None, name='RNG', **attr):
+    def __init__(self, incoming_graph_data=None, multigraph_input=None, 
+                 name='RNG', path='data/rng.ml',
+                 **attr):
+        self.path=path
         super().__init__(incoming_graph_data, multigraph_input, name=name, **attr)
 
     def frame(self, polygon: Polygon, **attr):
         return ox.truncate.truncate_graph_polygon(self, polygon, **attr)
+    
+    def load(self):
+        '''Загрузка из файла-источника'''
+        ox.load_graphml(self.path)
+
+    def save(self):
+        '''Сохранение в файл-источник'''
+        ox.save_graphml(self, self.path)
+
+    def test(self):
+        '''Проверить корректность данных'''
+        print(str(self))
 
 
-
+    # Путь к файлу
+    @property
+    def path(self):
+        return self._path
+    @path.setter
+    def path(self, path):
+        self._path=path
 
 
 
