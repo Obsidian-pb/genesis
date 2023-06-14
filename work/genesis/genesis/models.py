@@ -11,7 +11,7 @@ from shapely.geometry import MultiPolygon, Polygon
 from genesis.interfaces import IFeature, IEnvironment, ISpatialFeature, IModel
 
 
-class Environment(IEnvironment, ISpatialFeature):        # Это уже реализация!!!
+class Environment(IEnvironment, IFeature, ISpatialFeature):        # Это уже реализация!!!
     '''
     Базовая реализация модели окружения. 
     В нее входит ГДС, размещение подразделений, объектов, и т.д.
