@@ -44,6 +44,7 @@ class TestRNG():
         G = RoadNetworkGraph(path='tests/data/test_rng.ml')
         G.load()
         assert isinstance(G, RoadNetworkGraph)
+        assert G.number_of_nodes() > 100
 
     @pytest.fixture(scope="session")
     def ml_file(self, tmp_path_factory):
@@ -54,43 +55,54 @@ class TestRNG():
         G.save()
         return tmp_path
 
-    def test_RNG_save(self, ml_file):
+    def test_RNG_load_tmp(self, ml_file):
         G = RoadNetworkGraph(path=ml_file)
         G.load()
         assert isinstance(G, RoadNetworkGraph)
 
+    # def test_RNG_load_real(self):
+    #     G = RoadNetworkGraph(path=ml_file)
+    #     G.load()
+    #     assert isinstance(G, RoadNetworkGraph)
 
 # === Тесты DataFeature
 
 
 
 
-# === Тесты Environment 
-def test_environment_creation():
-    E = Environment()
-    assert isinstance(E, Environment)
+# === Тесты Environment
+class TestEnvironment():
+    '''
+    Тесты работы с RoadNetworkGraph
+    '''
+    def test_environment_creation(self):
+        E = Environment()
+        assert isinstance(E, Environment)
+
+    def test_environment_name(self):
+        E = Environment()
+        assert E.name == 'E_Base'
+
+    @pytest.mark.xfail()
+    def test_environment_G_addition_wrong(self, load_G):
+        E = Environment()
+        E.add_spatial_feature(load_G)
+        assert isinstance(E, Environment)
+
+    def test_environment_G_addition_correct(self, load_G):
+        E = Environment()
+        G = RoadNetworkGraph(load_G)
+        E.add_spatial_feature(G)
+        assert isinstance(E, Environment)
+
+    def test_environment_G_addition_name(self, load_G):
+        E = Environment()
+        G = RoadNetworkGraph(load_G)
+        E.add_spatial_feature(G)
+        assert E.spatial_data.RNG.name == 'RNG'
+        # assert getattr(E.spatial_data, 'RNG').name == 'RNG'
 
 
-
-@pytest.mark.xfail()
-def test_environment_G_addition_wrong(load_G):
-    E = Environment()
-    E.add_spatial_feature(load_G)
-    assert isinstance(E, Environment)
-
-def test_environment_G_addition_correct(load_G):
-    E = Environment()
-    
-    G = RoadNetworkGraph(load_G)
-    E.add_spatial_feature(G)
-    assert isinstance(E, Environment)
-
-def test_environment_G_addition_name(load_G):
-    E = Environment()
-
-    G = RoadNetworkGraph(load_G)
-    E.add_spatial_feature(G)
-    assert E.spatial_data['RNG'].name == 'RNG'
 
 # # Тесты профиля скоростей
 # def test_SpeedProfile_creation():

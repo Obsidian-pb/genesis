@@ -2,9 +2,9 @@
 Интерфейсы
 '''
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 
-import networkx as nx
+# import networkx as nx
 import pandas as pd
 from shapely.geometry import Polygon, MultiPolygon
 
@@ -14,9 +14,6 @@ class IFeature():
     Базовый интерфейс данных модели
     '''
     __metaclass__=ABCMeta
-
-    def __init__(self, name:str, path:str) -> None:
-        pass
 
     @abstractmethod
     def load(self):
@@ -38,7 +35,8 @@ class IFeature():
     @property
     @abstractmethod
     def path(self):
-        '''Основной путь к файлу-источнику'''
+        '''Путь к файлу на диске'''
+
 
 
 
@@ -47,7 +45,8 @@ class ISpatialFeature():
     '''
     Интерфейс пространственных данных
     '''
-    __metaclass__=ABCMeta
+    # __metaclass__=ABCMeta
+
 
     def frame(self, polygon: Polygon | MultiPolygon, **attr):
         '''

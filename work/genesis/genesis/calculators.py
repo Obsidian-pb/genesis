@@ -14,7 +14,7 @@ class Metrics(object):
     Функции расчета метрик.
     '''
     @staticmethod
-    def calc_metric(G: nx.MultiDiGraph, 
+    def calc_metric(E: Environment, 
                     node:int,
                     path_function, 
                     metric_function, 
@@ -27,8 +27,8 @@ class Metrics(object):
 
         Аргументы
         ---------
-        `G`:nx.MultiDiGraph, 
-            Граф дорожной сети
+        `E`:Environment, 
+            Окружение
         
         `node`:int
             Узел для которого производится расчет
@@ -95,14 +95,14 @@ class Metrics(object):
             def I_calc_metric(G, nx.MultiDiGraph, **kwargs): float
             ```
         '''
-        if not isinstance(G, nx.MultiDiGraph):
-            raise TypeError("Аргумент E должен быть мультидиграфом!")
+        if not isinstance(E, Environment):
+            raise TypeError("Аргумент E должен быть Окружением!")
         if not isinstance(node, int):
             raise TypeError("Идентификатор узла должен иметь тип данных int!")
-        if not node in G.nodes():
+        if not node in E.spatial_data.G.nodes():
             raise KeyError(f"Узел {node} отсутствует в графе G")
 
-        route_lens = path_function(G, node, weight=weight)
+        route_lens = path_function(E.spatial_data.G, node, weight=weight)
 
         try:
             val = metric_function(pd.Series(route_lens))
