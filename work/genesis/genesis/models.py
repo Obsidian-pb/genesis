@@ -146,7 +146,8 @@ class RoadNetworkGraph(nx.MultiDiGraph, IFeature, ISpatialFeature):
     
     def load(self):
         '''Загрузка из файла-источника'''
-        self = RoadNetworkGraph(ox.load_graphml(self.path))
+        # self = RoadNetworkGraph(ox.load_graphml(self.path))
+        return RoadNetworkGraph(ox.load_graphml(self.path))
 
     def save(self):
         '''Сохранение в файл-источник'''
