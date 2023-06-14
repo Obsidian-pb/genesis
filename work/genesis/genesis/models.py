@@ -2,30 +2,184 @@
 Модели используемые в расчетах
 '''
 
+from abc import abstractmethod
+from typing import Any
+
 import pandas as pd
 import networkx as nx
 import osmnx as ox
-# import yaml
+import yaml
 from shapely.geometry import MultiPolygon, Polygon
 
 # from genesis.tools import kmh_to_mm
 from genesis.interfaces import IFeature, IEnvironment, ISpatialFeature, IModel, IDataFeature
 
+class Feature(object):
+    '''
+    Базовый класс данных модели
+    '''
+    _path=''
+    _name=''
 
-class Environment(IEnvironment, IFeature, ISpatialFeature):        # Это уже реализация!!!
+    def __init__(self,
+                 name='', path='',
+                 **attr):
+        self.path=path
+        self.name=name
+
+    @abstractmethod
+    def load(self):
+        '''Загрузка из файла-источника'''
+
+    @abstractmethod
+    def save(self):
+        '''Сохранение в файл-источник'''
+
+    @property
+    @abstractmethod
+    def get(self):
+        '''Возвращает данные'''
+
+    @abstractmethod
+    def test(self):
+        '''Проверить корректность данных'''
+
+    @property
+    def name(self):
+        '''Имя набора данных'''
+        return self._name
+    @name.setter
+    def name(self, name):
+        self._name=name
+
+    @property
+    def path(self):
+        '''Путь к файлу на диске'''
+        return self._path
+    @path.setter
+    def path(self, path):
+        self._path=path
+
+
+class SpatialFeature(Feature):
+    '''
+    Класс пространственных данных
+    '''
+
+    def __init__(self, spatial_data,
+                 name='', path='', **attr):
+        self._data = spatial_data
+        super().__init__(name, path, **attr)
+
+    @property
+    def get(self):
+        return self._data
+
+    @abstractmethod
+    def frame(self, polygon: Polygon | MultiPolygon, **attr):
+        '''
+        Представление данных в некоторой области ограниченной полигоном
+
+        Аргументы
+        ---------
+        `polygon`: Polygon или MultiPolygon
+            Полигон или мультиполигон которым следует обрезать
+            пространственные данные
+
+        Возвращает
+        ----------
+        Данные того же типа обрезанные по полигону area
+        '''
+
+
+class RoadNetworkGraph(SpatialFeature):
+    '''
+    Граф дорожной сети.
+    '''
+    def __init__(self, spatial_data:nx.MultiDiGraph=None, name='RNG', path='data/rng.ml', **attr):
+        super().__init__(spatial_data, name, path, **attr)
+
+    def frame(self, polygon: Polygon, **attr):
+        return ox.truncate.truncate_graph_polygon(self, polygon, **attr)
+
+    def load(self, base_path='', **attr):
+        '''Загрузка из файла-источника'''
+        self._data = ox.load_graphml(f'{base_path}{self.path}', **attr)
+        return self
+
+    def save(self, base_path=''):
+        '''Сохранение в файл-источник'''
+        ox.save_graphml(self.get, f'{base_path}{self.path}')
+        return self
+
+    def test(self):
+        '''Проверить корректность данных'''
+        print(str(self._data))
+
+
+
+
+
+
+class DataFeature(Feature):
+    '''
+    Класс непространственных данных
+    '''
+
+    def __init__(self, data:pd.DataFrame,
+                 name='', path='', **attr):
+        self._data = data
+        super().__init__(name, path, **attr)
+
+    @property
+    def get(self):
+        return self._data
+
+
+class SpeedProfile(DataFeature):
+    '''
+    Профиль скоростей
+    '''
+    def __init__(self, data: pd.DataFrame=None, name='SP', path='data/speeds.yml', **attr):
+        super().__init__(data, name, path, **attr)
+    # def __init__(self, name='SP', path='data/speeds.yml',
+    #              **attr):
+    #     self.path=path
+    #     self.name=name
+    #     super().__init__(**attr)
+
+    def load(self):
+        '''Загрузка из файла-источника'''
+        with open(self.path, 'r') as file:
+            data = yaml.load(file, Loader=yaml.FullLoader)
+        self._data = pd.DataFrame.from_dict(data)
+        return self
+
+    def save(self):
+        '''Сохранение в файл-источник'''
+        yaml.save(self.get, self.path)
+        return self
+
+
+    def test(self):
+        '''Проверить корректность данных'''
+        return self.get
+
+
+
+
+
+
+class Environment(Feature):        # Это уже реализация!!!
     '''
     Базовая реализация модели окружения. 
     В нее входит ГДС, размещение подразделений, объектов, и т.д.
     '''
-    class DataVault: pass
-    spatial_data = DataVault()
-    data = DataVault()
 
-    def __init__(self, name: str = 'E_Base', path: str = '') -> None:
-        self.name=name
-        self.path=path
+    def __init__(self, name='E_Base', path='', **attr):
+        super().__init__(name, path, **attr)
 
-    def add_spatial_feature(self, spatial_feature: ISpatialFeature, **attr):
+    def add_spatial_feature(self, spatial_feature: SpatialFeature):
         '''
         Добавление пространственных данных
         
@@ -44,18 +198,17 @@ class Environment(IEnvironment, IFeature, ISpatialFeature):        # Это уж
             Ссылка на самого себя
         '''
 
-        if not isinstance(spatial_feature, IFeature):
+        if not isinstance(spatial_feature, SpatialFeature):
             raise TypeError("аргумент 'spatial_feature' должен \
-                            реализовывать интерфейс 'IFeature'!")
-        if not isinstance(spatial_feature, ISpatialFeature):
-            raise TypeError("аргумент 'spatial_feature' должен \
-                            реализовывать интерфейс 'ISpatialFeature'")
+                            наследовать классу 'SpatialFeature'!")
+        if spatial_feature.name=='':
+            raise NameError("Для аргумента 'spatial_feature' \
+                            не указано имя!")
 
-        # self.spatial_data[spatial_feature.name] = spatial_feature
-        setattr(self.spatial_data, spatial_feature.name, spatial_feature)
+        setattr(self, spatial_feature.name, spatial_feature)
         return self
 
-    def add_data(self, data: pd.DataFrame, **attr):
+    def add_data_frame(self, data: pd.DataFrame, **attr):
         '''
         Добавление непространственных данных
 
@@ -76,7 +229,7 @@ class Environment(IEnvironment, IFeature, ISpatialFeature):        # Это уж
         if data.name=='':
             raise NameError("Для аргумента 'data' \
                             не указано имя!")
-        setattr(self.data, data.name, data)
+        setattr(self, data.name, data)
         return self
 
     def frame(self, polygon: Polygon | MultiPolygon, feature_names:list=None, **attr):
@@ -94,105 +247,89 @@ class Environment(IEnvironment, IFeature, ISpatialFeature):        # Это уж
             указанных наборов. 
             Иначе для всех наборов пространственных данных.
         '''
+        pass
 
-    def load(self, **attr):
+    def load(self, data_list:list = None):
         '''Загрузка модели'''
+        if data_list is None:
+            props_list = self.__dict__
+        else:
+            props_list = data_list
 
-    def save(self, **attr):
+        for prop_name in props_list:
+            prop = getattr(self, prop_name)
+            if isinstance(prop, Feature):
+                prop.load()
+
+    def save(self, data_list:list = None):
         '''Сохранение модели'''
+        if data_list is None:
+            props_list = self.__dict__
+        else:
+            props_list = data_list
 
-    def test(self):
-        '''Проверить корректность модели'''
-
-    @property
-    def name(self):
-        '''Имя набора данных'''
-        return self._name
-    @name.setter
-    def name(self, name):
-        self._name=name
-
-    @property
-    def path(self):
-        '''Путь к файлу на диске'''
-        return self._path
-    @path.setter
-    def path(self, path):
-        self._path=path
-
-
-
-
-class Model(IModel):                    # Это уже реализация!!!
-    '''
-    Базовая реализация расчетной модели
-    '''
-
-
-class RoadNetworkGraph(nx.MultiDiGraph, IFeature, ISpatialFeature):
-    '''
-    Граф дорожной сети.
-    '''
-    def __init__(self, incoming_graph_data=None, multigraph_input=None, 
-                 name='RNG', path='data/rng.ml',
-                 **attr):
-        self.path=path
-        self.name=name
-        super().__init__(incoming_graph_data, multigraph_input, **attr)
-
-
-    def frame(self, polygon: Polygon, **attr):
-        return ox.truncate.truncate_graph_polygon(self, polygon, **attr)
-    
-    def load(self):
-        '''Загрузка из файла-источника'''
-        # self = RoadNetworkGraph(ox.load_graphml(self.path))
-        return RoadNetworkGraph(ox.load_graphml(self.path))
-
-    def save(self):
-        '''Сохранение в файл-источник'''
-        ox.save_graphml(self, self.path)
+        for prop_name in props_list:
+            prop = getattr(self, prop_name)
+            if isinstance(prop, Feature):
+                prop.save()
 
     def test(self):
         '''Проверить корректность данных'''
-        print(str(self))
 
 
     @property
-    def name(self):
-        '''Имя набора данных'''
-        return self._name
-    @name.setter
-    def name(self, name):
-        self._name=name
-
-    @property
-    def path(self):
-        '''Путь к файлу на диске'''
-        return self._path
-    @path.setter
-    def path(self, path):
-        self._path=path
+    def get(self, name):
+        val = getattr(self, name, None)
+        if val == None:
+            raise KeyError(f"Данные с именем '{name}' в модели окружения отсутствуют")
+        return val
 
 
 
-# class SpeedProfile(pd.DataFrame, IFeature, IDataFeature):
+    # @property
+    # def name(self):
+    #     '''Имя набора данных'''
+    #     return self._name
+    # @name.setter
+    # def name(self, name):
+    #     self._name=name
+
+    # @property
+    # def path(self):
+    #     '''Путь к файлу на диске'''
+    #     return self._path
+    # @path.setter
+    # def path(self, path):
+    #     self._path=path
+
+
+
+
+# class Model(IModel):                    # Это уже реализация!!!
 #     '''
-#     Профиль скоростей
+#     Базовая реализация расчетной модели
 #     '''
-#     def __init__(self, name='SP', path='data/speeds.yml',
+
+
+# class RoadNetworkGraph(nx.MultiDiGraph, IFeature, ISpatialFeature):
+#     '''
+#     Граф дорожной сети.
+#     '''
+#     def __init__(self, incoming_graph_data=None, multigraph_input=None, 
+#                  name='RNG', path='data/rng.ml',
 #                  **attr):
 #         self.path=path
 #         self.name=name
-#         super().__init__(**attr)
+#         super().__init__(incoming_graph_data, multigraph_input, **attr)
 
 
+#     def frame(self, polygon: Polygon, **attr):
+#         return ox.truncate.truncate_graph_polygon(self, polygon, **attr)
     
 #     def load(self):
 #         '''Загрузка из файла-источника'''
-#         with open(self.path, 'r') as file:
-#             data = yaml.load(file, Loader=yaml.FullLoader)
-#         pd.DataFrame.from_dict(data)
+#         # self = RoadNetworkGraph(ox.load_graphml(self.path))
+#         return RoadNetworkGraph(ox.load_graphml(self.path))
 
 #     def save(self):
 #         '''Сохранение в файл-источник'''
@@ -201,6 +338,27 @@ class RoadNetworkGraph(nx.MultiDiGraph, IFeature, ISpatialFeature):
 #     def test(self):
 #         '''Проверить корректность данных'''
 #         print(str(self))
+
+
+#     @property
+#     def name(self):
+#         '''Имя набора данных'''
+#         return self._name
+#     @name.setter
+#     def name(self, name):
+#         self._name=name
+
+#     @property
+#     def path(self):
+#         '''Путь к файлу на диске'''
+#         return self._path
+#     @path.setter
+#     def path(self, path):
+#         self._path=path
+
+
+
+
 
 
 #     @property

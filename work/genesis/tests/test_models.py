@@ -9,8 +9,8 @@ import osmnx as ox
 # import networkx as nx
 # import numpy as np
 
-from genesis.models import Environment, RoadNetworkGraph
-from genesis.interfaces import IFeature, ISpatialFeature
+from genesis.models import Feature, SpatialFeature, Environment, RoadNetworkGraph
+# from genesis.interfaces import IFeature, ISpatialFeature
 # from genesis.models import SpeedProfile
 
 @pytest.fixture()
@@ -25,8 +25,8 @@ class TestRNG():
     def test_RNG_creation(self, load_G):
         G = RoadNetworkGraph(load_G)
         assert isinstance(G, RoadNetworkGraph)
-        assert isinstance(G, IFeature)
-        assert isinstance(G, ISpatialFeature)
+        assert isinstance(G, SpatialFeature)
+        assert isinstance(G, Feature)
 
     def test_RNG_props(self, load_G):
         G = RoadNetworkGraph(load_G)
@@ -41,17 +41,15 @@ class TestRNG():
         assert 'data/new.ml'==G.path
 
     def test_RNG_load(self):
-        G = RoadNetworkGraph(path='tests/data/test_rng.ml')
-        G.load()
-        assert isinstance(G, RoadNetworkGraph)
-        assert G.number_of_nodes() > 100
+        RNG = RoadNetworkGraph(path='tests/data/test_rng.ml')
+        RNG.load()
+        assert RNG.get.number_of_nodes() > 100
 
     @pytest.fixture(scope="session")
     def ml_file(self, tmp_path_factory):
         g = ox.load_graphml("tests/data/test_rng.ml")
         tmp_path = tmp_path_factory.mktemp("tests") / "test_rng2.ml"
         G = RoadNetworkGraph(g, path=tmp_path)
-        # G.load()
         G.save()
         return tmp_path
 
@@ -60,10 +58,7 @@ class TestRNG():
         G.load()
         assert isinstance(G, RoadNetworkGraph)
 
-    # def test_RNG_load_real(self):
-    #     G = RoadNetworkGraph(path=ml_file)
-    #     G.load()
-    #     assert isinstance(G, RoadNetworkGraph)
+
 
 # === Тесты DataFeature
 
@@ -99,8 +94,31 @@ class TestEnvironment():
         E = Environment()
         G = RoadNetworkGraph(load_G)
         E.add_spatial_feature(G)
-        assert E.spatial_data.RNG.name == 'RNG'
-        # assert getattr(E.spatial_data, 'RNG').name == 'RNG'
+        assert E.RNG.name == 'RNG'
+
+    def test_environment_G_load(self):
+        E = Environment()
+        RNG = RoadNetworkGraph(path='tests/data/test_rng.ml')
+        E.add_spatial_feature(RNG)
+        E.load()
+        assert E.RNG.get.number_of_nodes()>0
+
+    @pytest.fixture(scope="session")
+    def env_file(self, tmp_path_factory):
+        g = ox.load_graphml("tests/data/test_rng.ml")
+        tmp_path = tmp_path_factory.mktemp("tests") / "test_rng2.ml"
+        RNG = RoadNetworkGraph(g, path=tmp_path)
+        E = Environment()
+        E.add_spatial_feature(RNG)
+        E.save()
+        return tmp_path
+
+    def test_RNG_load_tmp(self, env_file):
+        RNG = RoadNetworkGraph(path=env_file)
+        E = Environment()
+        E.add_spatial_feature(RNG)
+        E.load()
+        assert E.RNG.get.number_of_nodes()>0
 
 
 
