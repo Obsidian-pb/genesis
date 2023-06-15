@@ -13,6 +13,7 @@ from shapely.geometry import MultiPolygon, Polygon
 
 # from genesis.tools import kmh_to_mm
 from genesis.interfaces import IFeature, IEnvironment, ISpatialFeature, IModel, IDataFeature
+from genesis.tools import kmh_to_mm
 
 class Feature(object):
     '''
@@ -20,6 +21,7 @@ class Feature(object):
     '''
     _path=''
     _name=''
+    _data=None
 
     def __init__(self,
                  name='', path='',
@@ -28,17 +30,17 @@ class Feature(object):
         self.name=name
 
     @abstractmethod
-    def load(self):
+    def load(self, base_path='', **attr):
         '''Загрузка из файла-источника'''
 
     @abstractmethod
-    def save(self):
+    def save(self, base_path='', **attr):
         '''Сохранение в файл-источник'''
 
-    @property
-    @abstractmethod
-    def get(self):
-        '''Возвращает данные'''
+    # @property
+    # @abstractmethod
+    # def get(self):
+    #     '''Возвращает данные'''
 
     @abstractmethod
     def test(self):
@@ -62,6 +64,7 @@ class Feature(object):
 
     @property
     def get(self):
+        '''Вовзращает данные модели'''
         return self._data
 
 
@@ -74,10 +77,6 @@ class SpatialFeature(Feature):
                  name='', path='', **attr):
         self._data = spatial_data
         super().__init__(name, path, **attr)
-
-    # @property
-    # def get(self):
-    #     return self._data
 
     @abstractmethod
     def frame(self, polygon: Polygon | MultiPolygon, **attr):
@@ -100,7 +99,7 @@ class RoadNetworkGraph(SpatialFeature):
     '''
     Граф дорожной сети.
     '''
-    def __init__(self, spatial_data:nx.MultiDiGraph=None, name='RNG', path='data/rng.ml', **attr):
+    def __init__(self, spatial_data:nx.MultiDiGraph=None, name='RNG', path='rng.ml', **attr):
         super().__init__(spatial_data, name, path, **attr)
 
     def frame(self, polygon: Polygon, **attr):
@@ -111,9 +110,9 @@ class RoadNetworkGraph(SpatialFeature):
         self._data = ox.load_graphml(f'{base_path}{self.path}', **attr)
         return self
 
-    def save(self, base_path=''):
+    def save(self, base_path='', **attr):
         '''Сохранение в файл-источник'''
-        ox.save_graphml(self.get, f'{base_path}{self.path}')
+        ox.save_graphml(self.get, f'{base_path}{self.path}', **attr)
         return self
 
     def test(self):
@@ -154,42 +153,126 @@ class DataFeature(Feature):
         self._data = data
         super().__init__(name, path, **attr)
 
-    # @property
-    # def get(self):
-    #     return self._data
 
 
 class SpeedProfile(DataFeature):
     '''
     Профиль скоростей
     '''
-    def __init__(self, data: pd.DataFrame=None, name='SP', path='data/speeds.yml', **attr):
-        super().__init__(data, name, path, **attr)
-    # def __init__(self, name='SP', path='data/speeds.yml',
-    #              **attr):
-    #     self.path=path
-    #     self.name=name
-    #     super().__init__(**attr)
+    def __init__(self, data: dict=None, name='SP', path='speeds.yml', 
+                speeds:list=[40,30,25,10,5], **attr):
+        self.set_speeds(speeds)
+        self._name = name
+        self._path = path
+        # super().__init__(data, name, path, **attr)
 
-    def load(self):
+    def load(self, base_path='', **attr):
         '''Загрузка из файла-источника'''
-        with open(self.path, 'r') as file:
+        with open(f'{base_path}{self.path}', 'r', encoding='UTF-8') as file:
             data = yaml.load(file, Loader=yaml.FullLoader)
-        self._data = pd.DataFrame.from_dict(data)
+        # self._data = pd.DataFrame.from_dict(data)
+        self.set_speeds_dict(data)
+        # self._data = data
+        # self._speeds_mm = 
         return self
 
-    def save(self):
+    def save(self, base_path='', **attr):
         '''Сохранение в файл-источник'''
-        # yaml.   .save(self.get, self.path)
-        with open(self.path, 'w') as outfile:
-            yaml.dump(self.get.to_dict(), outfile, default_flow_style=False)
+        with open(f'{base_path}{self.path}', 'w', encoding='UTF-8') as outfile:
+            # yaml.dump(self.get.to_dict(), outfile, default_flow_style=False)
+            yaml.dump(self.get, outfile, default_flow_style=False)
         return self
-
 
     def test(self):
         '''Проверить корректность данных'''
+        print(pd.DataFrame.from_dict(self.get))
+        super().test()
         return self.get
 
+    def __getitem__(self, item):
+        speeds = self._speeds_mm
+        if item in speeds.keys():
+            return speeds[item]
+        else:
+            Warning(f"Объект {item} отсутствует в {self.name}!")
+            return None
+
+    def set_speeds_dict(self, speeds:dict):
+        '''
+        Устанавливает скорости движения для всех типов улиц,
+        переданных в соответствии с аргументом.
+
+        Важно! Скорость указывается только в км/ч
+
+        Аргументы
+        ---------
+
+        `speeds`:dict
+            Словарь скоростей движения по различным типам улиц.
+            В словаре ключ - наименование типа улицы,
+            значение - скорость движения по каждому из типов улиц
+        
+        Пример
+        ------
+        sp = SP()
+        sp.set_speeds_all(
+            {"motorway":40,
+                "trunk":35
+            }
+        )
+        '''
+        if not isinstance(speeds, dict):
+            raise TypeError("Аргумент speeds должен быть только типа dict!")
+
+        speeds_mm = {}
+        for k,v in speeds.items():
+            speeds_mm[k]=kmh_to_mm(v)
+        self._data = speeds
+        self._speeds_mm = speeds_mm
+
+    @property
+    def _def_highways(self):
+        '''Возвращает предопределенный список из 5 списков типов улиц
+
+        0 - наиболее крупные автомагистрали
+            ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
+            "primary_link", "secondary", "secondary_link"]
+
+        1 - остальные дороги: служебные проезды:, внутриквартальные,
+        въездные, парковочные
+            ["road", "unclassified", "tertiary", "tertiary_link"]
+        
+        2 - Жилые зоны и дворовые проезды
+            ["living_street", "service", "residential", "track"]
+
+        3 - Пешеходные дорожки, тротуары и прочие пригодные
+        для движения автомобилей
+            ["footway", "path", "pedestrian"]
+
+        4 - области не являющиеся дорогами, но теоретически пригодные
+        для перемещения пожарной техники
+            ["steps", "cycleway", "bridleway", "corridor"]
+
+        Более подробно о типах дорог можно прочесть здесь: 
+        '''
+        highways = [
+            ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
+            "primary_link", "secondary", "secondary_link"],
+            ["road", "unclassified", "tertiary", "tertiary_link"],
+            ["living_street", "service", "residential", "track"],
+            ["footway", "path", "pedestrian"],
+            ["steps", "cycleway", "bridleway", "corridor"]
+        ]
+        return highways
+
+    def set_speeds(self, speeds:list):    #=[40,30,25,10,5]):
+        '''-'''
+        highway_types = self._def_highways
+        highway_speeds = {}
+        for speed, highway_list in zip(speeds, highway_types):
+            for highway in highway_list:
+                highway_speeds[highway]=speed
+        self.set_speeds_dict(highway_speeds)
 
 
 

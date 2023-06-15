@@ -9,7 +9,7 @@ import osmnx as ox
 # import networkx as nx
 # import numpy as np
 
-from genesis.models import Feature, SpatialFeature, Environment, RoadNetworkGraph
+from genesis.models import Feature, SpatialFeature, Environment, RoadNetworkGraph, SpeedProfile
 # from genesis.interfaces import IFeature, ISpatialFeature
 # from genesis.models import SpeedProfile
 
@@ -39,7 +39,7 @@ class TestRNG():
     def test_RNG_props(self, load_G):
         G = RoadNetworkGraph(load_G)
         assert 'RNG'==G.name
-        assert 'data/rng.ml'==G.path
+        assert 'rng.ml'==G.path
 
     def test_RNG_props_set(self, load_G):
         G = RoadNetworkGraph(load_G)
@@ -102,14 +102,14 @@ class TestEnvironment():
         E = Environment()
         RNG = RoadNetworkGraph(load_G)
         E.add_spatial_feature(RNG)
-        assert E.RNG.name == 'RNG'
+        assert E['RNG'].name == 'RNG'
 
     def test_environment_G_load(self):
         E = Environment()
         RNG = RoadNetworkGraph(path='tests/data/test_rng.ml')
         E.add_spatial_feature(RNG)
         E.load()
-        assert E.RNG.get.number_of_nodes()>0
+        assert E['RNG'].get.number_of_nodes()>0
 
     @pytest.fixture(scope="session")
     def env_file(self, tmp_path_factory):
@@ -126,7 +126,7 @@ class TestEnvironment():
         E = Environment()
         E.add_spatial_feature(RNG)
         E.load()
-        assert E.RNG.get.number_of_nodes()>0
+        assert E['RNG'].get.number_of_nodes()>0
 
     def test_environment_get_G_by_name(self, load_E):
         E = load_E
@@ -135,11 +135,24 @@ class TestEnvironment():
         assert E.RNG.get.number_of_nodes()>0
 
 
-# # Тесты профиля скоростей
-# def test_SpeedProfile_creation():
-#     '''Тест создания SpeedProfile'''
-#     sp = SpeedProfile()
-#     assert isinstance(sp, SpeedProfile)
+# Тесты профиля скоростей
+class TestSP():
+    def test_speed_profile_creation(self):
+        '''Тест создания SpeedProfile'''
+        sp = SpeedProfile()
+        assert isinstance(sp, SpeedProfile)
+
+    def test_speed_profile_load(self):
+        '''Тест загрузки профиля скоростей'''
+        sp = SpeedProfile().load(base_path='tests/data/')
+        assert sp.get['primary'] == 30
+
+    def test_speed_profile_get_by_name(self):
+        '''Тест получения скорости для типа дорог'''
+        sp = SpeedProfile().load(base_path='tests/data/')
+        assert sp['trunk'] == round(40 * 1000 / 60, 2)
+        
+
 
 # def test_SpeedProfile_default():
 #     '''Тест создания SpeedProfile и указания значений по умолчанию'''

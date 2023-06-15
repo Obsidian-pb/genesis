@@ -1,4 +1,3 @@
-speeds:
-  trunk: 40
-  primary: 30
-  secondary: 20
+trunk: 40
+primary: 30
+secondary: 20
