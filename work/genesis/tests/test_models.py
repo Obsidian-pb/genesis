@@ -17,6 +17,14 @@ from genesis.models import Feature, SpatialFeature, Environment, RoadNetworkGrap
 def load_G():
     return ox.load_graphml("tests/data/test_rng.ml")
 
+@pytest.fixture()
+def load_E():
+    E = Environment()
+    RNG = RoadNetworkGraph(path="tests/data/test_rng.ml")
+    E.add_spatial_feature(RNG)
+    E.load()
+    return E
+
 # === Тесты RoadNetworkGraph
 class TestRNG():
     '''
@@ -86,14 +94,14 @@ class TestEnvironment():
 
     def test_environment_G_addition_correct(self, load_G):
         E = Environment()
-        G = RoadNetworkGraph(load_G)
-        E.add_spatial_feature(G)
+        RNG = RoadNetworkGraph(load_G)
+        E.add_spatial_feature(RNG)
         assert isinstance(E, Environment)
 
     def test_environment_G_addition_name(self, load_G):
         E = Environment()
-        G = RoadNetworkGraph(load_G)
-        E.add_spatial_feature(G)
+        RNG = RoadNetworkGraph(load_G)
+        E.add_spatial_feature(RNG)
         assert E.RNG.name == 'RNG'
 
     def test_environment_G_load(self):
@@ -120,6 +128,11 @@ class TestEnvironment():
         E.load()
         assert E.RNG.get.number_of_nodes()>0
 
+    def test_environment_get_G_by_name(self, load_E):
+        E = load_E
+        assert isinstance(E['RNG'], RoadNetworkGraph)
+        assert isinstance(E.RNG, RoadNetworkGraph)
+        assert E.RNG.get.number_of_nodes()>0
 
 
 # # Тесты профиля скоростей

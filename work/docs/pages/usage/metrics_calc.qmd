@@ -68,7 +68,7 @@ def calc_metric(E:Environment,
 
 ## Примеры расчета
 
-Создание модели окружения на основе некоторого ГДС `G`:
+Создание модели окружения на основе некоторого ГДС `RNG`:
 
 ```{.python}
 from genesis.calculators import Metrics
@@ -76,13 +76,16 @@ from genesis.swiss_knife import ssfpl
 from genesis.models import Environment
 import numpy as np
 
-E = Environment(G)
+E = Environment()
+RNG = RoadNetworkGraph(spatial_data=G)
+E.add_spatial_feature(RNG)
+E.load()
 ```
 
 :::{.callout-important}
 # Важно
 
-ГДС `G` должен быть предварительно подвергнут расчету времени следования для ребер. См. [[gds.qmd]]. После расчета для ребер ГДС будет добавлен атрибут `travel_time`, содержащий время следования.
+ГДС `G` передаваемый `RoadNetworkGraph` должен быть подвергнут расчету времени следования для ребер. См. [[gds.qmd]]. После расчета для ребер ГДС будет добавлен атрибут `travel_time`, содержащий время следования.
 
 В случае, если по каким либо причинам требуется при расчете использовать в качестве веса ребер значения из поля с отличным от `travel_time` названием, его можно указать явным образом при вызове функции `calc_metric(..., weight='имя поля')`.
 :::
@@ -123,10 +126,10 @@ def I_calc_metric(E:Environment, **kwargs): float
 
 ```{.python}
 def calc_metric(E:Environment, 
-                    node:int, 
-                    **kwargs):
+                node:int, 
+                **kwargs):
     route_lens = nx.single_source_dijkstra_path_length(
-        E.G, node, weight='length'
+        E.RNG.get, node, weight='length'
         )
     less_1000 = [1 if d<1000 else 0 for d in route_lens.values()]
     return round(sum(less_1000)/len(less_1000), 2)

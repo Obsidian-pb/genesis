@@ -60,6 +60,10 @@ class Feature(object):
     def path(self, path):
         self._path=path
 
+    @property
+    def get(self):
+        return self._data
+
 
 class SpatialFeature(Feature):
     '''
@@ -71,9 +75,9 @@ class SpatialFeature(Feature):
         self._data = spatial_data
         super().__init__(name, path, **attr)
 
-    @property
-    def get(self):
-        return self._data
+    # @property
+    # def get(self):
+    #     return self._data
 
     @abstractmethod
     def frame(self, polygon: Polygon | MultiPolygon, **attr):
@@ -116,6 +120,25 @@ class RoadNetworkGraph(SpatialFeature):
         '''Проверить корректность данных'''
         print(str(self._data))
 
+    def nodes(self, **attr):
+        '''
+        Узлы графа дорожной сети
+        '''
+        return self.get.nodes(**attr)
+
+
+    @property
+    def G(self):
+        '''
+        Исходный ГДС
+
+        Возвращает
+        ----------
+        `nx.MultiDiGraph`
+        '''
+        return self.get
+
+
 
 
 
@@ -131,9 +154,9 @@ class DataFeature(Feature):
         self._data = data
         super().__init__(name, path, **attr)
 
-    @property
-    def get(self):
-        return self._data
+    # @property
+    # def get(self):
+    #     return self._data
 
 
 class SpeedProfile(DataFeature):
@@ -157,7 +180,9 @@ class SpeedProfile(DataFeature):
 
     def save(self):
         '''Сохранение в файл-источник'''
-        yaml.save(self.get, self.path)
+        # yaml.   .save(self.get, self.path)
+        with open(self.path, 'w') as outfile:
+            yaml.dump(self.get.to_dict(), outfile, default_flow_style=False)
         return self
 
 
@@ -276,6 +301,12 @@ class Environment(Feature):        # Это уже реализация!!!
     def test(self):
         '''Проверить корректность данных'''
 
+    def __getitem__(self, item):
+        if item in self.__dict__.keys():
+            return self.__dict__[item]
+        else:
+            Warning(f"Объект {item} отсутствует в {self.name}!")
+            return None
 
     @property
     def get(self, name):

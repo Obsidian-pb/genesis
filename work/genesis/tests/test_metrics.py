@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-# from genesis.models import Environment
+from genesis.models import Environment, RoadNetworkGraph
 from genesis.calculators import Metrics
 from genesis.swiss_knife import ssfpl
 
@@ -72,11 +72,12 @@ def create_G():
     return G
 
 def test_calc_max(load_G):
-    G = load_G
-    start_node = list(G.nodes())[2000]
+    E = Environment()
+    E.add_spatial_feature(RoadNetworkGraph(load_G))
+    start_node = list(E.RNG.nodes())[2000]
 
     max_time_t = 27.88
-    max_time = Metrics.calc_metric(G,
+    max_time = Metrics.calc_metric(E,
                                    start_node,
                                    path_function=ssfpl,
                                    metric_function=np.max,
@@ -84,11 +85,12 @@ def test_calc_max(load_G):
     assert max_time_t==max_time
 
 def test_calc_mean(load_G):
-    G = load_G
-    start_node = list(G.nodes())[2000]
+    E = Environment()
+    E.add_spatial_feature(RoadNetworkGraph(load_G))
+    start_node = list(E.RNG.nodes())[2000]
 
     mean_time_t = 16.32
-    mean_time = Metrics.calc_metric(G,
+    mean_time = Metrics.calc_metric(E,
                                    start_node,
                                    path_function=ssfpl,
                                    metric_function=np.mean,
@@ -96,11 +98,12 @@ def test_calc_mean(load_G):
     assert mean_time_t==mean_time
 
 def test_calc_median(load_G):
-    G = load_G
-    start_node = list(G.nodes())[2000]
+    E = Environment()
+    E.add_spatial_feature(RoadNetworkGraph(load_G))
+    start_node = list(E.RNG.nodes())[2000]
 
     median_time_t = 17.11
-    median_time = Metrics.calc_metric(G, 
+    median_time = Metrics.calc_metric(E, 
                                    start_node, 
                                    path_function=ssfpl,
                                    metric_function=np.median,
@@ -129,10 +132,11 @@ def test_calc_ip_zero_len():
     assert ip == 0
 
 def test_calc_ip10(load_G):
-    G = load_G
-    start_node = list(G.nodes())[2000]
+    E = Environment()
+    E.add_spatial_feature(RoadNetworkGraph(load_G))
+    start_node = list(E.RNG.nodes())[2000]
     ip_real = 11.26
-    ip_test = Metrics.calc_metric(G, 
+    ip_test = Metrics.calc_metric(E, 
                                    start_node, 
                                    path_function=ssfpl,
                                    metric_function=Metrics.calc_ip(),
@@ -140,10 +144,11 @@ def test_calc_ip10(load_G):
     assert ip_real==ip_test
 
 def test_calc_ip20(load_G):
-    G = load_G
-    start_node = list(G.nodes())[2000]
+    E = Environment()
+    E.add_spatial_feature(RoadNetworkGraph(load_G))
+    start_node = list(E.RNG.nodes())[2000]
     ip_real = 74.04
-    ip_test = Metrics.calc_metric(G, 
+    ip_test = Metrics.calc_metric(E, 
                                    start_node, 
                                    path_function=ssfpl,
                                    metric_function=Metrics.calc_ip(ip_val=20),
@@ -158,7 +163,7 @@ def test_calc_ip20(load_G):
 #  'ip20': 74.04}
 
 def test_calc_base_overload(load_G):
-    def calc_metric(G:nx.MultiDiGraph, 
+    def calc_metric(E:Environment, 
                     node:int, 
                     # path_function, 
                     # metric_function, 
@@ -166,14 +171,15 @@ def test_calc_base_overload(load_G):
                     # precision: int = 2,
                     **kwargs):
         route_lens = nx.single_source_dijkstra_path_length(
-            G, node, weight='length'
+            E.RNG.get, node, weight='length'
             )
         less_1000 = [1 if d<1000 else 0 for d in route_lens.values()]
         return round(sum(less_1000)/len(less_1000), 2)
 
-    G = load_G
-    start_node = list(G.nodes())[2000]
-    assert calc_metric(G, start_node)==0.05
+    E = Environment()
+    E.add_spatial_feature(RoadNetworkGraph(load_G))
+    start_node = list(E.RNG.nodes())[2000]
+    assert calc_metric(E, start_node)==0.05
 
 def test_calc_simple_overload(load_G):
     def calc_ip_15(route_times:pd.Series):
@@ -185,8 +191,9 @@ def test_calc_simple_overload(load_G):
         return round(100*ip_15_len/tot_len, 2)
 
     # Применение:
-    G = load_G
-    start_node = list(G.nodes())[2000]
-    metric_value = Metrics.calc_metric(G, node=start_node, path_function=ssfpl,
+    E = Environment()
+    E.add_spatial_feature(RoadNetworkGraph(load_G))
+    start_node = list(E.RNG.nodes())[2000]
+    metric_value = Metrics.calc_metric(E, node=start_node, path_function=ssfpl,
         metric_function=calc_ip_15)
     assert metric_value==34.01
