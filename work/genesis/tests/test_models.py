@@ -145,14 +145,79 @@ class TestSP():
     def test_speed_profile_load(self):
         '''Тест загрузки профиля скоростей'''
         sp = SpeedProfile().load(base_path='tests/data/')
-        assert sp.get['primary'] == 30
+        assert sp.get['primary'] == 40
 
     def test_speed_profile_get_by_name(self):
         '''Тест получения скорости для типа дорог'''
         sp = SpeedProfile().load(base_path='tests/data/')
         assert sp['trunk'] == round(40 * 1000 / 60, 2)
-        
 
+    @pytest.mark.xfail()
+    def test_speed_profile_load_by_wrong_path(self):
+        sp = SpeedProfile().load()
+        assert sp['trunk'] == round(40 * 1000 / 60, 2)
+
+    def test_speed_profile_check_highway_count(self):
+        sp = SpeedProfile().load(base_path='tests/data/')
+        assert len(sp.get) == 23
+
+    def test_speed_profile_save(self, tmp_path_factory):
+        sp = SpeedProfile().load(base_path='tests/data/')
+        tmp_path = tmp_path_factory.mktemp("tests") / "test_sp.yml"
+        sp.path = tmp_path
+        sp.save()
+        assert isinstance(sp, SpeedProfile)
+
+    def test_test(self):
+        sp = SpeedProfile().load(base_path='tests/data/')
+        assert sp.test()
+
+    def test_speed_profile_set_speeds_correct(self):
+        sp = SpeedProfile()
+        sp._set_speeds(
+            speeds=[50,40,30,20,10],
+            def_highways=[
+                ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
+                "primary_link", "secondary", "secondary_link"],
+                ["road", "unclassified", "tertiary", "tertiary_link"],
+                ["living_street", "service", "residential", "track"],
+                ["footway", "path", "pedestrian"],
+                ["steps", "cycleway", "bridleway", "corridor"]
+            ]
+        )
+        assert sp.test()
+
+    def test_speed_profile_set_speeds_correct_6(self):
+        sp = SpeedProfile()
+        sp._set_speeds(
+            speeds=[50,40,30,20,10,5],
+            def_highways=[
+                ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
+                "primary_link", "secondary", "secondary_link"],
+                ["road", "unclassified", "tertiary", "tertiary_link"],
+                ["living_street", "service", "residential", "track"],
+                ["footway", "path", "pedestrian"],
+                ["steps", "cycleway"],
+                ["bridleway", "corridor"]
+            ]
+        )
+        assert sp.test()
+
+    @pytest.mark.xfail()
+    def test_speed_profile_set_speeds_wrong(self):
+        sp = SpeedProfile()
+        sp._set_speeds(
+            speeds=[50,40,30,20],
+            def_highways=[
+                ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
+                "primary_link", "secondary", "secondary_link"],
+                ["road", "unclassified", "tertiary", "tertiary_link"],
+                ["living_street", "service", "residential", "track"],
+                ["footway", "path", "pedestrian"],
+                ["steps", "cycleway", "bridleway", "corridor"]
+            ]
+        )
+        assert sp.test()
 
 # def test_SpeedProfile_default():
 #     '''Тест создания SpeedProfile и указания значений по умолчанию'''

@@ -12,3 +12,4 @@ work/documentation/*
 *.DS_Store
 
 *__pycache__*
+/.luarc.json

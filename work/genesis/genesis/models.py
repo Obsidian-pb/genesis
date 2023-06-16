@@ -161,35 +161,42 @@ class SpeedProfile(DataFeature):
     '''
     def __init__(self, data: dict=None, name='SP', path='speeds.yml', 
                 speeds:list=[40,30,25,10,5], **attr):
-        self.set_speeds(speeds)
+        self._speeds_mm = {}
         self._name = name
         self._path = path
+        self._set_speeds(speeds)
         # super().__init__(data, name, path, **attr)
 
     def load(self, base_path='', **attr):
         '''Загрузка из файла-источника'''
-        with open(f'{base_path}{self.path}', 'r', encoding='UTF-8') as file:
-            data = yaml.load(file, Loader=yaml.FullLoader)
-        # self._data = pd.DataFrame.from_dict(data)
-        self.set_speeds_dict(data)
-        # self._data = data
-        # self._speeds_mm = 
+        try:
+            with open(f'{base_path}{self.path}', 'r', encoding='UTF-8') as file:
+                data = yaml.load(file, Loader=yaml.FullLoader)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"Файл {base_path}{self.path} не существует!") from exc
+        self._set_speeds_dict(data)
         return self
 
     def save(self, base_path='', **attr):
         '''Сохранение в файл-источник'''
         with open(f'{base_path}{self.path}', 'w', encoding='UTF-8') as outfile:
-            # yaml.dump(self.get.to_dict(), outfile, default_flow_style=False)
-            yaml.dump(self.get, outfile, default_flow_style=False)
+            yaml.dump(self.get, 
+                      outfile,
+                      sort_keys=False, 
+                      default_flow_style=False)
         return self
 
     def test(self):
         '''Проверить корректность данных'''
-        print(pd.DataFrame.from_dict(self.get))
-        super().test()
-        return self.get
+        try:
+            print(pd.DataFrame({'speeds':self.get}))
+            super().test()
+            return True
+        except:
+            return False
 
     def __getitem__(self, item):
+        '''Получение значения скорости по наименованию дороги из словаря'''
         speeds = self._speeds_mm
         if item in speeds.keys():
             return speeds[item]
@@ -197,12 +204,12 @@ class SpeedProfile(DataFeature):
             Warning(f"Объект {item} отсутствует в {self.name}!")
             return None
 
-    def set_speeds_dict(self, speeds:dict):
+    def _set_speeds_dict(self, speeds:dict):
         '''
         Устанавливает скорости движения для всех типов улиц,
         переданных в соответствии с аргументом.
 
-        Важно! Скорость указывается только в км/ч
+        Важно! Скорость указывается строго в км/ч
 
         Аргументы
         ---------
@@ -214,12 +221,14 @@ class SpeedProfile(DataFeature):
         
         Пример
         ------
+        ```
         sp = SP()
-        sp.set_speeds_all(
+        sp.set_speeds_dict(
             {"motorway":40,
                 "trunk":35
             }
         )
+        ```
         '''
         if not isinstance(speeds, dict):
             raise TypeError("Аргумент speeds должен быть только типа dict!")
@@ -265,15 +274,34 @@ class SpeedProfile(DataFeature):
         ]
         return highways
 
-    def set_speeds(self, speeds:list):    #=[40,30,25,10,5]):
+    def _set_speeds(self, speeds:list, def_highways:list[list]=None):
         '''-'''
-        highway_types = self._def_highways
+        if def_highways is None:
+            highway_types = self._def_highways
+        else:
+            if not len(speeds) == len(def_highways):
+                raise ValueError(f"Количество элементов \
+                                 в списках 'speeds' и \
+                                 'def_highways' должно совпадать!")
+            highway_types = def_highways
         highway_speeds = {}
         for speed, highway_list in zip(speeds, highway_types):
             for highway in highway_list:
                 highway_speeds[highway]=speed
-        self.set_speeds_dict(highway_speeds)
+        self._set_speeds_dict(highway_speeds)
 
+    @property
+    def get(self):
+        '''Словарь скоростей движения для разных типов дорог
+
+        СТРОГО В КМ/Ч!
+        
+        Для получения значений в м/мин, следует воспользоваться
+        ```
+        SP['имя дороги']
+        ```
+        '''
+        return super().get
 
 
 
