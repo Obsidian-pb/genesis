@@ -66,6 +66,15 @@ class Feature(object):
     def get(self):
         '''Вовзращает данные модели'''
         return self._data
+    
+    @property
+    def version(self):
+        '''Версия реализации модели.
+        Рекомендуется указывать в формате `*.*.*`
+        Рекомендуется указывать только для рабочих
+        реализаций классов - например, для `RoadNetworkGraph`,
+        но не для `SpatialFeature`'''
+        return 'Для данной реализации версия не указана'
 
 
 class SpatialFeature(Feature):
@@ -118,6 +127,7 @@ class RoadNetworkGraph(SpatialFeature):
     def test(self):
         '''Проверить корректность данных'''
         print(str(self._data))
+        return True
 
     def nodes(self, **attr):
         '''
@@ -137,7 +147,9 @@ class RoadNetworkGraph(SpatialFeature):
         '''
         return self.get
 
-
+    @property
+    def version(self):
+        return '0.0.1'
 
 
 
@@ -159,13 +171,18 @@ class SpeedProfile(DataFeature):
     '''
     Профиль скоростей
     '''
-    def __init__(self, data: dict=None, name='SP', path='speeds.yml', 
+    def __init__(self, data: dict=None, name='SP', path='speeds.yml',
                 speeds:list=[40,30,25,10,5], **attr):
         self._speeds_mm = {}
         self._name = name
         self._path = path
-        self._set_speeds(speeds)
-        # super().__init__(data, name, path, **attr)
+        if data is None:
+            self._set_speeds(speeds)
+        else:
+            if not isinstance(data, dict):
+                raise TypeError("Аргумент data должен быть только типа dict!")
+            self._set_speeds_dict(data)
+
 
     def load(self, base_path='', **attr):
         '''Загрузка из файла-источника'''
@@ -192,7 +209,8 @@ class SpeedProfile(DataFeature):
             print(pd.DataFrame({'speeds':self.get}))
             super().test()
             return True
-        except:
+        except Exception as e:
+            print(e)
             return False
 
     def __getitem__(self, item):
@@ -219,6 +237,12 @@ class SpeedProfile(DataFeature):
             В словаре ключ - наименование типа улицы,
             значение - скорость движения по каждому из типов улиц
         
+        Важно!
+        ------
+        Все типы дорог не указанные в `speeds` сохранят
+        прежние значения (преднастроенные или 
+        указанные при создании объекта)
+
         Пример
         ------
         ```
@@ -241,7 +265,11 @@ class SpeedProfile(DataFeature):
 
     @property
     def _def_highways(self):
-        '''Возвращает предопределенный список из 5 списков типов улиц
+        '''Предопределенный список из 5 списков типов улиц.
+
+        Не может быть переопределен прямым обращением:
+
+        `sp._def_highways = list   #Так не работает!`
 
         0 - наиболее крупные автомагистрали
             ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
@@ -267,20 +295,67 @@ class SpeedProfile(DataFeature):
         highways = [
             ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
             "primary_link", "secondary", "secondary_link"],
+
             ["road", "unclassified", "tertiary", "tertiary_link"],
+
             ["living_street", "service", "residential", "track"],
+
             ["footway", "path", "pedestrian"],
+
             ["steps", "cycleway", "bridleway", "corridor"]
         ]
         return highways
 
     def _set_speeds(self, speeds:list, def_highways:list[list]=None):
-        '''-'''
+        '''Установка скоростей движения (км/ч)
+        
+        Аргументы
+        ---------
+        `speeds`:list
+            Список скоростей в км/ч.
+            Если указывается единственным аргументом,
+            То должен состоять из 5 элементов (по количеству
+            преднастроенных типов дорог -- см. `_def_highways`).
+        `def_highways`:list[list]=None
+            Список типов улиц для их переопределения.
+            Заменяет значения
+            Если указывается, то должен иметь длину равную длине
+            `speeds`.
+
+        Примеры
+        -------
+        Установка скоростей движения для 5 
+        преднастроенных в SP групп дорог
+        ```
+        sp = SpeedProfile()
+        sp._set_speeds(
+            speeds = [60, 50, 35, 15, 2]
+        )
+        ```
+
+        Установка скоростей для переопределенного списка из 6 групп дорог
+        ```
+        sp = SpeedProfile()
+        sp._set_speeds(
+            speeds=[50,40,30,20,10,5],
+            def_highways=[
+                ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
+                "primary_link", "secondary", "secondary_link"],
+                ["road", "unclassified", "tertiary", "tertiary_link"],
+                ["living_street", "service", "residential", "track"],
+                ["footway", "path", "pedestrian"],
+                ["steps", "cycleway"],
+                ["bridleway", "corridor"]
+            ]
+        )
+        ```
+
+        '''
         if def_highways is None:
             highway_types = self._def_highways
         else:
             if not len(speeds) == len(def_highways):
-                raise ValueError(f"Количество элементов \
+                raise ValueError("Количество элементов \
                                  в списках 'speeds' и \
                                  'def_highways' должно совпадать!")
             highway_types = def_highways
@@ -301,7 +376,11 @@ class SpeedProfile(DataFeature):
         SP['имя дороги']
         ```
         '''
-        return super().get
+        return dict(super().get)
+    
+    @property
+    def version(self):
+        return '0.0.1'
 
 
 
@@ -344,14 +423,14 @@ class Environment(Feature):        # Это уже реализация!!!
         setattr(self, spatial_feature.name, spatial_feature)
         return self
 
-    def add_data_frame(self, data: pd.DataFrame, **attr):
+    def add_data_feature(self, data: DataFeature, **attr):
         '''
         Добавление непространственных данных
 
         Аргументы
         ---------
-        `data`: pd.DataFrame
-            Датафрайм данных
+        `data`: DataFeature
+            Данные
 
         Возвращает
         ----------
@@ -359,13 +438,30 @@ class Environment(Feature):        # Это уже реализация!!!
             Ссылка на самого себя
         '''
 
-        if not isinstance(data, pd.DataFrame):
+        if not isinstance(data, DataFeature):
             raise TypeError("Аргумент 'data' должен \
-                            иметь тип данных 'pd.DataFrame'!")
+                            иметь тип данных 'DataFeature'!")
         if data.name=='':
             raise NameError("Для аргумента 'data' \
                             не указано имя!")
         setattr(self, data.name, data)
+        return self
+    
+    def add_features(self, features_list:list):
+        '''Добавление списка данных модели
+        
+        Аргументы
+        ---------
+        `features_list`:list
+            Список моделей данных
+        '''
+        if not features_list:
+            Warning("Список данных пуст!")
+        for f in features_list:
+            if isinstance(f, DataFeature):
+                self.add_data_feature(f)
+            if isinstance(f, SpatialFeature):
+                self.add_spatial_feature(f)
         return self
 
     def frame(self, polygon: Polygon | MultiPolygon, feature_names:list=None, **attr):
@@ -383,34 +479,50 @@ class Environment(Feature):        # Это уже реализация!!!
             указанных наборов. 
             Иначе для всех наборов пространственных данных.
         '''
-        pass
+        raise Warning("Данный метод еще на реализован, но он должен быть!")
+        if feature_names is None:
+            props_list = self.__dict__
+        else:
+            props_list = feature_names
 
-    def load(self, data_list:list = None):
+        for prop_name in props_list:
+            prop = getattr(self, prop_name)
+            if isinstance(prop, SpatialFeature):
+                prop.frame(polygon)
+            
+
+    def load(self, feature_names:list = None):
         '''Загрузка модели'''
-        if data_list is None:
+        if feature_names is None:
             props_list = self.__dict__
         else:
-            props_list = data_list
+            props_list = feature_names
 
         for prop_name in props_list:
             prop = getattr(self, prop_name)
             if isinstance(prop, Feature):
-                prop.load()
+                prop.load(base_path=self.path)
 
-    def save(self, data_list:list = None):
+    def save(self, feature_names:list = None):
         '''Сохранение модели'''
-        if data_list is None:
+        if feature_names is None:
             props_list = self.__dict__
         else:
-            props_list = data_list
+            props_list = feature_names
 
         for prop_name in props_list:
             prop = getattr(self, prop_name)
             if isinstance(prop, Feature):
-                prop.save()
+                prop.save(base_path=self.path)
 
     def test(self):
         '''Проверить корректность данных'''
+        test_result=1
+        for item in self.__dict__.keys():
+            prop = self.__dict__[item]
+            if isinstance(prop, Feature):
+                test_result*=prop.test()
+        return bool(test_result)
 
     def __getitem__(self, item):
         if item in self.__dict__.keys():
@@ -420,11 +532,8 @@ class Environment(Feature):        # Это уже реализация!!!
             return None
 
     @property
-    def get(self, name):
-        val = getattr(self, name, None)
-        if val == None:
-            raise KeyError(f"Данные с именем '{name}' в модели окружения отсутствуют")
-        return val
+    def get(self):
+        return self.__dict__
 
 
 
