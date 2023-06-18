@@ -13,7 +13,7 @@ import yaml
 from shapely.geometry import MultiPolygon, Polygon
 
 # from genesis.tools import kmh_to_mm
-from genesis.interfaces import IFeature, IEnvironment, ISpatialFeature, IModel, IDataFeature
+# from genesis.interfaces import IFeature, IEnvironment, ISpatialFeature, IModel, IDataFeature
 from genesis.tools import kmh_to_mm
 
 class Feature(object):

@@ -3,8 +3,8 @@
 '''
 
 import networkx as nx
-from tools import kmh_to_mm
-from models import RoadNetworkGraph
+from genesis.tools import kmh_to_mm
+from genesis.models import RoadNetworkGraph, SpeedProfile
 # import osmnx as ox
 
 class Morphers_graph(object):
@@ -13,24 +13,27 @@ class Morphers_graph(object):
     '''
     @staticmethod
     def add_edge_travel_times(G:RoadNetworkGraph,
-                              speed_profile:dict,
+                              SP: SpeedProfile,
                               def_speed = 5):
         '''
         Добавляет параметр времени следования для всех ребер ГДС
         '''
-        speed_profile = {k: kmh_to_mm(v) for k,v in speed_profile.items()}
+        # speed_profile = {k: kmh_to_mm(v) for k,v in speed_profile.items()}
+
         for edge in G.edges:
             road = G.get_edge_data(*edge).get('highway')
             length = G.get_edge_data(*edge).get('length')
             try:
-                speed = speed_profile.get(road, def_speed)
+                # speed = speed_profile.get(road, def_speed)
+                speed = SP[road]
             except TypeError: # Тип дороги бывает списком, обычно ['residential', 'сервис']
                 if isinstance(road, list):
-                    speed = speed_profile.get(road, def_speed)
+                    # speed = speed_profile.get(road, def_speed)
+                    speed = SP[road]
                 else:
                     speed = def_speed
 
-        G.add_edge(*edge, travel_time=length/speed)
+            G.add_edge(*edge, travel_time=length/speed)
         
     @staticmethod
     def add_edge_speed_profile(G:RoadNetworkGraph,
