@@ -6,6 +6,7 @@ from abc import abstractmethod
 from typing import Any
 
 import pandas as pd
+import geopandas as gpd
 import networkx as nx
 import osmnx as ox
 import yaml
@@ -384,6 +385,81 @@ class SpeedProfile(DataFeature):
 
 
 
+class DislocationProfile(SpatialFeature):
+    '''
+    Профиль дислокации
+    '''
+ 
+    def __init__(self, spatial_data: gpd.GeoDataFrame=None,
+                 name='DP', 
+                 path='stations.gpkg', 
+                 layer_name='Подразделения',
+                 **attr):
+        self.layer_name = layer_name
+        super().__init__(spatial_data, name, path, **attr)
+
+
+    def load(self, base_path='', layer_name:str=None, **attr):
+        '''Загрузка из файла-источника'''
+        if layer_name is None:
+            layer_name = self.layer_name
+
+        try:
+            data = gpd.read_file(f'{base_path}{self.path}', **attr)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"Файл {base_path}{self.path} не существует!") from exc
+        data = data.set_index('name')
+        self._data = data
+        return self
+
+    def save(self, base_path='', **attr):
+        '''Сохранение в файл-источник'''
+        if layer_name is None:
+            layer_name = self.layer_name
+
+        self.get.to_file(f'{base_path}{self.path}', 
+                     driver="GPKG", 
+                     layer=layer_name, index=True)
+        return self
+
+    def frame(self, polygon: Polygon | MultiPolygon, **attr):
+        '''Реализовать!
+        '''
+        Warning("Метод frame класса DislocationProfile не реализован!")
+        return super().frame(polygon, **attr)
+
+    def test(self):
+        '''Проверить корректность данных'''
+        columns = [
+            'description', 'type', 'class'
+        ]
+        if self.get.index.name == 'name' and all([col in self.get.columns for col in columns]):
+            self.get.head()
+            return True
+        else:
+            print('Не все требуемые поля имеются в наборе данных!')
+            return False
+
+    def __getitem__(self, item:str):
+        '''Получение записи об одном из подразделений по его имени'''
+        if item in self.get.index:
+            return self.get.loc[item]
+        else:
+            Warning(f"Подразделение {item} отсутствует в профиле дислокации!")
+            return None
+
+    @property
+    def get(self):
+        '''GeoDataFrame территориальных подразделений
+        '''
+        return gpd.GeoDataFrame(super().get)
+    
+    @property
+    def version(self):
+        return '0.0.1'
+
+
+
 
 class Environment(Feature):        # Это уже реализация!!!
     '''
@@ -537,23 +613,6 @@ class Environment(Feature):        # Это уже реализация!!!
 
 
 
-    # @property
-    # def name(self):
-    #     '''Имя набора данных'''
-    #     return self._name
-    # @name.setter
-    # def name(self, name):
-    #     self._name=name
-
-    # @property
-    # def path(self):
-    #     '''Путь к файлу на диске'''
-    #     return self._path
-    # @path.setter
-    # def path(self, path):
-    #     self._path=path
-
-
 
 
 # class Model(IModel):                    # Это уже реализация!!!
@@ -561,224 +620,33 @@ class Environment(Feature):        # Это уже реализация!!!
 #     Базовая реализация расчетной модели
 #     '''
 
+class Computer(object):
 
-# class RoadNetworkGraph(nx.MultiDiGraph, IFeature, ISpatialFeature):
-#     '''
-#     Граф дорожной сети.
-#     '''
-#     def __init__(self, incoming_graph_data=None, multigraph_input=None, 
-#                  name='RNG', path='data/rng.ml',
-#                  **attr):
-#         self.path=path
-#         self.name=name
-#         super().__init__(incoming_graph_data, multigraph_input, **attr)
+    # Настройки модели компьютера
+    # ssfpl = nx.single_source_dijkstra_path_length
+    # msfpl = nx.multi_source_dijkstra_path_length
+    # delay_time = 1
 
+    def __init__(self, E:Environment, **kwargs):
+        self.environment = E
 
-#     def frame(self, polygon: Polygon, **attr):
-#         return ox.truncate.truncate_graph_polygon(self, polygon, **attr)
+    def set_settings(self, **kwargs):
+        '''Установка настроек модели компьютера
+        '''
+        for k,v in kwargs.items():
+            setattr(self, k, v)
+        # print(kwargs)
+        return self
+
+    @property
+    def environment(self):
+        return self.E
+
+    @environment.setter
+    def environment(self, E:Environment):
+        self.E = E
+        return self
     
-#     def load(self):
-#         '''Загрузка из файла-источника'''
-#         # self = RoadNetworkGraph(ox.load_graphml(self.path))
-#         return RoadNetworkGraph(ox.load_graphml(self.path))
-
-#     def save(self):
-#         '''Сохранение в файл-источник'''
-#         ox.save_graphml(self, self.path)
-
-#     def test(self):
-#         '''Проверить корректность данных'''
-#         print(str(self))
-
-
-#     @property
-#     def name(self):
-#         '''Имя набора данных'''
-#         return self._name
-#     @name.setter
-#     def name(self, name):
-#         self._name=name
-
-#     @property
-#     def path(self):
-#         '''Путь к файлу на диске'''
-#         return self._path
-#     @path.setter
-#     def path(self, path):
-#         self._path=path
-
-
-
-
-
-
-#     @property
-#     def name(self):
-#         '''Имя набора данных'''
-#         return self._name
-#     @name.setter
-#     def name(self, name):
-#         self._name=name
-
-#     @property
-#     def path(self):
-#         '''Путь к файлу на диске'''
-#         return self._path
-#     @path.setter
-#     def path(self, path):
-#         self._path=path
-
-
-
-
-
-
-
-# # Переделать
-# class SpeedProfile(object):
-#     '''
-#     Модель профиля скоростей движения техники по различным типам поверхностей
-#     '''
-
-#     def __init__(self, precision=2):
-#         self._sp = {}
-#         self.kmh_to_mm_precision = precision
-#         # первоначальная инициализация
-#         self.set_speeds_5([40,30,25,10,5])
-
-#     def set_speeds(self, speeds:dict):
-#         '''
-#         Устанавливает скорости движения для всех типов улиц,
-#         переданных в соответствии с аргументом.
-
-#         Важно! Скорость указывается только в км/ч
-
-#         Аргументы
-#         ---------
-
-#         `speeds`:dict
-#             Словарь скоростей движения по различным типам улиц.
-#             В словаре ключ - наименование типа улицы,
-#             значение - скорость движения по каждому из типов улиц
-        
-#         Пример
-#         ------
-#         sp = SP()
-#         sp.set_speeds_all(
-#             {"motorway":40,
-#                 "trunk":35
-#             }
-#         )
-#         '''
-#         if not isinstance(speeds, dict):
-#             raise TypeError("Аргумент speeds должен быть только типа dict!")
-
-#         for k,v in speeds.items():
-#             self._sp[k]=v
-
-#     def set_speeds_5(self, speeds:list):
-#         '''
-#         Устанавливает скорости движения для всех типов улиц,
-#         переданных в соответствии с аргументом. При этом типы дорог разбиты
-#         на 5 групп.
-
-#         Важно! Скорость указывается только в км/ч
-
-#         Аргументы
-#         ---------
-#         speeds: list
-#             Список 5 скоростей в км/ч
-
-#             1 - наиболее крупные автомагистрали
-#                 ["motorway", "motorway_link", "trunk", "trunk_link", "primary", 
-#                 "primary_link", "secondary", "secondary_link"]
-
-#             2 - остальные дороги: служебные проезды:, внутриквартальные,
-#             въездные, парковочные
-#                 ["road", "unclassified", "tertiary", "tertiary_link"]
-            
-#             3 - Жилые зоны и дворовые проезды
-#                 ["living_street", "service", "residential", "track"]
-
-#             4 - Пешеходные дорожки, тротуары и прочие пригодные
-#             для движения автомобилей
-#                 ["footway", "path", "pedestrian"]
-
-#             5 - области не являющиеся дорогами, но теоретически пригодные
-#             для перемещения пожарной техники
-#                 ["steps", "cycleway", "bridleway", "corridor"]
-
-#             Более подробно о типах дорог можно прочесть здесь: 
-#         '''
-#         if not isinstance(speeds, list):
-#             raise TypeError("Аргумент speeds должен быть только типа list!")
-#         if len(speeds)!=5:
-#             raise ValueError('Список скоростей должен состоять строго из 5 значений!')
-
-#         s_1, s_2, s_3, s_4, s_5 = speeds
-#         speeds_dict = {
-#             # Автомагистрали
-#             "motorway":       s_1,
-#             "motorway_link":  s_1,
-#             # Важные дороги, не являющиеся автомагистралями
-#             "trunk":          s_1,
-#             "trunk_link":     s_1,
-#             # Автомобильные дороги регионального значения
-#             "primary":        s_1,
-#             "primary_link":   s_1,
-#             # Автомобильные дороги областного значения
-#             "secondary":      s_1,
-#             "secondary_link": s_1,
-
-#             # Более важные автомобильные дороги среди прочих
-#             # автомобильных дорог местного значения
-#             "tertiary":       s_2,
-#             "tertiary_link":  s_2,
-#             # Линии, возможно, являющиеся дорогами. Временный тег,
-#             # которым следует помечать линии до уточнения.
-#             "road":           s_2,
-#             # Остальные автомобильные дороги местного значения,
-#             # образующие соединительную сеть дорог.
-#             "unclassified":   s_2,
-
-#             # Служебные проезды: внутриквартальные, въездные, парковочные и т.д.
-#             "service":        s_3,
-#             # Дороги, которые проходят внутри жилых зон, а также используются
-#             # для подъезда к ним
-#             "residential":    s_3,
-#             # Жилые зоны и дворовые проезды
-#             "living_street":  s_3,
-#             # Дороги сельскохозяйственного назначения, лесные дороги,
-#             # не ведущие к жилым или промышленным объектам,
-#             # неофициальные грунтовки, козьи тропы
-#             "track":          s_3,           
-
-#             # Пешеходные дорожки, тротуары.
-#             "footway":        s_4,           
-#             # Тропа (чаще всего, стихийная) использующаяся пешеходами,
-#             # либо одним или несколькими видами транспорта,
-#             # кроме четырехколесного (лыжи, снегоход, велосипед).
-#             "path":           s_4,
-#             # Для обозначения улиц городов (такого же класса как residential),
-#             # выделенных для пешеходов.
-#             "pedestrian":     s_4,
-
-#             # Лестницы, лестничные пролёты
-#             "steps":          s_5,
-#             # Велодорожка, обозначенная соответствующим дорожным знаком
-#             "cycleway":       s_5,
-#             # Дорожки для верховой езды.
-#             "bridleway":      s_5,
-#             # Коридоры внутри крупных зданий
-#             "corridor":       s_5,
-#         }
-#         self.set_speeds(speeds_dict)
-
-#     @property
-#     def sp(self):
-#         '''
-#         Текущий профиль скоростей
-#         '''
-#         return {k: kmh_to_mm(v, precision=self.kmh_to_mm_precision) for k,v in self._sp.items()}
-
-
+    def execute(self):
+        # Здесь описывается последовательность выполняемых действий
+        return self

@@ -6,10 +6,17 @@ pytest tests/test_models.py
 import pytest
 
 import osmnx as ox
+import geopandas as gpd
 # import networkx as nx
 # import numpy as np
 
-from genesis.models import Feature, SpatialFeature, Environment, RoadNetworkGraph, SpeedProfile
+from genesis.models import Feature
+from genesis.models import SpatialFeature
+from genesis.models import Environment
+from genesis.models import RoadNetworkGraph
+from genesis.models import SpeedProfile
+from genesis.models import DislocationProfile
+
 from genesis.tools import kmh_to_mm
 # from genesis.interfaces import IFeature, ISpatialFeature
 # from genesis.models import SpeedProfile
@@ -312,10 +319,28 @@ class TestSP():
 
 
 
-# === Тесты StationsState
- 
+# === Тесты DislocationProfile
+class TestDislocationProfile():
+    def test_dp_creation(self):
+        DP = DislocationProfile()
+        assert isinstance(DP, DislocationProfile)
 
+    def test_dp_creation_by_geodataframe(self):
+        gdf = gpd.read_file('tests/data/stations.gpkg')
+        DP = DislocationProfile(gdf)
+        assert isinstance(DP.get, gpd.GeoDataFrame)
+        assert len(DP.get)==2
+        # assert DP.test()
 
+    def test_dp_load_from_file(self):
+        DP = DislocationProfile().load(base_path='tests/data/')
+        assert len(DP.get)==2
+
+    def test_dp_get_station_by_name(self):
+        DP = DislocationProfile().load(base_path='tests/data/')
+        station_name = 'ПСЧ-1'
+        assert DP.get.loc[station_name, 'type']=='ФПС'
+        assert DP[station_name]['type'] == 'ФПС'
 
 
 
