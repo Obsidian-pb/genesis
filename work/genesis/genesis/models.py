@@ -427,18 +427,7 @@ class DislocationProfile(SpatialFeature):
         '''
         Warning("Метод frame класса DislocationProfile не реализован!")
         return super().frame(polygon, **attr)
-
-    def test(self):
-        '''Проверить корректность данных'''
-        columns = [
-            'description', 'type', 'class'
-        ]
-        if self.get.index.name == 'name' and all([col in self.get.columns for col in columns]):
-            self.get.head()
-            return True
-        else:
-            print('Не все требуемые поля имеются в наборе данных!')
-            return False
+    
 
     def __getitem__(self, item:str):
         '''Получение записи об одном из подразделений по его имени'''
@@ -457,6 +446,21 @@ class DislocationProfile(SpatialFeature):
     @property
     def version(self):
         return '0.0.1'
+
+    def test(self):
+        '''Проверить корректность данных'''
+        if not self.get.index.name == 'name':
+            print("Индекс данных не установлен или имеет имя отличное от 'name")
+            return False
+
+        columns = [
+            'description', 'type', 'class'
+        ]
+        if not all([col in self.get.columns for col in columns]):
+            print('Не все требуемые поля имеются в наборе данных!')
+            return False
+        self.get.head()
+        return True
 
 
 
@@ -578,6 +582,7 @@ class Environment(Feature):        # Это уже реализация!!!
             prop = getattr(self, prop_name)
             if isinstance(prop, Feature):
                 prop.load(base_path=self.path)
+        return self
 
     def save(self, feature_names:list = None):
         '''Сохранение модели'''
@@ -590,6 +595,7 @@ class Environment(Feature):        # Это уже реализация!!!
             prop = getattr(self, prop_name)
             if isinstance(prop, Feature):
                 prop.save(base_path=self.path)
+        return self
 
     def test(self):
         '''Проверить корректность данных'''
@@ -635,7 +641,6 @@ class Computer(object):
         '''
         for k,v in kwargs.items():
             setattr(self, k, v)
-        # print(kwargs)
         return self
 
     @property
@@ -647,6 +652,7 @@ class Computer(object):
         self.E = E
         return self
     
+    @abstractmethod
     def execute(self):
         # Здесь описывается последовательность выполняемых действий
         return self
