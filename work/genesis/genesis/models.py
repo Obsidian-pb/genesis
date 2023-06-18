@@ -621,10 +621,7 @@ class Environment(Feature):        # Это уже реализация!!!
 
 
 
-# class Model(IModel):                    # Это уже реализация!!!
-#     '''
-#     Базовая реализация расчетной модели
-#     '''
+
 
 class Computer(object):
 
