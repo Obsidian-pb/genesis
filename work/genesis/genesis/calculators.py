@@ -3,7 +3,7 @@
 '''
 
 import pandas as pd
-from .models import Environment
+from .models import Environment, RoadNetworkGraph, DislocationProfile
 import networkx as nx
 
 
@@ -14,10 +14,11 @@ class Metrics(object):
     Функции расчета метрик.
     '''
     @staticmethod
-    def calc_metric(E: Environment, 
+    def calc_metric(E: Environment,
                     node:int,
-                    path_function, 
-                    metric_function, 
+                    path_function,
+                    metric_function,
+                    RNG_name: str = 'RNG',
                     weight: str = "travel_time",
                     precision: int = 2):
         '''
@@ -47,12 +48,15 @@ class Metrics(object):
             такие как `np.max`, `np.mean` и т.д. А т.ж. функция `Metrics.calc_ip`.
             Кроме того пользователь может использовать собственные функции с
             интерфейсом `func(route_times:pd.Series)`
+
+        `RNG_name`: str = 'RNG'
+            Имя модели графа дорожной сети
         
-        `weight`:str или function
+        `weight`:str или function  = "travel_time"
             Имя поля содержащего вес ребер, или функция позволяющая вычислять 
             вес динамически.
 
-        `precision`: int 
+        `precision`: int = 2
             Точность округления
 
         Возвращает
@@ -70,20 +74,23 @@ class Metrics(object):
             from genesis.models import Environment
             import numpy as np
 
-            E = Environment(G)
+            E = Environment()
+            RNG = RoadNetworkGraph(spatial_data=G)
+            E.add_spatial_feature(RNG)
+            E.load()
             ```
         Расчет времени следования до наиболее удаленного узла:
             ```
-            Metrics.calc_metric(G, node=1, path_function=ssfpl, metric_function=np.max)
+            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.max)
             ```
         Расчет среднего времени прибытия в любой из узлов, с точностью до 4 знаков после'.':
             ```
-            Metrics.calc_metric(G, node=1, path_function=ssfpl, metric_function=np.mean,
+            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
                 precision=4)
             ```
         Расчет ИП-20, по полю 'edge_weight':
             ```
-            Metrics.calc_metric(G, node=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
+            Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
                 weight='edge_weight')
             ```
 
@@ -92,17 +99,23 @@ class Metrics(object):
         В случаях, когда имеющегося функционала не достаточно, функция может быть заменена
         пользовательской функцией с интерфейсом:
             ```
-            def I_calc_metric(G, nx.MultiDiGraph, **kwargs): float
+            def I_calc_metric(E: Environment, **kwargs): float
             ```
         '''
         if not isinstance(E, Environment):
             raise TypeError("Аргумент E должен быть Окружением!")
         if not isinstance(node, int):
             raise TypeError("Идентификатор узла должен иметь тип данных int!")
-        if not node in E.spatial_data.G.nodes():
+        if RNG_name in E.__dict__:
+            RNG = getattr(E, RNG_name)
+        else:
+            raise KeyError(f'{RNG_name} отсутствует в Окружении')
+        if not isinstance(RNG, RoadNetworkGraph):
+            raise TypeError(f"Модель {RNG_name} должна иметь тип RoadNetworkGraph!")
+        if not node in RNG.nodes():
             raise KeyError(f"Узел {node} отсутствует в графе G")
 
-        route_lens = path_function(E.spatial_data.G, node, weight=weight)
+        route_lens = path_function(RNG.get, node, weight=weight)
 
         try:
             val = metric_function(pd.Series(route_lens))
@@ -165,3 +178,53 @@ class Metrics(object):
             ip_len = sum(route_times<=ip_val)
             return round(100*ip_len/tot_len, precision)
         return _calc_ip
+
+class Arrivals(object):
+    '''
+    Функции расчета времен прибытия.
+    '''
+    @staticmethod
+    def calc_AP(E:Environment,
+                path_function,
+                RNG_name: str = 'RNG',
+                DP_name:str = 'DP',
+                weight: str = 'travel_time',
+                result_field: str = 'arrival_time',
+                result_unit_field: str = 'unit',
+                node_field: str = 'node',
+                delay_time = 1.,
+                cutoff=None):
+        '''Расчет профиля прибытия
+        
+        '''
+        if not isinstance(E, Environment):
+            raise TypeError("Аргумент E должен быть Окружением!")
+        if RNG_name in E.__dict__:
+            RNG = getattr(E, RNG_name)
+        else:
+            raise KeyError(f'Данные ГДС с именем{RNG_name} отсутствует в Окружении')
+        if DP_name in E.__dict__:
+            DP = getattr(E, DP_name)
+        else:
+            raise KeyError(f'Данные ПД с именем{DP_name} отсутствует в Окружении')
+
+        if not isinstance(RNG, RoadNetworkGraph):
+            raise TypeError(f"Данные {RNG_name} должны иметь тип RoadNetworkGraph!")
+        if not isinstance(DP, DislocationProfile):
+            raise TypeError(f"Данные {DP_name} должны иметь тип DislocationProfile!")
+
+        if not node_field in DP.columns:
+            raise KeyError(f"Поле с именем {node_field} отсутствует в {DP_name}")
+
+        # Собственно вычисления
+        units_nodes = DP.get[node_field].astype('int64')
+        units_nodes_list = list(units_nodes)
+        unit_by_node = {key: val for val, key in zip(units_nodes.index, units_nodes.astype('int64').values)}
+        # Производим расчет времен и маршрутов:
+        nodes_distances, nodes_pathes = path_function(RNG.G, units_nodes_list, cutoff=cutoff, weight=weight)
+        nodes_units = {nodes_pathes_key: unit_by_node[nodes_pathes_val[0]] for nodes_pathes_key, nodes_pathes_val in nodes_pathes.items()}
+        # Оформляем итог расчета
+        df_out = pd.DataFrame({result_field: nodes_distances, result_unit_field: nodes_units})
+        df_out[result_field] = df_out[result_field] + delay_time
+
+        return df_out
