@@ -50,18 +50,32 @@ class MorphersDP(object):
     def add_nearest_node(DP: DislocationProfile,
                          RNG: RoadNetworkGraph,
                          node_field: str = 'node',
-                         max_dist=1000):
+                         max_dist:int = 1000,
+                         crs:str = None):
         
-        # dp = DP.get
-        lg.warning("Следует добавить свойство data, и соответсвующим образом переписать тесты и код")
-        unit_nodes, distance_to_unit = ox.distance.nearest_nodes(RNG.G, DP._data.geometry.x, DP._data.geometry.y, return_dist=True)
-        for unit, node, distance in zip(DP._data.index, unit_nodes, distance_to_unit):
+        lg.warning("Вынести приведение к единой СК в отдельный морфер")
+        # приведение к единой системе координат
+        if crs is None:
+            # Если конкретная СК не указана используется СК графа
+            DP.data = DP.data.to_crs(RNG.data.graph['crs'])
+        else:
+            # ... иначе устанавливается согласно аргумента crs
+            DP.data = DP.data.to_crs(crs)
+            RNG.data = ox.project_graph(RNG.G, crs)
+
+        unit_nodes, distance_to_unit = ox.distance.nearest_nodes(RNG.G, DP.data.geometry.x, DP.data.geometry.y, return_dist=True)
+        for unit, node, distance in zip(DP.data.index, unit_nodes, distance_to_unit):
             if distance>max_dist:
                 print(f'\nРасстояние от ближайшей точки ГДС до подразделения {unit} составляет \
                       {distance} м, что превышает {max_dist} м. \
                     Данное подразделение не будет включено в профиль дислокации \
                     для дальнейшего расчета, так как это влечет потенциальную критическую неточность')
-                DP._data = DP._data.drop(unit)
+                DP.data = DP.data.drop(unit)
             else:
-                DP._data.loc[unit, node_field] = node
+                DP.data.loc[unit, node_field] = node
+        if len(DP.data)==0:
+            lg.debug('Ни одно подразделение не может быть соотнесено с узлами ГДС')
+        else:
+            DP.data[node_field]=DP.data[node_field].astype('int64')
+
             

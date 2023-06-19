@@ -3,7 +3,8 @@
 '''
 
 from abc import abstractmethod
-from typing import Any
+# from typing import Any
+import logging as lg
 
 import pandas as pd
 import geopandas as gpd
@@ -64,8 +65,17 @@ class Feature(object):
         self._path=path
 
     @property
+    def data(self):
+        '''Непосредственно данные модели'''
+        return self._data
+    @data.setter
+    def data(self, data):
+        self._data=data
+
+    @property
     def get(self):
         '''Вовзращает данные модели'''
+        lg.warning("Метод .get устарел и будет удален в следующих версиях. Вместо него используйте свойство .data")
         return self._data
     
     @property
@@ -146,11 +156,11 @@ class RoadNetworkGraph(SpatialFeature):
         ----------
         `nx.MultiDiGraph`
         '''
-        return self.get
+        return self.data
 
     @property
     def version(self):
-        return '0.0.1'
+        return '0.0.2'
 
 
 
@@ -377,7 +387,7 @@ class SpeedProfile(DataFeature):
         SP['имя дороги']
         ```
         '''
-        return dict(super().get)
+        return dict(self.data)
     
     @property
     def version(self):
