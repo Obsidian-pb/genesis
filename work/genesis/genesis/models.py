@@ -67,6 +67,8 @@ class Feature(object):
     @property
     def data(self):
         '''Носимые данные модели'''
+        if self._data is None:
+            raise ValueError("Носимые данные модели не установлены. Необходимо либо передать их при создании экземпляра класса, либо загрузить при помощи метода .load()")
         return self._data
     @data.setter
     def data(self, data):
@@ -93,7 +95,6 @@ class SpatialFeature(Feature):
     '''
     Базовый класс модели пространственных данных
     '''
-
     def __init__(self, spatial_data,
                  name='', path='', **attr):
         self._data = spatial_data
@@ -507,8 +508,15 @@ class Environment(SpatialFeature):
     В нее входит ГДС, размещение подразделений, объектов, и т.д.
     '''
 
-    def __init__(self, name='E_Base', path='', **attr):
-        super().__init__(name, path, **attr)
+    # def __init__(self, name='E_Base', path='', **attr):
+    #     super().__init__(name, path, **attr)
+    def __init__(self, spatial_data=None, name='E_Base', path='', **attr):
+        if not spatial_data is None:
+            if isinstance(spatial_data, list):
+                self.add_features(spatial_data)
+            else:
+                self.add_features([spatial_data])
+        super().__init__(spatial_data=None, name=name, path=path, **attr)
 
     def add_spatial_feature(self, spatial_feature: SpatialFeature):
         '''
@@ -516,7 +524,7 @@ class Environment(SpatialFeature):
         
         Аргументы
         ---------
-        `spatial_feature`: ISpatialFeature
+        `spatial_feature`: SpatialFeature
             Пространственные данные.
             Могут быть любым типом пространственных данных.
             Но наиболее распространенные - gpd.GeoDataFrame и
@@ -663,7 +671,7 @@ class Environment(SpatialFeature):
         self._crs = crs
         for key, prop in self.__dict__.items():
             if isinstance(prop, SpatialFeature):
-                self[key].data.crs = crs
+                self[key].crs = crs
 
 
 

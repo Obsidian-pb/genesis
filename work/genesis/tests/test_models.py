@@ -122,13 +122,20 @@ class TestEnvironment():
         RNG = RoadNetworkGraph(load_G)
         E.add_spatial_feature(RNG)
         assert E['RNG'].name == 'RNG'
-        assert E.get['RNG'].name == 'RNG'
+        assert E.RNG.name == 'RNG'
 
     def test_environment_G_load(self):
         E = Environment()
         RNG = RoadNetworkGraph(path='tests/data/test_rng.ml')
         E.add_spatial_feature(RNG)
         E.load()
+        assert E['RNG'].get.number_of_nodes()>0
+
+    @pytest.mark.xfail()
+    def test_environment_feature_wo_load(self):
+        E = Environment()
+        RNG = RoadNetworkGraph(path='tests/data/test_rng.ml')
+        E.add_spatial_feature(RNG)
         assert E['RNG'].get.number_of_nodes()>0
 
     @pytest.fixture(scope="session")
@@ -167,6 +174,35 @@ class TestEnvironment():
         SP = SpeedProfile()
         E = Environment(path='tests/data/')
         E.add_features([RNG, SP])
+        E.load()
+        assert E.test()
+
+    def test_environment_set_crs(self):
+        E = Environment(path='tests/data/')
+        E.add_features(
+            [
+                RoadNetworkGraph(path='test_rng.ml'),
+                DislocationProfile(),
+                SpeedProfile()
+            ]
+        )
+        E.load()
+        E.crs = 'epsg:4326'
+        assert E.crs == 'epsg:4326'
+        assert E.RNG.crs == 'epsg:4326'
+        assert E.DP.crs == 'epsg:4326'
+        E.crs = 'epsg:3857'
+        assert E.crs == 'epsg:3857'
+        assert E.RNG.crs == 'epsg:3857'
+        assert E.DP.crs == 'epsg:3857'
+
+    def test_environment_add_features_in_init(self):
+        E = Environment(spatial_data = [
+                RoadNetworkGraph(path='test_rng.ml'),
+                DislocationProfile(),
+                SpeedProfile()
+            ],
+            path='tests/data/')
         E.load()
         assert E.test()
 
