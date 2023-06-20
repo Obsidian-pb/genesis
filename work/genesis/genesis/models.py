@@ -19,7 +19,7 @@ from genesis.tools import kmh_to_mm
 
 class Feature(object):
     '''
-    Базовый класс данных модели
+    Базовый класс модели данных
     '''
     _path=''
     _name=''
@@ -66,15 +66,16 @@ class Feature(object):
 
     @property
     def data(self):
-        '''Непосредственно данные модели'''
+        '''Носимые данные модели'''
         return self._data
     @data.setter
     def data(self, data):
+        '''Носимые данные модели'''
         self._data=data
 
     @property
     def get(self):
-        '''Вовзращает данные модели'''
+        '''Носимые данные модели'''
         lg.warning("Метод .get устарел и будет удален в следующих версиях. Вместо него используйте свойство .data")
         return self._data
     
@@ -85,12 +86,12 @@ class Feature(object):
         Рекомендуется указывать только для рабочих
         реализаций классов - например, для `RoadNetworkGraph`,
         но не для `SpatialFeature`'''
-        return 'Для данной реализации версия не указана'
+        return '0.0.0'
 
 
 class SpatialFeature(Feature):
     '''
-    Класс пространственных данных
+    Базовый класс модели пространственных данных
     '''
 
     def __init__(self, spatial_data,
@@ -114,6 +115,15 @@ class SpatialFeature(Feature):
         Данные того же типа обрезанные по полигону area
         '''
 
+    @property
+    @abstractmethod
+    def crs(self):
+        '''СК носимых данных объекта
+        '''
+    @crs.setter
+    def crs(self, crs):
+        pass
+
 
 class RoadNetworkGraph(SpatialFeature):
     '''
@@ -132,7 +142,7 @@ class RoadNetworkGraph(SpatialFeature):
 
     def save(self, base_path='', **attr):
         '''Сохранение в файл-источник'''
-        ox.save_graphml(self.get, f'{base_path}{self.path}', **attr)
+        ox.save_graphml(self.data, f'{base_path}{self.path}', **attr)
         return self
 
     def test(self):
@@ -144,13 +154,19 @@ class RoadNetworkGraph(SpatialFeature):
         '''
         Узлы графа дорожной сети
         '''
-        return self.get.nodes(**attr)
+        return self.data.nodes(**attr)
 
+    @property
+    def crs(self):
+        return self.data.graph['crs']
+    @crs.setter
+    def crs(self, crs):
+        self.data = ox.project_graph(self.data, crs)
 
     @property
     def G(self):
         '''
-        Исходный ГДС
+        Исходный ГДС из носимых данных
 
         Возвращает
         ----------
@@ -160,7 +176,7 @@ class RoadNetworkGraph(SpatialFeature):
 
     @property
     def version(self):
-        return '0.0.2'
+        return '0.0.3'
 
 
 
@@ -168,7 +184,7 @@ class RoadNetworkGraph(SpatialFeature):
 
 class DataFeature(Feature):
     '''
-    Класс непространственных данных
+    Базовый класс непространственных данных
     '''
 
     def __init__(self, data:pd.DataFrame,
@@ -180,7 +196,7 @@ class DataFeature(Feature):
 
 class SpeedProfile(DataFeature):
     '''
-    Профиль скоростей
+    Класс профиля скоростей
     '''
     def __init__(self, data: dict=None, name='SP', path='speeds.yml',
                 speeds:list=[40,30,25,10,5], **attr):
@@ -397,17 +413,16 @@ class SpeedProfile(DataFeature):
 
 class DislocationProfile(SpatialFeature):
     '''
-    Профиль дислокации
+    Класс профиля дислокации
     '''
- 
+
     def __init__(self, spatial_data: gpd.GeoDataFrame=None,
-                 name='DP', 
-                 path='stations.gpkg', 
+                 name='DP',
+                 path='stations.gpkg',
                  layer_name='Подразделения',
                  **attr):
         self.layer_name = layer_name
         super().__init__(spatial_data, name, path, **attr)
-
 
     def load(self, base_path='', layer_name:str=None, **attr):
         '''Загрузка из файла-источника'''
@@ -435,7 +450,7 @@ class DislocationProfile(SpatialFeature):
     def frame(self, polygon: Polygon | MultiPolygon, **attr):
         '''Реализовать!
         '''
-        Warning("Метод frame класса DislocationProfile не реализован!")
+        lg.debug("Метод frame класса DislocationProfile не реализован!")
         return super().frame(polygon, **attr)
     
 
@@ -444,7 +459,7 @@ class DislocationProfile(SpatialFeature):
         if item in self.get.index:
             return self.get.loc[item]
         else:
-            Warning(f"Подразделение {item} отсутствует в профиле дислокации!")
+            lg.debug(f"Подразделение {item} отсутствует в профиле дислокации!")
             return None
 
     @property
@@ -454,11 +469,22 @@ class DislocationProfile(SpatialFeature):
         return gpd.GeoDataFrame(super().get)
     
     @property
+    def crs(self):
+        return self.data.crs
+    @crs.setter
+    def crs(self, crs):
+        self.data = self.data.to_crs(crs)
+
+    @property
     def version(self):
         return '0.0.1'
 
     def test(self):
         '''Проверить корректность данных'''
+        if self._data is None:
+            print("Данные модели не установлены")
+            return False
+
         if not self.get.index.name == 'name':
             print("Индекс данных не установлен или имеет имя отличное от 'name")
             return False
@@ -475,9 +501,9 @@ class DislocationProfile(SpatialFeature):
 
 
 
-class Environment(Feature):        # Это уже реализация!!!
+class Environment(SpatialFeature):
     '''
-    Базовая реализация модели окружения. 
+    Базовый класс модели окружения. 
     В нее входит ГДС, размещение подразделений, объектов, и т.д.
     '''
 
@@ -546,7 +572,7 @@ class Environment(Feature):        # Это уже реализация!!!
             Список моделей данных
         '''
         if not features_list:
-            Warning("Список данных пуст!")
+            lg.warning("Список данных пуст!")
         for f in features_list:
             if isinstance(f, DataFeature):
                 self.add_data_feature(f)
@@ -581,7 +607,7 @@ class Environment(Feature):        # Это уже реализация!!!
                 prop.frame(polygon)
             
 
-    def load(self, feature_names:list = None):
+    def load(self, base_path=None, feature_names:list = None):
         '''Загрузка модели'''
         if feature_names is None:
             props_list = self.__dict__
@@ -591,10 +617,13 @@ class Environment(Feature):        # Это уже реализация!!!
         for prop_name in props_list:
             prop = getattr(self, prop_name)
             if isinstance(prop, Feature):
-                prop.load(base_path=self.path)
+                if base_path is None:
+                    prop.load(base_path=self.path)
+                else:
+                    prop.load(base_path)
         return self
 
-    def save(self, feature_names:list = None):
+    def save(self, base_path=None, feature_names:list = None):
         '''Сохранение модели'''
         if feature_names is None:
             props_list = self.__dict__
@@ -604,14 +633,17 @@ class Environment(Feature):        # Это уже реализация!!!
         for prop_name in props_list:
             prop = getattr(self, prop_name)
             if isinstance(prop, Feature):
-                prop.save(base_path=self.path)
+                if base_path is None:
+                    prop.save(base_path=self.path)
+                else:
+                    prop.save(base_path)
         return self
 
     def test(self):
         '''Проверить корректность данных'''
         test_result=1
-        for item in self.__dict__.keys():
-            prop = self.__dict__[item]
+        for key, prop in self.__dict__.items():
+            # prop = self.__dict__[item]
             if isinstance(prop, Feature):
                 test_result*=prop.test()
         return bool(test_result)
@@ -620,12 +652,20 @@ class Environment(Feature):        # Это уже реализация!!!
         if item in self.__dict__.keys():
             return self.__dict__[item]
         else:
-            Warning(f"Объект {item} отсутствует в {self.name}!")
+            lg.warning(f"Объект {item} отсутствует в {self.name}!")
             return None
 
     @property
-    def get(self):
-        return self.__dict__
+    def crs(self):
+        return self._crs
+    @crs.setter
+    def crs(self, crs):
+        self._crs = crs
+        for key, prop in self.__dict__.items():
+            if isinstance(prop, SpatialFeature):
+                self[key].data.crs = crs
+
+
 
 
 

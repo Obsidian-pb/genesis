@@ -39,22 +39,22 @@ class TestRNG():
     Тесты работы с RoadNetworkGraph
     '''
     def test_RNG_creation(self, load_G):
-        G = RoadNetworkGraph(load_G)
-        assert isinstance(G, RoadNetworkGraph)
-        assert isinstance(G, SpatialFeature)
-        assert isinstance(G, Feature)
+        RNG = RoadNetworkGraph(load_G)
+        assert isinstance(RNG, RoadNetworkGraph)
+        assert isinstance(RNG, SpatialFeature)
+        assert isinstance(RNG, Feature)
 
     def test_RNG_props(self, load_G):
-        G = RoadNetworkGraph(load_G)
-        assert 'RNG'==G.name
-        assert 'rng.ml'==G.path
+        RNG = RoadNetworkGraph(load_G)
+        assert 'RNG'==RNG.name
+        assert 'rng.ml'==RNG.path
 
     def test_RNG_props_set(self, load_G):
-        G = RoadNetworkGraph(load_G)
-        G.name = 'rng'
-        G.path = 'data/new.ml'
-        assert 'rng'==G.name
-        assert 'data/new.ml'==G.path
+        RNG = RoadNetworkGraph(load_G)
+        RNG.name = 'rng'
+        RNG.path = 'data/new.ml'
+        assert 'rng'==RNG.name
+        assert 'data/new.ml'==RNG.path
 
     def test_RNG_load(self):
         RNG = RoadNetworkGraph(path='tests/data/test_rng.ml')
@@ -65,15 +65,26 @@ class TestRNG():
     def ml_file(self, tmp_path_factory):
         g = ox.load_graphml("tests/data/test_rng.ml")
         tmp_path = tmp_path_factory.mktemp("tests") / "test_rng2.ml"
-        G = RoadNetworkGraph(g, path=tmp_path)
-        G.save()
+        RNG = RoadNetworkGraph(g, path=tmp_path)
+        RNG.save()
         return tmp_path
 
     def test_RNG_load_tmp(self, ml_file):
-        G = RoadNetworkGraph(path=ml_file)
-        G.load()
-        assert isinstance(G, RoadNetworkGraph)
+        RNG = RoadNetworkGraph(path=ml_file)
+        RNG.load()
+        assert isinstance(RNG, RoadNetworkGraph)
 
+    def test_RNG_crs(self, load_G):
+        RNG = RoadNetworkGraph(load_G)
+        assert 'epsg:4326' == RNG.crs
+        new_crs='epsg:3857'
+        RNG.crs = new_crs
+        assert new_crs == RNG.crs
+
+    @pytest.mark.xfail()
+    def test_RNG_no_data(self):
+        RNG = RoadNetworkGraph()
+        return RNG.test()
 
 
 # === Тесты DataFeature
@@ -282,65 +293,42 @@ class TestSP():
 
 
 
-# def test_SpeedProfile_default():
-#     '''Тест создания SpeedProfile и указания значений по умолчанию'''
-#     sp = SpeedProfile()
-#     assert sp.sp["road"]==500
-
-# def test_SpeedProfile_set_5():
-#     '''Тест передачи в SpeedProfile скоростей для 5 типов дорог'''
-#     sp = SpeedProfile()
-#     sp.set_speeds_5([50,40,30,20,10])
-#     assert sp.sp["living_street"]==500
-
-# def test_SpeedProfile_precision():
-#     '''Тест точности пересчета скоростей в км/ч'''
-#     sp = SpeedProfile()
-#     sp.kmh_to_mm_precision=0
-#     sp.set_speeds_5([50,40,30,20,10])
-#     assert sp.sp["corridor"]==167
-
-# def test_SpeedProfile_set_speeds_from_dict():
-#     '''Тест передачи в SpeedProfile скоростей согласно словарю'''
-#     sp = SpeedProfile()
-#     sp.set_speeds({
-#         "secondary":60,
-#         "service": 30,
-#         "pedestrian":15
-#     })
-#     assert sp.sp["living_street"]==416.67
-
-# @pytest.mark.xfail()
-# def test_SpeedProfile_set_not_5():
-#     '''Тест передачи в SpeedProfile скоростей для неверного количества типов дорог'''
-#     sp = SpeedProfile()
-#     sp.set_speeds_5([50,40,30,20])
-#     assert sp.sp["living_street"]==500
-
-
-
 # === Тесты DislocationProfile
+@pytest.fixture()
+def load_dp_data():
+    return gpd.read_file('tests/data/stations.gpkg')
+
 class TestDislocationProfile():
     def test_dp_creation(self):
         DP = DislocationProfile()
         assert isinstance(DP, DislocationProfile)
 
-    def test_dp_creation_by_geodataframe(self):
-        gdf = gpd.read_file('tests/data/stations.gpkg')
-        DP = DislocationProfile(gdf)
-        assert isinstance(DP.get, gpd.GeoDataFrame)
-        assert len(DP.get)==2
-        # assert DP.test()
+    def test_dp_creation_by_geodataframe(self, load_dp_data):
+        DP = DislocationProfile(load_dp_data)
+        assert isinstance(DP.data, gpd.GeoDataFrame)
+        assert len(DP.data)==2
 
     def test_dp_load_from_file(self):
         DP = DislocationProfile().load(base_path='tests/data/')
-        assert len(DP.get)==2
+        assert len(DP.data)==2
 
     def test_dp_get_station_by_name(self):
         DP = DislocationProfile().load(base_path='tests/data/')
         station_name = 'ПСЧ-1'
-        assert DP.get.loc[station_name, 'type']=='ФПС'
+        assert DP.data.loc[station_name, 'type']=='ФПС'
         assert DP[station_name]['type'] == 'ФПС'
+
+    def test_dp_crs(self, load_dp_data):
+        DP = DislocationProfile(load_dp_data)
+        assert 'epsg:3857' == DP.crs
+        new_crs='epsg:4326'
+        DP.crs = new_crs
+        assert new_crs == DP.crs
+
+    @pytest.mark.xfail()
+    def test_dp_no_data(self):
+        DP = DislocationProfile()
+        return DP.test()
 
 
 
