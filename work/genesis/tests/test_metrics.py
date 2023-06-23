@@ -11,7 +11,8 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from genesis.models import Environment, RoadNetworkGraph
+from genesis.models import Environment
+from genesis.features import RoadNetworkGraph
 from genesis.calculators import Metrics
 from genesis.swiss_knife import ssfpl
 

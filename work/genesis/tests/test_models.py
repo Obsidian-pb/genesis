@@ -13,9 +13,9 @@ import geopandas as gpd
 from genesis.models import Feature
 from genesis.models import SpatialFeature
 from genesis.models import Environment
-from genesis.models import RoadNetworkGraph
-from genesis.models import SpeedProfile
-from genesis.models import DislocationProfile
+from genesis.features import RoadNetworkGraph
+from genesis.features import SpeedProfile
+from genesis.features import DislocationProfile
 
 from genesis.tools import kmh_to_mm
 # from genesis.interfaces import IFeature, ISpatialFeature
@@ -205,6 +205,8 @@ class TestEnvironment():
             path='tests/data/')
         E.load()
         assert E.test()
+
+
 
 
 # Тесты профиля скоростей

@@ -3,7 +3,8 @@
 '''
 
 import pandas as pd
-from .models import Environment, RoadNetworkGraph, DislocationProfile
+from .models import Environment
+from .features import RoadNetworkGraph, DislocationProfile
 import networkx as nx
 
 
@@ -188,10 +189,10 @@ class Arrivals(object):
                 path_function,
                 RNG_name: str = 'RNG',
                 DP_name:str = 'DP',
-                weight: str = 'travel_time',
+                DP_node_field: str = 'node',
                 result_field: str = 'arrival_time',
                 result_unit_field: str = 'unit',
-                node_field: str = 'node',
+                weight: str = 'travel_time',
                 delay_time = 1.,
                 cutoff=None):
         '''Расчет профиля прибытия
@@ -213,11 +214,11 @@ class Arrivals(object):
         if not isinstance(DP, DislocationProfile):
             raise TypeError(f"Данные {DP_name} должны иметь тип DislocationProfile!")
 
-        if not node_field in DP.columns:
-            raise KeyError(f"Поле с именем {node_field} отсутствует в {DP_name}")
+        if not DP_node_field in DP.data.columns:
+            raise KeyError(f"Поле с именем {DP_node_field} отсутствует в {DP_name}")
 
         # Собственно вычисления
-        units_nodes = DP.get[node_field].astype('int64')
+        units_nodes = DP.data[DP_node_field].astype('int64')
         units_nodes_list = list(units_nodes)
         unit_by_node = {key: val for val, key in zip(units_nodes.index, units_nodes.astype('int64').values)}
         # Производим расчет времен и маршрутов:

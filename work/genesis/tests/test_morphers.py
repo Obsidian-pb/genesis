@@ -3,7 +3,8 @@
 '''
 import pytest
 
-from genesis.models import SpatialFeature, RoadNetworkGraph, DislocationProfile
+# from genesis.models import SpatialFeature
+from genesis.features import RoadNetworkGraph, DislocationProfile
 from genesis.morphers import MorphersSpatialFeature
 
 

@@ -2,11 +2,11 @@
 Функции изменяющие модели. Например, добавляющие новые поля данных, вычисляющие их и т.д.
 '''
 
-import networkx as nx
+# import networkx as nx
 import geopandas as gpd
 # from genesis.tools import kmh_to_mm
 from genesis.models import SpatialFeature
-from genesis.models import RoadNetworkGraph, SpeedProfile
+from genesis.features import RoadNetworkGraph, SpeedProfile
 import osmnx as ox
 import logging as lg
 
@@ -37,10 +37,10 @@ class MorphersGraph(object):
                     speed = def_speed
 
             G.add_edge(*edge, travel_time=length/speed)
-        
+
     @staticmethod
-    def add_edge_speed_profile(G:RoadNetworkGraph,
-                              speed_profile,
+    def add_edge_speed(G:RoadNetworkGraph,
+                              SP: SpeedProfile,
                               def_speed = 5):
         pass
 
@@ -73,7 +73,7 @@ class MorphersSpatialFeature(object):
             raise TypeError("Аргумент RNG должен быть строго типа RoadNetworkGraph!")
         if not spatial_feature.crs == RNG.crs:
             raise AssertionError("СК spatial_feature и RNG должны совпадать. В реальности: {spatial_feature.crs} против {RNG.crs}")
-        
+
         unit_nodes, distance_to_unit = ox.distance.nearest_nodes(RNG.G, spatial_feature.data.geometry.x, spatial_feature.data.geometry.y, return_dist=True)
         for unit, node, distance in zip(spatial_feature.data.index, unit_nodes, distance_to_unit):
             if distance>max_dist:
