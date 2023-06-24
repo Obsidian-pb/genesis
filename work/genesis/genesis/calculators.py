@@ -29,7 +29,7 @@ class Metrics(object):
 
         Аргументы
         ---------
-        `E`:Environment, 
+        `E`:Environment (а также наследники)
             Окружение
         
         `node`:int
@@ -39,7 +39,6 @@ class Metrics(object):
             Функция расчета кратчайших путей от единственного источника. 
             В качестве функции могут быть переданы реализации алгоритмов из пакета
             `networkx`. Например, реализация алгоритма Дейкстры: `nx.single_source_dijkstra_path_length`.
-            Рекомендуется использовать функции указанные в `swiss_knife.ssfpl`.
             Пользователь может использовать собственные функции с
             интерфейсом `func(G: Graph, source: Any, cutoff: Any | None = None, weight: str = "weight")`
 
@@ -66,8 +65,7 @@ class Metrics(object):
             Значение целевой метрики
 
         Пример
-        ------  
-        ПЕРЕДЕЛАТЬ!!!
+        ------
         Создание модели окружения на основе некоторого ГДС `G`:
             ```
             from genesis.calculators import Metrics
@@ -197,6 +195,29 @@ class Arrivals(object):
                 cutoff=None):
         '''Расчет профиля прибытия
         
+        Аргументы
+        ---------
+        `E`: Environment (а также наследники)
+            Модель окружения
+        `path_function`: function
+            Функция расчета кратчайших путей от множества источника. 
+            В качестве интерфейса функции выступает реализация алгоритма
+            `nx.multi_source_dijkstra` из пакета `networkx`. 
+            Пользователь может использовать собственные функции с
+            интерфейсом `func(multi_source_dijkstra(G, sources, target=None, cutoff=None, weight='weight'))-->distance, path`
+        `RNG_name`: str = 'RNG',
+        `DP_name`:str = 'DP',
+        `DP_node_field`: str = 'node',
+        `result_field`: str = 'arrival_time',
+        `result_unit_field`: str = 'unit',
+        `weight`: str = 'travel_time',
+        `delay_time` = 1.,
+        `cutoff`=None
+
+        Возвращает
+        ----------
+        `AP`: ArrivalProfile
+            Профиль прибытия
         '''
         if not isinstance(E, Environment):
             raise TypeError("Аргумент E должен быть Окружением!")
@@ -221,9 +242,11 @@ class Arrivals(object):
         units_nodes = DP.data[DP_node_field].astype('int64')
         units_nodes_list = list(units_nodes)
         unit_by_node = {key: val for val, key in zip(units_nodes.index, units_nodes.astype('int64').values)}
+        
         # Производим расчет времен и маршрутов:
         nodes_distances, nodes_pathes = path_function(RNG.G, units_nodes_list, cutoff=cutoff, weight=weight)
         nodes_units = {nodes_pathes_key: unit_by_node[nodes_pathes_val[0]] for nodes_pathes_key, nodes_pathes_val in nodes_pathes.items()}
+        
         # Оформляем итог расчета
         df_out = pd.DataFrame({result_field: nodes_distances, result_unit_field: nodes_units})
         df_out[result_field] = df_out[result_field] + delay_time
