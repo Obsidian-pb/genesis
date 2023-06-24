@@ -51,7 +51,7 @@ class TestRNG():
 
     def test_RNG_props_set(self, load_G):
         RNG = RoadNetworkGraph(load_G)
-        RNG.name = 'rng'
+        RNG._name = 'rng'   # ВАЖНО! Настоятельно не рекомендуется устанавливать имя иначе как при создании экземпляра класса
         RNG.path = 'data/new.ml'
         assert 'rng'==RNG.name
         assert 'data/new.ml'==RNG.path

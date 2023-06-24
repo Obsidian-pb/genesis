@@ -26,12 +26,13 @@ class Feature(object):
     _path=''
     _name=''
     _data=None
+    _version='0'
 
     def __init__(self,
                  name='', path='',
                  **attr):
         self.path=path
-        self.name=name
+        self._name=name
 
     @abstractmethod
     def load(self, base_path='', **attr):
@@ -54,9 +55,9 @@ class Feature(object):
     def name(self):
         '''Имя набора данных'''
         return self._name
-    @name.setter
-    def name(self, name):
-        self._name=name
+    # @name.setter
+    # def name(self, name):
+    #     self._name=name
 
     @property
     def path(self):
@@ -86,11 +87,12 @@ class Feature(object):
     @property
     def version(self):
         '''Версия реализации модели.
-        Рекомендуется указывать в формате `*.*.*`
+        Рекомендуется указывать в формате номер строкой `*`,
+        например, '17'.
         Рекомендуется указывать только для рабочих
         реализаций классов - например, для `RoadNetworkGraph`,
         но не для `SpatialFeature`'''
-        return '0.0.0'
+        return self._version
 
 
 class SpatialFeature(Feature):
@@ -143,11 +145,18 @@ class DataFeature(Feature):
 class Environment(SpatialFeature):
     '''
     Базовый класс модели окружения. 
-    В нее входит ГДС, размещение подразделений, объектов, и т.д.
+    
+    Аргументы
+    ---------
+    `spatial_data`:Any=None
+        Для моделей окружения не используется!
+    `name`:str ='E_Base'
+        Имя модели
+    `path`:str =''
+        Путь к папке модели. Настоятельно рекомендуется хранить 
+        все файлы модели в одной папке
     '''
 
-    # def __init__(self, name='E_Base', path='', **attr):
-    #     super().__init__(name, path, **attr)
     def __init__(self, spatial_data=None, name='E_Base', path='', **attr):
         if not spatial_data is None:
             if isinstance(spatial_data, list):
@@ -316,9 +325,17 @@ class Environment(SpatialFeature):
 
 
 class Computer(object):
-    '''Базовый класс расчетной модели.
+    '''Базовый класс вычислительной модели.
     Расчетная модель описывает всю логику вычислений
+
+    Аргументы
+    ---------
+    `E`:Environment
+        Модель окружения
     '''
+
+    # Версия вычислительной модели
+    _version='0'
 
     # Настройки модели компьютера
     # ssfpl = nx.single_source_dijkstra_path_length
@@ -347,3 +364,13 @@ class Computer(object):
     def execute(self):
         # Здесь описывается последовательность выполняемых действий
         return self
+
+    @property
+    def version(self):
+        '''Версия реализации модели.
+        Рекомендуется указывать в формате номер строкой `*`,
+        например, '17'.
+        Рекомендуется указывать только для рабочих
+        реализаций классов - например, для `RoadNetworkGraph`,
+        но не для `SpatialFeature`'''
+        return self._version

@@ -22,6 +22,9 @@ class RoadNetworkGraph(SpatialFeature):
     '''
     Граф дорожной сети.
     '''
+
+    _version='3'
+
     def __init__(self, spatial_data:nx.MultiDiGraph=None, name='RNG', path='rng.ml', **attr):
         super().__init__(spatial_data, name, path, **attr)
 
@@ -67,9 +70,6 @@ class RoadNetworkGraph(SpatialFeature):
         '''
         return self.data
 
-    @property
-    def version(self):
-        return '0.0.3'
 
 
 
@@ -77,6 +77,9 @@ class SpeedProfile(DataFeature):
     '''
     Класс профиля скоростей
     '''
+
+    _version='1'
+
     def __init__(self, data: dict=None, name='SP', path='speeds.yml',
                 speeds:list=[40,30,25,10,5], **attr):
         self._speeds_mm = {}
@@ -283,10 +286,7 @@ class SpeedProfile(DataFeature):
         ```
         '''
         return dict(self.data)
-    
-    @property
-    def version(self):
-        return '0.0.1'
+
 
 
 
@@ -294,6 +294,8 @@ class DislocationProfile(SpatialFeature):
     '''
     Класс профиля дислокации
     '''
+
+    _version='1'
 
     def __init__(self, spatial_data: gpd.GeoDataFrame=None,
                  name='DP',

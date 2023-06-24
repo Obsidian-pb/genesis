@@ -205,19 +205,55 @@ class Arrivals(object):
             `nx.multi_source_dijkstra` из пакета `networkx`. 
             Пользователь может использовать собственные функции с
             интерфейсом `func(multi_source_dijkstra(G, sources, target=None, cutoff=None, weight='weight'))-->distance, path`
-        `RNG_name`: str = 'RNG',
-        `DP_name`:str = 'DP',
-        `DP_node_field`: str = 'node',
-        `result_field`: str = 'arrival_time',
-        `result_unit_field`: str = 'unit',
-        `weight`: str = 'travel_time',
-        `delay_time` = 1.,
+        `RNG_name`: str = 'RNG'
+            Имя модели ГДС
+        `DP_name`:str = 'DP'
+            Имя профиля дислокации
+        `DP_node_field`: str = 'node'
+            Имя поля профиля дислокации в котором хранится номер узла
+        `result_field`: str = 'arrival_time'
+            Имя поля профиля прибытия в котором хранится время прибытия
+        `result_unit_field`: str = 'unit'
+            Имя поля профиля прибытия в котором хранится наименование 
+            подразделения
+        `weight`: str = 'travel_time'
+            Имя поля ГДС в котором хранится время следования по фрагменту
+            (ребру) ГДС
+        `delay_time` = 1.
+            Время обработки вызова - промежутка между поступлением сообщения 
+            в пожарную охраны и выезда реагирующих подразделений
         `cutoff`=None
+            Максимальное время следования
 
         Возвращает
         ----------
         `AP`: ArrivalProfile
             Профиль прибытия
+
+        Пример использования
+        --------------------
+
+        ```
+        # создание модели окружения
+        E = Environment(path='tests/data/')
+        E.add_features(
+            [
+                RoadNetworkGraph(path='test_rng.ml'),
+                DislocationProfile(),
+                SpeedProfile()
+            ]
+        ).load()
+        E.crs = E['RNG'].crs
+
+        # добавление времен следования по фрагментам ГДС
+        MorphersGraph.add_edge_travel_times(E['RNG'].G, E['SP'])
+        # добавление ближайших узлов для пожарных подразделений из ПД
+        MorphersSpatialFeature.add_nearest_node(E['DP'], E['RNG'])
+
+        # непосредственно расчет профиля прибытия
+        df_out = Arrivals.calc_AP(E, path_function=nx.multi_source_dijkstra)
+        ```
+
         '''
         if not isinstance(E, Environment):
             raise TypeError("Аргумент E должен быть Окружением!")
@@ -244,7 +280,7 @@ class Arrivals(object):
         unit_by_node = {key: val for val, key in zip(units_nodes.index, units_nodes.astype('int64').values)}
         
         # Производим расчет времен и маршрутов:
-        nodes_distances, nodes_pathes = path_function(RNG.G, units_nodes_list, cutoff=cutoff, weight=weight)
+        nodes_distances, nodes_pathes = path_function(RNG.G, sources=units_nodes_list, cutoff=cutoff, weight=weight)
         nodes_units = {nodes_pathes_key: unit_by_node[nodes_pathes_val[0]] for nodes_pathes_key, nodes_pathes_val in nodes_pathes.items()}
         
         # Оформляем итог расчета
