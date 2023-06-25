@@ -8,14 +8,14 @@ import networkx as nx
 # import geopandas as gpd
 import pandas as pd
 
-from genesis.features import RoadNetworkGraph, DislocationProfile, SpeedProfile
+from genesis.features import RoadNetworkGraph, DislocationProfile, SpeedProfile, ArrivaLProfile
 from genesis.morphers import MorphersGraph, MorphersSpatialFeature
 from genesis.calculators import Arrivals
 from genesis.models import Environment
 from genesis.environments import CommonEnvironment
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def load_E():
     E = Environment(path='tests/data/')
     E.add_features(
@@ -36,10 +36,10 @@ class TestCalcAP():
 
         MorphersGraph.add_edge_travel_times(E['RNG'].G, E['SP'])
         MorphersSpatialFeature.add_nearest_node(E['DP'], E['RNG'])
-        df_out = Arrivals.calc_AP(E, path_function=nx.multi_source_dijkstra)
-        assert isinstance(df_out, pd.DataFrame)
-        assert round(df_out.loc[1545611804]['arrival_time'],2) == round(1.027307,2)
-        assert df_out.loc[2042076383]['unit'] == 'ОП ПСЧ-1'
+        AP = Arrivals.calc_AP(E, path_function=nx.multi_source_dijkstra, AP_name='AP_test')
+        assert isinstance(AP, ArrivaLProfile)
+        assert round(AP[1545611804]['arrival_time'],2) == round(1.027307,2)
+        assert AP[2042076383]['unit'] == 'ОП ПСЧ-1'
 
     def test_calc_ap_custom_names(self):
         '''Тест расчета ПП с использованием измененных имен'''
@@ -55,10 +55,11 @@ class TestCalcAP():
 
         MorphersGraph.add_edge_travel_times(E['RNG_1'].G, E['SP_1'])
         MorphersSpatialFeature.add_nearest_node(E['DP_1'], E['RNG_1'], node_field='nf')
-        df_out = Arrivals.calc_AP(E, 
+        AP = Arrivals.calc_AP(E,
                                   path_function=nx.multi_source_dijkstra,
+                                  AP_name='AP_test',
                                   RNG_name='RNG_1',
                                   DP_name='DP_1',
                                   DP_node_field='nf'
                                   )
-        assert isinstance(df_out, pd.DataFrame)
+        assert isinstance(AP, ArrivaLProfile)

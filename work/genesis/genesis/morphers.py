@@ -8,6 +8,8 @@ import geopandas as gpd
 from genesis.models import SpatialFeature
 from genesis.features import RoadNetworkGraph, SpeedProfile
 import osmnx as ox
+import pandas as pd
+import geopandas as gpd
 import logging as lg
 
 class MorphersGraph(object):
@@ -59,11 +61,11 @@ class MorphersSpatialFeature(object):
         ---------
         `spatial_feature`: SpatialFeature
             Модель пространственных данных
-        RNG: RoadNetworkGraph
+        `RNG`: RoadNetworkGraph
             Модель графа дорожной сети
-        node_field: str = 'node'
+        `node_field`: str = 'node'
             Имя поля для сохранения id ближайшего узла ГДС
-        max_dist:int = 1000
+        `max_dist`:int = 1000
             Максимально допустимое расстояние до узлов ГДС
         '''
 
@@ -88,5 +90,3 @@ class MorphersSpatialFeature(object):
             lg.debug('Ни одно подразделение не может быть соотнесено с узлами ГДС')
         else:
             spatial_feature.data[node_field]=spatial_feature.data[node_field].astype('int64')
-
-    

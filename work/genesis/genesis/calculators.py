@@ -3,9 +3,13 @@
 '''
 
 import pandas as pd
+
 from .models import Environment
-from .features import RoadNetworkGraph, DislocationProfile
+from .features import RoadNetworkGraph, DislocationProfile, ArrivaLProfile
+from .tools import data_frame_to_geo_data_frame
+
 import networkx as nx
+import osmnx as ox
 
 
 
@@ -101,6 +105,7 @@ class Metrics(object):
             def I_calc_metric(E: Environment, **kwargs): float
             ```
         '''
+        Warning("Переделать под использование ПП!")
         if not isinstance(E, Environment):
             raise TypeError("Аргумент E должен быть Окружением!")
         if not isinstance(node, int):
@@ -185,6 +190,7 @@ class Arrivals(object):
     @staticmethod
     def calc_AP(E:Environment,
                 path_function,
+                AP_name:str,
                 RNG_name: str = 'RNG',
                 DP_name:str = 'DP',
                 DP_node_field: str = 'node',
@@ -192,7 +198,8 @@ class Arrivals(object):
                 result_unit_field: str = 'unit',
                 weight: str = 'travel_time',
                 delay_time = 1.,
-                cutoff=None):
+                cutoff=None,
+                **kwargs):
         '''Расчет профиля прибытия
         
         Аргументы
@@ -218,7 +225,8 @@ class Arrivals(object):
             подразделения
         `weight`: str = 'travel_time'
             Имя поля ГДС в котором хранится время следования по фрагменту
-            (ребру) ГДС
+            (ребру) ГДС. Может быть указана также и функция, динамического вычисления 
+            времени.
         `delay_time` = 1.
             Время обработки вызова - промежутка между поступлением сообщения 
             в пожарную охраны и выезда реагирующих подразделений
@@ -278,13 +286,16 @@ class Arrivals(object):
         units_nodes = DP.data[DP_node_field].astype('int64')
         units_nodes_list = list(units_nodes)
         unit_by_node = {key: val for val, key in zip(units_nodes.index, units_nodes.astype('int64').values)}
-        
+
         # Производим расчет времен и маршрутов:
         nodes_distances, nodes_pathes = path_function(RNG.G, sources=units_nodes_list, cutoff=cutoff, weight=weight)
         nodes_units = {nodes_pathes_key: unit_by_node[nodes_pathes_val[0]] for nodes_pathes_key, nodes_pathes_val in nodes_pathes.items()}
-        
+
         # Оформляем итог расчета
         df_out = pd.DataFrame({result_field: nodes_distances, result_unit_field: nodes_units})
         df_out[result_field] = df_out[result_field] + delay_time
+        # Переводим в геодатафрейм
+        nodes_gdf = ox.graph_to_gdfs(RNG.G, edges=False)
+        gdf_out = data_frame_to_geo_data_frame(df_out, nodes_gdf)
 
-        return df_out
+        return ArrivaLProfile(gdf_out, name=AP_name)

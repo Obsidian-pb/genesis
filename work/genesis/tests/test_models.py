@@ -21,11 +21,11 @@ from genesis.tools import kmh_to_mm
 # from genesis.interfaces import IFeature, ISpatialFeature
 # from genesis.models import SpeedProfile
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def load_G():
     return ox.load_graphml("tests/data/test_rng.ml")
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def load_E():
     E = Environment()
     RNG = RoadNetworkGraph(path="tests/data/test_rng.ml")
@@ -332,10 +332,11 @@ class TestSP():
 
 
 # === Тесты DislocationProfile
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def load_dp_data():
     return gpd.read_file('tests/data/stations.gpkg')
 
+@pytest.mark.usefixtures('load_dp_data')
 class TestDislocationProfile():
     def test_dp_creation(self):
         DP = DislocationProfile()

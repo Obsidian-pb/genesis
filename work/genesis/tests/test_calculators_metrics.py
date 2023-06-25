@@ -23,11 +23,11 @@ from genesis.swiss_knife import ssfpl
 # lg.basicConfig(level=lg.DEBUG, filename="logs/test_metrics.log", filemode="w")
 
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def load_G():
     return ox.load_graphml("tests/data/test_rng.ml")
 
-@pytest.fixture()
+@pytest.fixture(scope='module')
 def create_G():
     '''
         max: 21

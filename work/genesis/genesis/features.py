@@ -337,8 +337,8 @@ class DislocationProfile(SpatialFeature):
 
     def __getitem__(self, item:str):
         '''Получение записи об одном из подразделений по его имени'''
-        if item in self.get.index:
-            return self.get.loc[item]
+        if item in self.data.index:
+            return self.data.loc[item]
         else:
             lg.debug(f"Подразделение {item} отсутствует в профиле дислокации!")
             return None
@@ -347,7 +347,7 @@ class DislocationProfile(SpatialFeature):
     def get(self):
         '''GeoDataFrame территориальных подразделений
         '''
-        return gpd.GeoDataFrame(super().get)
+        return gpd.GeoDataFrame(super().data)
     
     @property
     def crs(self):
@@ -355,10 +355,6 @@ class DislocationProfile(SpatialFeature):
     @crs.setter
     def crs(self, crs):
         self.data = self.data.to_crs(crs)
-
-    @property
-    def version(self):
-        return '0.0.1'
 
     def test(self):
         '''Проверить корректность данных'''
@@ -379,3 +375,80 @@ class DislocationProfile(SpatialFeature):
         self.get.head()
         return True
 
+class ArrivaLProfile(SpatialFeature):
+    '''
+    Класс профиля прибытия
+    '''
+
+    _version='1'
+
+    def __init__(self, spatial_data: gpd.GeoDataFrame=None,
+                 name='AP',
+                 path='ap.gpkg',
+                 layer_name='ПП',
+                 **attr):
+        self.layer_name = layer_name
+        super().__init__(spatial_data, name, path, **attr)
+
+    def load(self, base_path='', layer_name:str=None, **attr):
+        '''Загрузка из файла-источника'''
+        if layer_name is None:
+            layer_name = self.layer_name
+
+        try:
+            data = gpd.read_file(f'{base_path}{self.path}', **attr)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(f"Файл {base_path}{self.path} не существует!") from exc
+        data = data.set_index('name')
+        self._data = data
+        return self
+    
+    def save(self, base_path='', **attr):
+        '''Сохранение в файл-источник'''
+        if layer_name is None:
+            layer_name = self.layer_name
+
+        self.get.to_file(f'{base_path}{self.path}', 
+                     driver="GPKG", 
+                     layer=layer_name, index=True)
+        return self
+
+    def frame(self, polygon: Polygon | MultiPolygon, **attr):
+        '''Реализовать!
+        '''
+        lg.debug("Метод frame класса ArrivaLProfile не реализован!")
+        return super().frame(polygon, **attr)
+
+    def __getitem__(self, item:str):
+        '''Получение записи об одном из узлов по его имени'''
+        if item in self.data.index:
+            return self.data.loc[item]
+        else:
+            lg.debug(f"Узел {item} отсутствует в профиле прибытия!")
+            return None
+
+    @property
+    def crs(self):
+        return self.data.crs
+    @crs.setter
+    def crs(self, crs):
+        self.data = self.data.to_crs(crs)
+
+    def test(self):
+        '''Проверить корректность данных'''
+        if self._data is None:
+            print("Данные модели не установлены")
+            return False
+
+        if not self.get.index.name == 'node':
+            print("Индекс данных не установлен или имеет имя отличное от 'node")
+            return False
+
+        columns = [
+            'arrival_time', 'unit'
+        ]
+        if not all([col in self.get.columns for col in columns]):
+            print('Не все требуемые поля имеются в наборе данных!')
+            return False
+        self.get.head()
+        return True
