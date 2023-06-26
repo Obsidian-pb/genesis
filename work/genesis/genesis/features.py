@@ -318,7 +318,7 @@ class DislocationProfile(SpatialFeature):
         self._data = data
         return self
 
-    def save(self, base_path='', **attr):
+    def save(self, base_path='', layer_name:str=None, **attr):
         '''Сохранение в файл-источник'''
         if layer_name is None:
             layer_name = self.layer_name
@@ -403,13 +403,13 @@ class ArrivaLProfile(SpatialFeature):
         self._data = data
         return self
     
-    def save(self, base_path='', **attr):
+    def save(self, base_path='', layer_name:str=None, **attr):
         '''Сохранение в файл-источник'''
         if layer_name is None:
             layer_name = self.layer_name
 
-        self.get.to_file(f'{base_path}{self.path}', 
-                     driver="GPKG", 
+        self.data.to_file(f'{base_path}{self.path}',
+                     driver="GPKG",
                      layer=layer_name, index=True)
         return self
 
@@ -420,12 +420,18 @@ class ArrivaLProfile(SpatialFeature):
         return super().frame(polygon, **attr)
 
     def __getitem__(self, item:str):
-        '''Получение записи об одном из узлов по его имени'''
-        if item in self.data.index:
-            return self.data.loc[item]
+        '''Получение записи зоне обслуживания подразделения по его имени'''
+        # if item in self.data.index:
+        #     return self.data.loc[item]
+        # else:
+        #     lg.debug(f"Подразделение {item} отсутствует в профиле прибытия!")
+        #     return None
+        if 'unit' in self.data.columns:
+            data_set = self.data.query(f'unit=="{item}"')
+            return data_set
         else:
-            lg.debug(f"Узел {item} отсутствует в профиле прибытия!")
-            return None
+            raise NameError(f'Поле "unit" отсутствует в наборе данных')       
+        
 
     @property
     def crs(self):

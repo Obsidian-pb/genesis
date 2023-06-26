@@ -38,8 +38,11 @@ class TestCalcAP():
         MorphersSpatialFeature.add_nearest_node(E['DP'], E['RNG'])
         AP = Arrivals.calc_AP(E, path_function=nx.multi_source_dijkstra, AP_name='AP_test')
         assert isinstance(AP, ArrivaLProfile)
-        assert round(AP[1545611804]['arrival_time'],2) == round(1.027307,2)
-        assert AP[2042076383]['unit'] == 'ОП ПСЧ-1'
+        assert round(AP.data.loc[1545611804]['arrival_time'],2) == round(1.027307,2)
+        assert AP.data.loc[2042076383]['unit'] == 'ОП ПСЧ-1'
+        assert len(AP['ОП ПСЧ-1']) == 2566
+        assert len(AP['ПСЧ-1']) == 2938
+
 
     def test_calc_ap_custom_names(self):
         '''Тест расчета ПП с использованием измененных имен'''
