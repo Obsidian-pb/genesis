@@ -33,7 +33,7 @@ class CommonEnvironment(Environment):
     E.crs = E.RNG.crs
     ```   
 
-    Создание окружения и загрузка ГДС с отличным от стандартного именем
+    Создание окружения и загрузка ГДС с отличным от стандартного именем файла (и путем к файлу)
     ```
     E = CommonEnvironment()
     E.RNG.path = 'test_rng.ml'      

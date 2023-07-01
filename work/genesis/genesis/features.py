@@ -25,20 +25,20 @@ class RoadNetworkGraph(SpatialFeature):
 
     _version='3'
 
-    def __init__(self, spatial_data:nx.MultiDiGraph=None, name='RNG', path='rng.ml', **attr):
-        super().__init__(spatial_data, name, path, **attr)
+    def __init__(self, spatial_data:nx.MultiDiGraph=None, name='RNG', path='rng.ml', **kwargs):
+        super().__init__(spatial_data, name, path, **kwargs)
 
-    def frame(self, polygon: Polygon, **attr):
-        return ox.truncate.truncate_graph_polygon(self, polygon, **attr)
+    def frame(self, polygon: Polygon, **kwargs):
+        return ox.truncate.truncate_graph_polygon(self, polygon, **kwargs)
 
-    def load(self, base_path='', **attr):
+    def load(self, base_path='', **kwargs):
         '''Загрузка из файла-источника'''
-        self._data = ox.load_graphml(f'{base_path}{self.path}', **attr)
+        self._data = ox.load_graphml(f'{base_path}{self.path}', **kwargs)
         return self
 
-    def save(self, base_path='', **attr):
+    def save(self, base_path='', **kwargs):
         '''Сохранение в файл-источник'''
-        ox.save_graphml(self.data, f'{base_path}{self.path}', **attr)
+        ox.save_graphml(self.data, f'{base_path}{self.path}', **kwargs)
         return self
 
     def test(self):
@@ -46,11 +46,11 @@ class RoadNetworkGraph(SpatialFeature):
         print(str(self._data))
         return True
 
-    def nodes(self, **attr):
+    def nodes(self, **kwargs):
         '''
         Узлы графа дорожной сети
         '''
-        return self.data.nodes(**attr)
+        return self.data.nodes(**kwargs)
 
     @property
     def crs(self):
@@ -81,7 +81,7 @@ class SpeedProfile(DataFeature):
     _version='1'
 
     def __init__(self, data: dict=None, name='SP', path='speeds.yml',
-                speeds:list=[40,30,25,10,5], **attr):
+                speeds:list=[40,30,25,10,5], **kwargs):
         self._speeds_mm = {}
         self._name = name
         self._path = path
@@ -93,7 +93,7 @@ class SpeedProfile(DataFeature):
             self._set_speeds_dict(data)
 
 
-    def load(self, base_path='', **attr):
+    def load(self, base_path='', **kwargs):
         '''Загрузка из файла-источника'''
         try:
             with open(f'{base_path}{self.path}', 'r', encoding='UTF-8') as file:
@@ -103,7 +103,7 @@ class SpeedProfile(DataFeature):
         self._set_speeds_dict(data)
         return self
 
-    def save(self, base_path='', **attr):
+    def save(self, base_path='', **kwargs):
         '''Сохранение в файл-источник'''
         with open(f'{base_path}{self.path}', 'w', encoding='UTF-8') as outfile:
             yaml.dump(self.get, 

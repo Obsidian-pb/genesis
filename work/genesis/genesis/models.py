@@ -264,12 +264,12 @@ class Environment(SpatialFeature):
                 prop.frame(polygon)
             
 
-    def load(self, base_path=None, feature_names:list = None):
+    def load(self, base_path=None, features_list:list = None):
         '''Загрузка модели'''
-        if feature_names is None:
+        if features_list is None:
             props_list = self.__dict__
         else:
-            props_list = feature_names
+            props_list = features_list
 
         for prop_name in props_list:
             prop = getattr(self, prop_name)
@@ -280,12 +280,12 @@ class Environment(SpatialFeature):
                     prop.load(base_path)
         return self
 
-    def save(self, base_path=None, feature_names:list = None):
+    def save(self, base_path=None, features_list:list = None):
         '''Сохранение модели'''
-        if feature_names is None:
+        if features_list is None:
             props_list = self.__dict__
         else:
-            props_list = feature_names
+            props_list = features_list
 
         for prop_name in props_list:
             prop = getattr(self, prop_name)

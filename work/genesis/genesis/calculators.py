@@ -212,6 +212,8 @@ class Arrivals(object):
             `nx.multi_source_dijkstra` из пакета `networkx`. 
             Пользователь может использовать собственные функции с
             интерфейсом `func(multi_source_dijkstra(G, sources, target=None, cutoff=None, weight='weight'))-->distance, path`
+        `AP_name`: str
+            Имя результирующей модели профиля прибытия
         `RNG_name`: str = 'RNG'
             Имя модели ГДС
         `DP_name`:str = 'DP'
