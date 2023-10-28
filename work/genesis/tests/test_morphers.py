@@ -1,6 +1,7 @@
 '''
 Тесты морферов
 '''
+
 import pytest
 
 # from genesis.models import SpatialFeature
