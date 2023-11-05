@@ -8,22 +8,23 @@ import pandas as pd
 # from .tools import data_frame_to_geo_data_frame
 
 import networkx as nx
-import osmnx as ox
+# import osmnx as ox
 
 
 
 
 
 @staticmethod
-def calc_metric(G: nx.MultiDiGraph,
-                node:int,
+def calc_node_metric(G: nx.MultiDiGraph,
+                sources:list,
                 path_function,
                 metric_function,
                 weight: str = "travel_time",
-                precision: int = 2):
+                precision: int = 2,
+                appr_val=0.95):
     '''
     Базовая функция расчета метрик.
-    Возвращает значение стандартной целевой метрики.
+    Возвращает значение указанной метрики для набора узлов.
     Может быть использована как интерфейс для разработки более специализированных функций.
 
     Аргументы
@@ -31,8 +32,8 @@ def calc_metric(G: nx.MultiDiGraph,
     `G`: nx.MultiDiGraph
         Граф дорожной сети
     
-    `node`:int
-        Узел для которого производится расчет
+    `sources`:list(int)
+        Список узлов для которых производится расчет.
 
     `path_function`: function
         Функция расчета кратчайших путей от единственного источника. 
@@ -79,16 +80,16 @@ def calc_metric(G: nx.MultiDiGraph,
         ```
     Расчет времени следования до наиболее удаленного узла:
         ```
-        Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.max)
+        Metrics.calc_metric(E, source=1, path_function=ssfpl, metric_function=np.max)
         ```
     Расчет среднего времени прибытия в любой из узлов, с точностью до 4 знаков после'.':
         ```
-        Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=np.mean,
+        Metrics.calc_metric(E, source=1, path_function=ssfpl, metric_function=np.mean,
             precision=4)
         ```
     Расчет ИП-20, по полю 'edge_weight':
         ```
-        Metrics.calc_metric(E, node=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
+        Metrics.calc_metric(E, source=1, path_function=ssfpl, metric_function=Metrics.calc_ip(ip_val=20),
             weight='edge_weight')
         ```
 
@@ -104,21 +105,30 @@ def calc_metric(G: nx.MultiDiGraph,
         ```
     '''
 
-    if not isinstance(node, int):
-        raise TypeError("Идентификатор узла должен иметь тип данных int!")
+    if isinstance(sources, (int, list)):
+        if isinstance(sources, int):
+            sources = [sources]
+        if isinstance(sources, list):
+            for element in sources:
+                if not isinstance(element, int):
+                    raise TypeError("Все идентификаторы узлов в списке sources должны иметь тип данных int!")
+                if not element in G.nodes():
+                    raise KeyError(f"Узел {element} отсутствует в графе G")
+    else:
+        raise TypeError("Идентификатор узла должен иметь тип данных int или list(int)!")
     if not isinstance(G, nx.MultiDiGraph):
         raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
-    if not node in G.nodes():
-        raise KeyError(f"Узел {node} отсутствует в графе G")
 
-    route_lens = path_function(G, node, weight=weight)
+    route_lens = path_function(G, sources, weight=weight)
+    if len(route_lens)<int(appr_val*G.number_of_nodes()):
+        raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи с его слабой связностью с основным графом')
 
     try:
         val = metric_function(pd.Series(route_lens))
         return round(val, precision)
     except Exception as exc:
         raise TypeError(
-            "Данный тип функций не применим для аргумента с типом Series"
+            f"Функция {path_function.__name__} здесь не применима. Уточните ее сигнатуру."
             ) from exc
 
 @staticmethod
@@ -173,5 +183,5 @@ def cover_index(
             return 0
         ip_len = sum(route_times<=ip_val)
         return round(100*ip_len/tot_len, precision)
-    
+
     return _cover_index

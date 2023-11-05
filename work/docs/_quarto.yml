@@ -26,6 +26,7 @@ book:
       - pages/documentation/algorithms.qmd
     - pages/terms.qmd
     - pages/references.qmd
+    - pages/discussion.qmd
 
 bibliography: references.bib
 
