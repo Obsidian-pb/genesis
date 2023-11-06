@@ -21,7 +21,8 @@ def calc_node_metric(G: nx.MultiDiGraph,
                 metric_function,
                 weight: str = "travel_time",
                 precision: int = 2,
-                appr_val=0.95):
+                appr_val=0.95,
+                err_val=None):
     '''
     Базовая функция расчета метрик.
     Возвращает значение указанной метрики для набора узлов.
@@ -120,8 +121,11 @@ def calc_node_metric(G: nx.MultiDiGraph,
         raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
 
     route_lens = path_function(G, sources, weight=weight)
-    if len(route_lens)<int(appr_val*G.number_of_nodes()):
-        raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи с его слабой связностью с основным графом')
+    if len(route_lens)<int(appr_val*G.number_of_nodes()) and not err_val=='pass':
+        if err_val==None:
+            raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи с его слабой связностью с основным графом')
+        else:
+            return err_val
 
     try:
         val = metric_function(pd.Series(route_lens))
