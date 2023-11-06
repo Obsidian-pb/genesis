@@ -6,7 +6,9 @@
 import networkx as nx
 
 from genesis.metrics import calc_node_metric
+from genesis.tools import get_all_neighbour_nodes
 
+import logging
 
 
 
@@ -121,9 +123,9 @@ class Graphs(object):
                            metric_function=None,
                            weight:str='travel_time',
                            appr_val=0.95,
-                           possible_nodes=None,
                            start_node=None,
-                           reduce=True):
+                           reduce=True,
+                           all_nodes=False):
         '''
         Поиск лучшего узла с использованием алгоритма водостока.
 
@@ -133,6 +135,7 @@ class Graphs(object):
             raise TypeError("Тип переменной G должен быть MultiDiGraph!")
         
         nodes_metric = {}
+        route={}
 
         if start_node==None:
             # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО! Иначе можно оказаться в тупике из которого нет выхода
@@ -152,11 +155,10 @@ class Graphs(object):
                                 appr_val=appr_val)
                 nodes_metric[start_node] = cur_val
                 i+=1
-            
-            # if cur_val==0:
-            #     raise ValueError('Определить наиболее выгодный стартовый узел невозможно, в связи с критической несвязностью графа')
         else:
             # Использование переданного стартового узла
+            if not isinstance(start_node,int):
+                raise TypeError('Тип данных start_node должен быть только int!')
             cur_val = calc_node_metric(G,
                                 start_node,
                                 path_function=path_function,
@@ -168,13 +170,21 @@ class Graphs(object):
             if cur_val==0:
                 raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой связностью с остальной частью графа')
 
+        route[start_node] = cur_val
+        logging.debug(f'ПЕРВЫЙ УЗЕЛ {start_node}, метрика {cur_val}')
+
         # Пошаговый поиск лучшего узла от start_node
         best_val = cur_val
         best_node = start_node
         tmp_node=None
         while best_node!=tmp_node:
             tmp_node = best_node
-            for node in G[tmp_node]:
+
+            if all_nodes:
+                nnodes = get_all_neighbour_nodes(G, tmp_node)
+            else:
+                nnodes = G[tmp_node]
+            for node in nnodes:
                 if node in nodes_metric.keys():
                     cur_val = nodes_metric[node]
                 else:
@@ -189,11 +199,15 @@ class Graphs(object):
                         cur_val = best_val
                     nodes_metric[node] = cur_val
                 
+                logging.debug(f'УЗЕЛ {node}, метрика {cur_val}')
+
                 if reduce and cur_val<best_val:
                     best_val = cur_val
                     best_node = node
                 if not reduce and cur_val>best_val:
                     best_val = cur_val
                     best_node = node
-                
-        return best_node, best_val
+            route[best_node] = best_val
+            logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика {best_val}')
+
+        return best_node, best_val, route

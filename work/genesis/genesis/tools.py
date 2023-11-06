@@ -67,3 +67,11 @@ def data_frame_to_geo_data_frame(
     gdf = gpd.GeoDataFrame(df_p).set_crs(nodes_gdf.crs)
     gdf.index.name=index_name
     return gdf
+
+def get_all_neighbour_nodes(G, node):
+    nnodes = []
+    for edge in G.out_edges(node):
+        nnodes.append(edge[1])
+    for edge in G.in_edges(node):
+        nnodes.append(edge[0])
+    return nnodes
