@@ -16,11 +16,9 @@ import networkx as nx
 
 @staticmethod
 def calc_node_metric(G: nx.MultiDiGraph,
-                sources:list,
                 path_function,
                 metric_function,
                 weight: str = "travel_time",
-                precision: int = 2,
                 appr_val=0.95,
                 err_val=None):
     '''
@@ -32,9 +30,6 @@ def calc_node_metric(G: nx.MultiDiGraph,
     ---------
     `G`: nx.MultiDiGraph
         Граф дорожной сети
-    
-    `sources`:list(int)
-        Список узлов для которых производится расчет.
 
     `path_function`: function
         Функция расчета кратчайших путей от единственного источника. 
@@ -105,40 +100,51 @@ def calc_node_metric(G: nx.MultiDiGraph,
         def I_calc_metric(E: Environment, **kwargs): float
         ```
     '''
-
-    if isinstance(sources, (int, list)):
-        if isinstance(sources, int):
-            sources = [sources]
-        if isinstance(sources, list):
-            for element in sources:
-                if not isinstance(element, int):
-                    raise TypeError("Все идентификаторы узлов в списке sources должны иметь тип данных int!")
-                if not element in G.nodes():
-                    raise KeyError(f"Узел {element} отсутствует в графе G")
-    else:
-        raise TypeError("Идентификатор узла должен иметь тип данных int или list(int)!")
-    if not isinstance(G, nx.MultiDiGraph):
-        raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
-
-    route_lens = path_function(G, sources, weight=weight)
-    if len(route_lens)<int(appr_val*G.number_of_nodes()) and not err_val=='pass':
-        if err_val==None:
-            raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи с его слабой связностью с основным графом')
+    def _calc_node_metric(sources:list|int):
+        '''
+        
+        `sources`:list(int)|int
+            Узлы для которых производится расчет. Если в списке более одного узла, производится оценка метрики 
+            исходя из расчета первого прибывшего подразделения. Т.е. Значение будет одно, отражающее
+            состояние параметров прибытия из всех точек одновременно. Данный способ нельзя ипользовать для оценки 
+            метрики каждого из узлов по отдельности!
+        '''
+        if isinstance(sources, (int, list)):
+            if isinstance(sources, int):
+                sources = [sources]
+            if isinstance(sources, list):
+                if len(sources)==0:
+                    raise ValueError('В sources нет ни одного элемента!')
+                for element in sources:
+                    if not isinstance(element, int):
+                        raise TypeError("Все идентификаторы узлов в списке sources должны иметь тип данных int!")
+                    if not element in G.nodes():
+                        raise KeyError(f"Узел {element} отсутствует в графе G")
         else:
-            return err_val
+            raise TypeError("Идентификатор узла должен иметь тип данных int или list(int)!")
+        if not isinstance(G, nx.MultiDiGraph):
+            raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
 
-    try:
-        val = metric_function(pd.Series(route_lens))
-        return round(val, precision)
-    except Exception as exc:
-        raise TypeError(
-            f"Функция {path_function.__name__} здесь не применима. Уточните ее сигнатуру."
-            ) from exc
+        route_lens = path_function(G, sources, weight=weight)
+        if len(route_lens)<int(appr_val*G.number_of_nodes()):
+            if err_val==None:
+                raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи с его слабой связностью с основным графом')
+            else:
+                return err_val
+
+        try:
+            val = metric_function(pd.Series(route_lens))
+            return val
+        except Exception as exc:
+            raise TypeError(
+                f"Функция {path_function.__name__} здесь не применима. Уточните ее сигнатуру."
+                ) from exc
+
+    return _calc_node_metric
 
 @staticmethod
 def cover_index(
-            ip_val=10,
-            precision: int = 2):
+            ip_val=10):
     '''
     Расчет индекса прикрытия.
 
@@ -186,6 +192,6 @@ def cover_index(
         if tot_len==0:
             return 0
         ip_len = sum(route_times<=ip_val)
-        return round(100*ip_len/tot_len, precision)
+        return 100*ip_len/tot_len
 
     return _cover_index

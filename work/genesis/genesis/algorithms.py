@@ -30,10 +30,7 @@ class Graphs(object):
     '''
     @staticmethod
     def get_best_node_full(G:nx.MultiDiGraph,
-                           path_function=None,
-                           metric_function=None,
-                           weight:str='travel_time',
-                           appr_val=0.95,
+                           calc_node_metric_function=None,
                            possible_nodes=None,
                            reduce=True):
         '''
@@ -88,44 +85,37 @@ class Graphs(object):
 
         for node in possible_nodes:
             try:
-                cur_val = calc_node_metric(G,
-                            node,
-                            path_function=path_function,
-                            metric_function=metric_function,
-                            weight=weight,
-                            appr_val=appr_val)
+                # Вычисление метрики для узла
+                cur_val = calc_node_metric_function(node)
             except ValueError:
                 cur_val = best_val
             
+            # Если лучший узел еще не определен, устанавливаем его для текущего узла
             if best_val==None and not cur_val==None:
                 best_val = cur_val
                 best_node = node
             
             if not best_val==None and not cur_val==None:
                 if reduce and cur_val<best_val:
+                    # Если требуется поиск наименьшей метрики
                     best_val = cur_val
                     best_node = node
                 if not reduce and cur_val>best_val:
+                    # Если требуется поиск наибольшей метрики
                     best_val = cur_val
                     best_node = node
 
 
         return best_node, best_val
     
-    # @staticmethod
-    # def select_best_node_in_neighbourhood(G,
-    #                     node,
-    #                     )
 
     @staticmethod
     def get_best_node_drain(G:nx.MultiDiGraph,
-                           path_function=None,
-                           metric_function=None,
-                           weight:str='travel_time',
-                           appr_val=0.95,
-                           start_node=None,
-                           reduce=True,
-                           all_nodes=False):
+                            calc_node_metric_function=None,
+                            start_node=None,
+                            reduce=True,
+                            all_nodes=False,
+                           ):
         '''
         Поиск лучшего узла с использованием алгоритма водостока.
 
@@ -139,35 +129,29 @@ class Graphs(object):
 
         if start_node==None:
             # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО! Иначе можно оказаться в тупике из которого нет выхода
-            cur_val = 0
+            cur_val = None
             i=0
             nodes_list = list(G.nodes())
-            while cur_val==0:
+            while cur_val==None:
                 if i>=G.number_of_nodes():
-                    raise ValueError('Определить наиболее выгодный стартовый узел невозможно, в связи с критической несвязностью графа')
+                    raise ValueError('Определить наиболее выгодный стартовый узел невозможно, в связи с неприемлемой несвязностью графа')
                 start_node = nodes_list[i]
-                cur_val = calc_node_metric(G,
-                                start_node,
-                                path_function=path_function,
-                                metric_function=metric_function,
-                                weight=weight,
-                                err_val=0,
-                                appr_val=appr_val)
+                try:
+                    cur_val = calc_node_metric_function(start_node)
+                except ValueError:
+                    cur_val = None
                 nodes_metric[start_node] = cur_val
                 i+=1
         else:
             # Использование переданного стартового узла
             if not isinstance(start_node,int):
                 raise TypeError('Тип данных start_node должен быть только int!')
-            cur_val = calc_node_metric(G,
-                                start_node,
-                                path_function=path_function,
-                                metric_function=metric_function,
-                                weight=weight,
-                                err_val=0,
-                                appr_val=appr_val)
+            try:
+                cur_val = calc_node_metric_function(start_node)
+            except ValueError:
+                cur_val = None
             nodes_metric[start_node] = cur_val
-            if cur_val==0:
+            if cur_val==None:
                 raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой связностью с остальной частью графа')
 
         route[start_node] = cur_val
@@ -189,22 +173,20 @@ class Graphs(object):
                     cur_val = nodes_metric[node]
                 else:
                     try:
-                        cur_val = calc_node_metric(G,
-                                    node,
-                                    path_function=path_function,
-                                    metric_function=metric_function,
-                                    weight=weight,
-                                    appr_val=appr_val)
+                        cur_val = calc_node_metric_function(node)
                     except ValueError:
+                        logging.debug(f'УЗЕЛ {node}, слабосвязан')
                         cur_val = best_val
                     nodes_metric[node] = cur_val
                 
                 logging.debug(f'УЗЕЛ {node}, метрика {cur_val}')
 
                 if reduce and cur_val<best_val:
+                    # Если требуется поиск наименьшей метрики
                     best_val = cur_val
                     best_node = node
                 if not reduce and cur_val>best_val:
+                    # Если требуется поиск наибольшей метрики
                     best_val = cur_val
                     best_node = node
             route[best_node] = best_val

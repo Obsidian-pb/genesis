@@ -79,37 +79,49 @@ def create_G():
 class TestBNF:
     def test_bnf_basic_mean(self, create_G):
         G = create_G
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
-                            metric_function=np.mean
+                            metric_function=np.mean,
+                            )
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             )
         assert best_node==1
-        assert best_val==8.67
+        assert best_val==8.666666666666666
 
     def test_bnf_basic_max(self, create_G):
         G = create_G
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
-                            metric_function=np.max
+                            metric_function=np.max,
+                            )
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             )
         assert best_node==4
         assert best_val==17
 
     def test_bnf_basic_ip10(self, create_G):
         G = create_G
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
                             metric_function=cover_index(),
+                            )
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
         assert best_node==1
-        assert best_val==66.67
+        assert best_val==66.66666666666667
 
     def test_bnf_basic_ip20(self, create_G):
         G = create_G
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
                             metric_function=cover_index(ip_val=20),
+                            )
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
         assert best_node==4
@@ -120,10 +132,13 @@ class TestBNF:
         Тест расчета при условии что в результат включаются все узлы, в том числе и слабосвязанные
         '''
         G = create_G
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
                             metric_function=cover_index(),
                             appr_val=0,
+                            )
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
         assert best_node==9
@@ -134,14 +149,17 @@ class TestBNF:
         Определение лучшего узла по метрике среднего времени следования из указанного списка
         '''
         G = create_G
-        nodes_list=[1,2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
                             metric_function=np.mean,
+                            )
+        nodes_list=[1,2,5,8]
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==1
-        assert best_val==8.67
+        assert best_val==8.666666666666666
 
     def test_bnf_basic_mean_fromlist_badnodes(self, create_G):
         '''
@@ -149,10 +167,13 @@ class TestBNF:
         Узлы слабо связаны
         '''
         G = create_G
-        nodes_list=[2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
                             metric_function=np.mean,
+                            )
+        nodes_list=[2,5,8]
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==None
@@ -164,15 +185,18 @@ class TestBNF:
         Узлы слабо связаны, но при условии покрытия 0,5 узлов графа, некоторые из них могут быть учтены.
         '''
         G = create_G
-        nodes_list=[2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             appr_val=0.5,
+                            )
+        nodes_list=[2,5,8]
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==2
-        assert best_val==8.69
+        assert best_val==8.692307692307692
 
     def test_bnf_basic_mean_fromlist_badnodes_0(self, create_G):
         '''
@@ -180,11 +204,14 @@ class TestBNF:
         Узлы слабо связаны, но все из них могут быть учтены.
         '''
         G = create_G
-        nodes_list=[2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        calc_node_metric_function = calc_node_metric(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             appr_val=0,
+                            )
+        nodes_list=[2,5,8]
+        best_node, best_val = Graphs.get_best_node_full(G,
+                            calc_node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==8

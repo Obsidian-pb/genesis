@@ -75,24 +75,22 @@ def test_calc_max_single_node(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
 
-    max_time_t = 27.88
+    max_time_t = 27.881282428571428
     max_time = calc_node_metric(G,
-                            start_node,
                             path_function=msfpl,
                             metric_function=np.max,
-                            weight='travel_time')
+                            weight='travel_time')(start_node)
     assert max_time_t==max_time
 
 def test_calc_max_multi_node(load_G):
     G = load_G
     start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
 
-    max_time_t = 18.33
+    max_time_t = 18.329245285714283
     max_time = calc_node_metric(G,
-                            start_nodes,
                             path_function=msfpl,
                             metric_function=np.max,
-                            weight='travel_time')
+                            weight='travel_time')(start_nodes)
     assert max_time_t==max_time
 
 def test_calc_max_multi_node_reverse(load_G):
@@ -106,49 +104,33 @@ def test_calc_max_multi_node_reverse(load_G):
     G = load_G
     start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
 
-    max_time_t = 19.2
+    max_time_t = 19.199067214285723
     max_time = calc_node_metric(G,
-                            start_nodes,
                             path_function=shortest_path_length_r,
                             metric_function=np.max,
-                            weight='travel_time')
-    assert max_time_t==max_time
-
-def test_calc_max_prec(load_G):
-    G = load_G
-    start_node = list(G.nodes())[2000]
-
-    max_time_t = 27.881
-    max_time = calc_node_metric(G,
-                            start_node,
-                            path_function=msfpl,
-                            metric_function=np.max,
-                            weight='travel_time',
-                            precision=3)
+                            weight='travel_time')(start_nodes)
     assert max_time_t==max_time
 
 def test_calc_mean(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
 
-    mean_time_t = 16.32
+    mean_time_t = 16.322393925534676
     mean_time = calc_node_metric(G,
-                            start_node,
                             path_function=msfpl,
                             metric_function=np.mean,
-                            weight='travel_time')
+                            weight='travel_time')(start_node)
     assert mean_time_t==mean_time
 
 def test_calc_median(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
 
-    median_time_t = 17.11
+    median_time_t = 17.114336285714288
     median_time = calc_node_metric(G,
-                            start_node,
                             path_function=msfpl,
                             metric_function=np.median,
-                            weight='travel_time')
+                            weight='travel_time')(start_node)
     assert median_time_t==median_time
 
 @pytest.mark.xfail()
@@ -175,23 +157,21 @@ def test_cover_index_zero_len():
 def test_cover_index10(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
-    ip_real = 11.26
+    ip_real = 11.26453488372093
     ip_test = calc_node_metric(G,
-                            start_node,
                             path_function=msfpl,
                             metric_function=cover_index(),
-                            weight='travel_time')
+                            weight='travel_time')(start_node)
     assert ip_real==ip_test
 
 def test_calc_ip20(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
-    ip_real = 74.04
+    ip_real = 74.03706395348837
     ip_test = calc_node_metric(G,
-                            start_node,
                             path_function=msfpl,
                             metric_function=cover_index(ip_val=20),
-                            weight='travel_time')
+                            weight='travel_time')(start_node)
     assert ip_real==ip_test
 
 # для узла 2000:
@@ -201,26 +181,26 @@ def test_calc_ip20(load_G):
 #  'ip10': 11.26,
 #  'ip20': 74.04}
 
-def test_calc_base_overload(load_G):
-    def calc_node_metric(G:nx.MultiDiGraph, 
-                    source:int, 
-                    # path_function, 
-                    # metric_function, 
-                    # weight: str = "travel_time",
-                    # precision: int = 2,
-                    **kwargs):
-        '''
-        Для одного узла вместо списка
-        '''
-        route_lens = nx.single_source_dijkstra_path_length(
-            G, source, weight='length'
-            )
-        less_1000 = [1 if d<1000 else 0 for d in route_lens.values()]
-        return round(sum(less_1000)/len(less_1000), 2)
+# def test_calc_base_overload(load_G):
+#     def calc_node_metric(G:nx.MultiDiGraph, 
+#                     source:int, 
+#                     # path_function, 
+#                     # metric_function, 
+#                     # weight: str = "travel_time",
+#                     # precision: int = 2,
+#                     **kwargs):
+#         '''
+#         Для одного узла вместо списка
+#         '''
+#         route_lens = nx.single_source_dijkstra_path_length(
+#             G, source, weight='length'
+#             )
+#         less_1000 = [1 if d<1000 else 0 for d in route_lens.values()]
+#         return round(sum(less_1000)/len(less_1000), 2)
 
-    G = load_G
-    start_node = list(G.nodes())[2000]
-    assert calc_node_metric(G, start_node)==0.05
+#     G = load_G
+#     start_node = list(G.nodes())[2000]
+#     assert calc_node_metric(G, start_node)==0.05
 
 def test_calc_simple_overload(load_G):
     def calc_ip_15(route_times:pd.Series):
@@ -235,7 +215,8 @@ def test_calc_simple_overload(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
 
-    metric_value = calc_node_metric(G, sources=start_node, path_function=msfpl,
-        metric_function=calc_ip_15)
+    metric_value = calc_node_metric(G,
+                                    path_function=msfpl,
+                                    metric_function=calc_ip_15)(start_node)
     
     assert metric_value==34.01
