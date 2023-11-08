@@ -76,7 +76,7 @@ def test_calc_max_single_node(load_G):
     start_node = list(G.nodes())[2000]
 
     max_time_t = 27.881282428571428
-    max_time = calc_node_metric(G,
+    max_time = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.max,
                             weight='travel_time')(start_node)
@@ -87,7 +87,7 @@ def test_calc_max_multi_node(load_G):
     start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
 
     max_time_t = 18.329245285714283
-    max_time = calc_node_metric(G,
+    max_time = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.max,
                             weight='travel_time')(start_nodes)
@@ -105,7 +105,7 @@ def test_calc_max_multi_node_reverse(load_G):
     start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
 
     max_time_t = 19.199067214285723
-    max_time = calc_node_metric(G,
+    max_time = metric_by_time(G,
                             path_function=shortest_path_length_r,
                             metric_function=np.max,
                             weight='travel_time')(start_nodes)
@@ -116,7 +116,7 @@ def test_calc_mean(load_G):
     start_node = list(G.nodes())[2000]
 
     mean_time_t = 16.322393925534676
-    mean_time = calc_node_metric(G,
+    mean_time = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             weight='travel_time')(start_node)
@@ -127,7 +127,7 @@ def test_calc_median(load_G):
     start_node = list(G.nodes())[2000]
 
     median_time_t = 17.114336285714288
-    median_time = calc_node_metric(G,
+    median_time = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.median,
                             weight='travel_time')(start_node)
@@ -158,7 +158,7 @@ def test_cover_index10(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
     ip_real = 11.26453488372093
-    ip_test = calc_node_metric(G,
+    ip_test = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=cover_index(),
                             weight='travel_time')(start_node)
@@ -168,7 +168,7 @@ def test_calc_ip20(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
     ip_real = 74.03706395348837
-    ip_test = calc_node_metric(G,
+    ip_test = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=cover_index(ip_val=20),
                             weight='travel_time')(start_node)
@@ -215,7 +215,7 @@ def test_calc_simple_overload(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
 
-    metric_value = calc_node_metric(G,
+    metric_value = metric_by_time(G,
                                     path_function=msfpl,
                                     metric_function=calc_ip_15)(start_node)
     

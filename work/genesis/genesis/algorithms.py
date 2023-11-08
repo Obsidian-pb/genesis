@@ -5,7 +5,7 @@
 
 import networkx as nx
 
-from genesis.metrics import calc_node_metric
+# from genesis.metrics import calc_node_metric
 from genesis.tools import get_all_neighbour_nodes
 
 import logging
@@ -105,7 +105,7 @@ class Graphs(object):
                     best_val = cur_val
                     best_node = node
 
-
+        logging.warning('Должен возвращаться список!')
         return best_node, best_val
     
 
@@ -192,4 +192,5 @@ class Graphs(object):
             route[best_node] = best_val
             logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика {best_val}')
 
+        logging.warning('Должен возвращаться список!')
         return best_node, best_val, route

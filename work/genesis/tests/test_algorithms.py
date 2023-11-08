@@ -79,7 +79,7 @@ def create_G():
 class TestBNF:
     def test_bnf_basic_mean(self, create_G):
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             )
@@ -91,7 +91,7 @@ class TestBNF:
 
     def test_bnf_basic_max(self, create_G):
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.max,
                             )
@@ -103,7 +103,7 @@ class TestBNF:
 
     def test_bnf_basic_ip10(self, create_G):
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=cover_index(),
                             )
@@ -116,7 +116,7 @@ class TestBNF:
 
     def test_bnf_basic_ip20(self, create_G):
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=cover_index(ip_val=20),
                             )
@@ -132,7 +132,7 @@ class TestBNF:
         Тест расчета при условии что в результат включаются все узлы, в том числе и слабосвязанные
         '''
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=cover_index(),
                             appr_val=0,
@@ -149,7 +149,7 @@ class TestBNF:
         Определение лучшего узла по метрике среднего времени следования из указанного списка
         '''
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             )
@@ -167,7 +167,7 @@ class TestBNF:
         Узлы слабо связаны
         '''
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             )
@@ -185,7 +185,7 @@ class TestBNF:
         Узлы слабо связаны, но при условии покрытия 0,5 узлов графа, некоторые из них могут быть учтены.
         '''
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             appr_val=0.5,
@@ -204,7 +204,7 @@ class TestBNF:
         Узлы слабо связаны, но все из них могут быть учтены.
         '''
         G = create_G
-        calc_node_metric_function = calc_node_metric(G,
+        calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             appr_val=0,

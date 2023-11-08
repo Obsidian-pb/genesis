@@ -15,7 +15,7 @@ import networkx as nx
 
 
 @staticmethod
-def calc_node_metric(G: nx.MultiDiGraph,
+def metric_by_time(G: nx.MultiDiGraph,
                 path_function,
                 metric_function,
                 weight: str = "travel_time",
@@ -100,7 +100,7 @@ def calc_node_metric(G: nx.MultiDiGraph,
         def I_calc_metric(E: Environment, **kwargs): float
         ```
     '''
-    def _calc_node_metric(sources:list|int):
+    def _metric_by_time(sources:list|int):
         '''
         
         `sources`:list(int)|int
@@ -140,7 +140,7 @@ def calc_node_metric(G: nx.MultiDiGraph,
                 f"Функция {path_function.__name__} здесь не применима. Уточните ее сигнатуру."
                 ) from exc
 
-    return _calc_node_metric
+    return _metric_by_time
 
 @staticmethod
 def cover_index(
