@@ -21,7 +21,7 @@ class Graphs(object):
 
         1.2 Пробегом от произвольной точки
         
-        1.3 От углов
+        1.3 От периферии
 
         1.4 Быстрым пробегом
 
@@ -30,7 +30,7 @@ class Graphs(object):
     '''
     @staticmethod
     def get_best_node_full(G:nx.MultiDiGraph,
-                           calc_node_metric_function=None,
+                           node_metric_function=None,
                            possible_nodes=None,
                            reduce=True):
         '''
@@ -86,7 +86,7 @@ class Graphs(object):
         for node in possible_nodes:
             try:
                 # Вычисление метрики для узла
-                cur_val = calc_node_metric_function(node)
+                cur_val = node_metric_function(node)
             except ValueError:
                 cur_val = best_val
             
@@ -111,7 +111,7 @@ class Graphs(object):
 
     @staticmethod
     def get_best_node_drain(G:nx.MultiDiGraph,
-                            calc_node_metric_function=None,
+                            node_metric_function=None,
                             start_node=None,
                             reduce=True,
                             all_nodes=False,
@@ -137,7 +137,7 @@ class Graphs(object):
                     raise ValueError('Определить наиболее выгодный стартовый узел невозможно, в связи с неприемлемой несвязностью графа')
                 start_node = nodes_list[i]
                 try:
-                    cur_val = calc_node_metric_function(start_node)
+                    cur_val = node_metric_function(start_node)
                 except ValueError:
                     cur_val = None
                 nodes_metric[start_node] = cur_val
@@ -147,7 +147,7 @@ class Graphs(object):
             if not isinstance(start_node,int):
                 raise TypeError('Тип данных start_node должен быть только int!')
             try:
-                cur_val = calc_node_metric_function(start_node)
+                cur_val = node_metric_function(start_node)
             except ValueError:
                 cur_val = None
             nodes_metric[start_node] = cur_val
@@ -173,7 +173,7 @@ class Graphs(object):
                     cur_val = nodes_metric[node]
                 else:
                     try:
-                        cur_val = calc_node_metric_function(node)
+                        cur_val = node_metric_function(node)
                     except ValueError:
                         logging.debug(f'УЗЕЛ {node}, слабосвязан')
                         cur_val = best_val

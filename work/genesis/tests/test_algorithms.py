@@ -84,7 +84,7 @@ class TestBNF:
                             metric_function=np.mean,
                             )
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             )
         assert best_node==1
         assert best_val==8.666666666666666
@@ -96,7 +96,7 @@ class TestBNF:
                             metric_function=np.max,
                             )
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             )
         assert best_node==4
         assert best_val==17
@@ -108,7 +108,7 @@ class TestBNF:
                             metric_function=cover_index(),
                             )
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
         assert best_node==1
@@ -121,7 +121,7 @@ class TestBNF:
                             metric_function=cover_index(ip_val=20),
                             )
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
         assert best_node==4
@@ -138,7 +138,7 @@ class TestBNF:
                             appr_val=0,
                             )
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
         assert best_node==9
@@ -155,7 +155,7 @@ class TestBNF:
                             )
         nodes_list=[1,2,5,8]
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==1
@@ -173,7 +173,7 @@ class TestBNF:
                             )
         nodes_list=[2,5,8]
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==None
@@ -192,7 +192,7 @@ class TestBNF:
                             )
         nodes_list=[2,5,8]
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==2
@@ -211,7 +211,7 @@ class TestBNF:
                             )
         nodes_list=[2,5,8]
         best_node, best_val = Graphs.get_best_node_full(G,
-                            calc_node_metric_function=calc_node_metric_function,
+                            node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
         assert best_node==8
