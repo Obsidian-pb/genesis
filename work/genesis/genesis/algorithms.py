@@ -4,8 +4,9 @@
 
 
 import networkx as nx
+import numpy as np
 
-# from genesis.metrics import calc_node_metric
+from genesis.metrics import metric_by_time
 from genesis.tools import get_all_neighbour_nodes
 
 import logging
@@ -194,3 +195,49 @@ class Graphs(object):
 
         logging.warning('Должен возвращаться список!')
         return best_node, best_val, route
+
+    @staticmethod
+    def get_best_node_drain_max_mean(G:nx.MultiDiGraph,
+                            path_function,
+                            start_node=None,
+                            reduce=True,
+                            all_nodes=False,
+                            weight: str = "travel_time",
+                            appr_val=0.95,
+                            err_val=None):
+        '''
+        Поиск лучшего узла с использованием алгоритма водостока.
+        Оценка производится последовательно метриками np.max и np.mean
+
+        Minimum travel time location problem - MTTLP
+        '''
+
+        # Расчет метрикой максимального времени
+        calc_node_metric_function = metric_by_time(G,
+                                    path_function=path_function,
+                                    metric_function=np.max,
+                                    weight=weight,
+                                    appr_val=appr_val,
+                                    err_val=err_val
+                                    )
+        best_node, best_val, _ = Graphs.get_best_node_drain(G, 
+                                node_metric_function=calc_node_metric_function,
+                                start_node=start_node,
+                                reduce=reduce,
+                                all_nodes=all_nodes
+                                )
+        logging.debug(f'ПЕРВЫЙ УЗЕЛ {best_node}, метрика max {best_val}')
+        # Расчет метрикой среднего времени
+        calc_node_metric_function = metric_by_time(G,
+                                    path_function=path_function,
+                                    metric_function=np.mean,
+                                    weight=weight,
+                                    appr_val=appr_val,
+                                    err_val=err_val
+                                    )
+        best_node, best_val, _ = Graphs.get_best_node_drain(G, 
+                                node_metric_function=calc_node_metric_function,
+                                start_node=best_node
+                                )
+        logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика mean {best_val}')
+        return best_node, best_val

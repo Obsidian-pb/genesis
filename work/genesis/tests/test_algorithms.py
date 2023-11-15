@@ -75,6 +75,7 @@ def create_G():
 
 
 # Здесь bnf = best node full. Алгоритм поиска наилучшего узла полным перебором
+# bnd = best node drain. Алгоритм поиска наилучшего узла сливом
 
 class TestBNF:
     def test_bnf_basic_mean(self, create_G):
@@ -217,4 +218,13 @@ class TestBNF:
         assert best_node==8
         assert best_val==6.25
 
-
+    def test_bnd_max_mean(self, load_G):
+        '''
+        Определение лучшего узла последовательностью метрик max+mean
+        '''
+        G = load_G
+        best_node, best_val = Graphs.get_best_node_drain_max_mean(
+            G, msfpl
+        )
+        assert best_node==426923808
+        assert best_val==7.355415617070702
