@@ -5,6 +5,7 @@
 
 import networkx as nx
 import numpy as np
+import pandas as pd
 
 from genesis.metrics import metric_by_time
 from genesis.tools import get_all_neighbour_nodes
@@ -18,22 +19,21 @@ class Graphs(object):
     Алгоритмы для работы с графами
 
     1 Расчет центра графа
-        1.1 Полным перебором
+        1.1 х Полным перебором
 
-        1.2 Пробегом от произвольной точки
+        1.2 х Стоком от произвольной точки
         
-        1.3 От периферии
+        1.3 Быстрым пробегом от периферии
 
-        1.4 Быстрым пробегом
-
-        1.5 Посевом
+        1.4 Посевом
 
     '''
     @staticmethod
     def get_best_node_full(G:nx.MultiDiGraph,
                            node_metric_function=None,
                            possible_nodes=None,
-                           reduce=True):
+                           reduce=True,
+                           event_after_node_calc=None):
         '''
         Поиск лучшего узла полным перебором. 
         Могут быть возвращены только узлы из которых можно попасть в любой другой узел графа.
@@ -105,6 +105,10 @@ class Graphs(object):
                     # Если требуется поиск наибольшей метрики
                     best_val = cur_val
                     best_node = node
+            
+            # Если указано событие которое должно происходить после расчета каждого узла - выполняем его
+            if event_after_node_calc:
+                event_after_node_calc()
 
         logging.warning('Должен возвращаться список!')
         return best_node, best_val
@@ -193,7 +197,6 @@ class Graphs(object):
             route[best_node] = best_val
             logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика {best_val}')
 
-        logging.warning('Должен возвращаться список!')
         return best_node, best_val, route
 
     @staticmethod
@@ -241,3 +244,82 @@ class Graphs(object):
                                 )
         logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика mean {best_val}')
         return best_node, best_val
+
+
+
+    @staticmethod
+    def calc_route_times(G:nx.MultiDiGraph,
+                            sources:list|dict,
+                            path_function,
+                            weight: str = 'travel_time',
+                            route_name = 'route_time',
+                            nearest_name = 'nearest',
+                            cutoff=None,
+                            all_nodes_times=False,
+                            all_nodes_pattern='node_{}'
+                            ):
+        '''
+        Алгоритм расчета времен прибытия в узлы графа из стартовых узлов.
+
+        # Аргументы
+        `sources`:list|dict
+            Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
+            идентификатор узла, значение - его наименование. Может использоваться для указания узлов в которых 
+            расположены пожарные подразделения: {1234:'ПСЧ-1'}
+        `path_function`: function
+            Функция расчета кратчайших путей от единственного источника. 
+            В качестве функции могут быть переданы реализации алгоритмов из пакета
+            `networkx`. Например, реализация алгоритма Дейкстры: `nx.single_source_dijkstra_path_length`.
+            Пользователь может использовать собственные функции с
+            интерфейсом `func(G: Graph, source: Any, cutoff: Any | None = None, weight: str = "weight")`
+        `weight`:str или function  = "travel_time"
+            Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+            вес динамически.
+        `route_name`:str='route_time'
+            Имя атрибута в котором будет сохранено время следования по маршруту
+        `nearest_name` = 'nearest'
+            Имя атрибута в котором будет сохранен идентификатор ближайшего стартового узла
+        `cutoff`:int=None
+            Ограничение расчета
+        `all_nodes_times`:bool=False
+            Если True - будет определено время следования от каждого стартового узла в каждый узел графа 
+        `all_nodes_pattern`:str='node_{}'
+            Если all_nodes_times=True, с таким видом будут сохранены имена полей для каждого из стартовых узлов.
+            В {} будет добавлен идентификатор узла или его имя, если тип sources=dict.
+        '''
+
+        # Проверка типов входящих данных
+        if isinstance(sources, list):
+            if isinstance(sources, list):
+                if len(sources)==0:
+                    raise ValueError('В sources нет ни одного элемента!')
+                for element in sources:
+                    if not isinstance(element, int):
+                        raise TypeError("Все идентификаторы узлов в списке sources должны иметь тип данных int!")
+                    if not element in G.nodes():
+                        raise KeyError(f"Узел {element} отсутствует в графе G")
+        elif isinstance(sources, dict):
+            if len(sources)==0:
+                raise ValueError('В sources нет ни одного элемента!')
+            for node, name in sources.items():
+                if not isinstance(name, str):
+                    raise TypeError("Все имена узлов в словаре sources должны иметь тип данных str!")
+                if not node in G.nodes():
+                    raise KeyError(f"Узел {node} отсутствует в графе G")
+        else:
+            raise TypeError("Идентификатор узла должен иметь тип данных int или list(int)!")
+        if not isinstance(G, nx.MultiDiGraph):
+            raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
+
+
+        # Расчет
+        times, routes = path_function(G, sources=sources, cutoff=cutoff, weight=weight)
+        times = pd.Series(times)
+        if isinstance(sources, dict):
+            nearest = pd.Series({k:sources[route[0]] for k, route in routes.items()}, dtype=str)
+        else:
+            nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64')
+        
+        # Установка результатов расчета в качестве атрибутов ребер
+        nx.set_node_attributes(G, times, route_name)
+        nx.set_node_attributes(G, nearest, nearest_name)

@@ -75,3 +75,20 @@ def get_all_neighbour_nodes(G, node):
     for edge in G.in_edges(node):
         nnodes.append(edge[0])
     return nnodes
+
+
+class Progressbar(object):
+
+    def __init__(self, maxval, minval=0, bins=10):
+        self.maxval = maxval
+        self.minval = minval
+        self.bins = bins
+        self.scope = maxval-minval
+        self.val=minval
+
+    def __call__(self):
+        self.val+=1
+        bins_ok = int(self.bins*(self.val/self.scope))
+        bins_still = self.bins-bins_ok
+        s = "|"+"#"*bins_ok + "_"*bins_still + "| " + f'{round(100*self.val/self.scope, 1)}%'
+        print(s, end='\r')

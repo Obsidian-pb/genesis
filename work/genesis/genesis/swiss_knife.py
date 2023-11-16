@@ -6,6 +6,9 @@
 Глобальные инструменты и настройки системы, которые могут быть изменены пользователем
 
 ## Функции
+`multi_source_forward (msf)`: алгоритм расчета кратчайшей цены
+    (время или расстояние или еще что-то) и маршрута следования
+    прямого пути во все узлы графа от множества источников.
 `single_source_forward_path_length (ssfpl)`: алгоритм расчета кратчайшей цены следования 
     (время или расстояние или еще что-то)
     прямого пути во все узлы графа от единого источника.
@@ -26,6 +29,7 @@ import networkx as nx
 #     '''
 #     Функции используемые при проведении расчетов
 #     '''
+msf = nx.multi_source_dijkstra
 ssfpl = nx.single_source_dijkstra_path_length
 msfpl = nx.multi_source_dijkstra_path_length
 sppl = nx.dijkstra_path_length
