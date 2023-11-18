@@ -255,8 +255,8 @@ class Graphs(object):
                             route_name = 'route_time',
                             nearest_name = 'nearest',
                             cutoff=None,
-                            all_nodes_times=False,
-                            all_nodes_pattern='node_{}'
+                            each_to_each=False,
+                            each_to_each_pattern='node_{}'
                             ):
         '''
         Алгоритм расчета времен прибытия в узлы графа из стартовых узлов.
@@ -281,10 +281,12 @@ class Graphs(object):
             Имя атрибута в котором будет сохранен идентификатор ближайшего стартового узла
         `cutoff`:int=None
             Ограничение расчета
-        `all_nodes_times`:bool=False
-            Если True - будет определено время следования от каждого стартового узла в каждый узел графа 
-        `all_nodes_pattern`:str='node_{}'
-            Если all_nodes_times=True, с таким видом будут сохранены имена полей для каждого из стартовых узлов.
+        `each_to_each`:bool=False
+            Если False - будет определена длина  маршрута до каждого узла графа только из ближайшего стартового узла.
+            Если True - будет определена длина маршрута от каждого стартового узла в каждый узел графа.
+            Может быть использовано в том числе для определения времени следования в каждый узел. 
+        `each_to_each_pattern`:str='node_{}'
+            Если each_to_each=True, с таким шаблоном будут сохранены имена полей для каждого из стартовых узлов.
             В {} будет добавлен идентификатор узла или его имя, если тип sources=dict.
         '''
 
@@ -313,13 +315,25 @@ class Graphs(object):
 
 
         # Расчет
-        times, routes = path_function(G, sources=sources, cutoff=cutoff, weight=weight)
-        times = pd.Series(times)
-        if isinstance(sources, dict):
-            nearest = pd.Series({k:sources[route[0]] for k, route in routes.items()}, dtype=str)
+        if each_to_each:
+            logging.warning('Переписать отдельной функцией!')
+            for start_node in sources:
+                times, routes = path_function(G, sources=[start_node], cutoff=cutoff, weight=weight)
+                times = pd.Series(times)
+                if isinstance(sources, dict):
+                    route_name_cur = sources[start_node]
+                else:
+                    route_name_cur = start_node
+                # Установка результатов расчета в качестве атрибутов ребер
+                nx.set_node_attributes(G, times, each_to_each_pattern.format(route_name_cur))
         else:
-            nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64')
-        
-        # Установка результатов расчета в качестве атрибутов ребер
-        nx.set_node_attributes(G, times, route_name)
-        nx.set_node_attributes(G, nearest, nearest_name)
+            times, routes = path_function(G, sources=sources, cutoff=cutoff, weight=weight)
+            times = pd.Series(times)
+            if isinstance(sources, dict):
+                nearest = pd.Series({k:sources[route[0]] for k, route in routes.items()}, dtype=str)
+            else:
+                nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64')
+            
+            # Установка результатов расчета в качестве атрибутов ребер
+            nx.set_node_attributes(G, times, route_name)
+            nx.set_node_attributes(G, nearest, nearest_name)
