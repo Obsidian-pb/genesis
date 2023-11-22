@@ -24,15 +24,19 @@
 '''
 
 import networkx as nx
+from matplotlib.colors import LinearSegmentedColormap 
 
-# class Functions(object):
-#     '''
-#     Функции используемые при проведении расчетов
-#     '''
+
+# Функции используемые при проведении расчетов
 msf = nx.multi_source_dijkstra
+ssf = nx.single_source_dijkstra
 ssfpl = nx.single_source_dijkstra_path_length
 msfpl = nx.multi_source_dijkstra_path_length
 sppl = nx.dijkstra_path_length
 
+
+# Цветовые схемы
+cmap_GrGldRd = LinearSegmentedColormap.from_list("mycmap", ["green", "gold", "red"])
+cmap_RdGldGr = LinearSegmentedColormap.from_list("mycmap", ["red", "gold", "green"]) 
 
 delay_time = 1

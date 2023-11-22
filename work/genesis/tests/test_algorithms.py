@@ -74,20 +74,22 @@ def create_G():
     return G
 
 
-# Здесь bnf = best node full. Алгоритм поиска наилучшего узла полным перебором
-# bnd = best node drain. Алгоритм поиска наилучшего узла сливом
+
 
 class TestBNF:
+    '''
+    bnf = best nodes full. Алгоритм поиска наилучших узлов полным перебором
+    '''
     def test_bnf_basic_mean(self, create_G):
         G = create_G
         calc_node_metric_function = metric_by_time(G,
                             path_function=msfpl,
                             metric_function=np.mean,
                             )
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             )
-        assert best_node==1
+        assert best_node==[1]
         assert best_val==8.666666666666666
 
     def test_bnf_basic_max(self, create_G):
@@ -96,10 +98,10 @@ class TestBNF:
                             path_function=msfpl,
                             metric_function=np.max,
                             )
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             )
-        assert best_node==4
+        assert best_node==[4]
         assert best_val==17
 
     def test_bnf_basic_ip10(self, create_G):
@@ -108,11 +110,11 @@ class TestBNF:
                             path_function=msfpl,
                             metric_function=cover_index(),
                             )
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
-        assert best_node==1
+        assert best_node==[1]
         assert best_val==66.66666666666667
 
     def test_bnf_basic_ip20(self, create_G):
@@ -121,11 +123,11 @@ class TestBNF:
                             path_function=msfpl,
                             metric_function=cover_index(ip_val=20),
                             )
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
-        assert best_node==4
+        assert best_node==[4]
         assert best_val==100.0
 
     def test_bnf_basic_ip10_allapp(self, create_G):
@@ -138,11 +140,11 @@ class TestBNF:
                             metric_function=cover_index(),
                             appr_val=0,
                             )
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             reduce=False
                             )
-        assert best_node==9
+        assert best_node==[9, 10, 12, 13, 14, 15]
         assert best_val==100.0
 
     def test_bnf_basic_mean_fromlist(self, create_G):
@@ -155,11 +157,11 @@ class TestBNF:
                             metric_function=np.mean,
                             )
         nodes_list=[1,2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
-        assert best_node==1
+        assert best_node==[1]
         assert best_val==8.666666666666666
 
     def test_bnf_basic_mean_fromlist_badnodes(self, create_G):
@@ -173,7 +175,7 @@ class TestBNF:
                             metric_function=np.mean,
                             )
         nodes_list=[2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
@@ -192,11 +194,11 @@ class TestBNF:
                             appr_val=0.5,
                             )
         nodes_list=[2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
-        assert best_node==2
+        assert best_node==[2]
         assert best_val==8.692307692307692
 
     def test_bnf_basic_mean_fromlist_badnodes_0(self, create_G):
@@ -211,12 +213,67 @@ class TestBNF:
                             appr_val=0,
                             )
         nodes_list=[2,5,8]
-        best_node, best_val = Graphs.get_best_node_full(G,
+        best_node, best_val = Graphs.get_best_nodes_full(G,
                             node_metric_function=calc_node_metric_function,
                             possible_nodes=nodes_list
                             )
-        assert best_node==8
+        assert best_node==[8]
         assert best_val==6.25
+
+
+class TestBND:
+    '''
+    bnd = best node drain. Алгоритм поиска наилучшего узла сливом
+    '''
+    def test_bnd_mean(self, load_G):
+        G = load_G
+        calc_node_metric_function = metric_by_time(G,
+                            path_function=msfpl,
+                            metric_function=np.mean,
+                            )
+        best_node, best_val = Graphs.get_best_node_drain(G,
+                            node_metric_function=calc_node_metric_function,
+                            )
+        assert best_node == 426923808
+        assert best_val == 7.355415617070702
+
+    def test_bnd_max(self, load_G):
+        G = load_G
+        calc_node_metric_function = metric_by_time(G,
+                            path_function=msfpl,
+                            metric_function=np.max,
+                            )
+        best_node, best_val = Graphs.get_best_node_drain(G,
+                            node_metric_function=calc_node_metric_function,
+                            )
+        assert best_node == 2034401823
+        assert best_val == 17.917574142857145
+
+    def test_bnd_ip10(self, load_G):
+        G = load_G
+        calc_node_metric_function = metric_by_time(G,
+                            path_function=msfpl,
+                            metric_function=cover_index(),
+                            )
+        best_node, best_val = Graphs.get_best_node_drain(G,
+                            node_metric_function=calc_node_metric_function,
+                            reduce=False
+                            )
+        assert best_node == 4329379203
+        assert best_val == 52.10755813953488
+
+    def test_bnd_ip20(self, load_G):
+        G = load_G
+        calc_node_metric_function = metric_by_time(G,
+                            path_function=msfpl,
+                            metric_function=cover_index(ip_val=20),
+                            )
+        best_node, best_val = Graphs.get_best_node_drain(G,
+                            node_metric_function=calc_node_metric_function,
+                            reduce=False
+                            )
+        assert best_node == 4796070877
+        assert best_val == 100.0
 
     def test_bnd_max_mean(self, load_G):
         '''

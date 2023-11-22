@@ -29,13 +29,13 @@ class Graphs(object):
 
     '''
     @staticmethod
-    def get_best_node_full(G:nx.MultiDiGraph,
-                           node_metric_function=None,
-                           possible_nodes=None,
-                           reduce=True,
-                           event_after_node_calc=None):
+    def get_best_nodes_full(G:nx.MultiDiGraph,
+                            node_metric_function=None,
+                            possible_nodes=None,
+                            reduce=True,
+                            event_after_node_calc=None):
         '''
-        Поиск лучшего узла полным перебором. 
+        Поиск лучших узлов полным перебором. 
         Могут быть возвращены только узлы из которых можно попасть в любой другой узел графа.
         Если таковых узлов нет, возвращается ошибка некорректности графа. 
         (граф должен быть проверен на корректность прежде чем будет передан функции)
@@ -71,7 +71,7 @@ class Graphs(object):
             при расчете метрик для которых чем больше тем лучше (ИП) - True
 
         ## Возвращает
-        tuple: (int, float)
+        tuple: (list(int), float)
             Множестов - (идентификатор узла, значение метрики узла)
         '''
         if not isinstance(G, nx.MultiDiGraph):
@@ -88,31 +88,36 @@ class Graphs(object):
             try:
                 # Вычисление метрики для узла
                 cur_val = node_metric_function(node)
+                correct=True
             except ValueError:
                 cur_val = best_val
+                correct=False
             
-            # Если лучший узел еще не определен, устанавливаем его для текущего узла
-            if best_val==None and not cur_val==None:
-                best_val = cur_val
-                best_node = node
-            
-            if not best_val==None and not cur_val==None:
-                if reduce and cur_val<best_val:
-                    # Если требуется поиск наименьшей метрики
+            # Если узел приемлем (т.е. из него можно достичь приемлемое количество прочих узлов графа)
+            if correct:
+                # Если лучший узел еще не определен, устанавливаем его для текущего узла
+                if best_val==None and not cur_val==None:
                     best_val = cur_val
-                    best_node = node
-                if not reduce and cur_val>best_val:
-                    # Если требуется поиск наибольшей метрики
-                    best_val = cur_val
-                    best_node = node
+                    best_node = []
+
+                if not best_val==None and not cur_val==None:
+                    if cur_val==best_val:
+                        best_node+=[node]
+                    if reduce and cur_val<best_val:
+                        # Если требуется поиск наименьшей метрики
+                        best_val = cur_val
+                        best_node = [node]
+                    if not reduce and cur_val>best_val:
+                        # Если требуется поиск наибольшей метрики
+                        best_val = cur_val
+                        best_node = [node]
             
             # Если указано событие которое должно происходить после расчета каждого узла - выполняем его
             if event_after_node_calc:
                 event_after_node_calc()
 
-        logging.warning('Должен возвращаться список!')
         return best_node, best_val
-    
+
 
     @staticmethod
     def get_best_node_drain(G:nx.MultiDiGraph,
@@ -120,6 +125,7 @@ class Graphs(object):
                             start_node=None,
                             reduce=True,
                             all_nodes=False,
+                            debug_route=False,
                            ):
         '''
         Поиск лучшего узла с использованием алгоритма водостока.
@@ -197,7 +203,11 @@ class Graphs(object):
             route[best_node] = best_val
             logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика {best_val}')
 
-        return best_node, best_val, route
+        if debug_route:
+            return best_node, best_val, route
+        else:
+            return best_node, best_val
+        
 
     @staticmethod
     def get_best_node_drain_max_mean(G:nx.MultiDiGraph,
@@ -223,7 +233,7 @@ class Graphs(object):
                                     appr_val=appr_val,
                                     err_val=err_val
                                     )
-        best_node, best_val, _ = Graphs.get_best_node_drain(G, 
+        best_node, best_val = Graphs.get_best_node_drain(G, 
                                 node_metric_function=calc_node_metric_function,
                                 start_node=start_node,
                                 reduce=reduce,
@@ -238,7 +248,7 @@ class Graphs(object):
                                     appr_val=appr_val,
                                     err_val=err_val
                                     )
-        best_node, best_val, _ = Graphs.get_best_node_drain(G, 
+        best_node, best_val = Graphs.get_best_node_drain(G, 
                                 node_metric_function=calc_node_metric_function,
                                 start_node=best_node
                                 )
@@ -248,18 +258,89 @@ class Graphs(object):
 
 
     @staticmethod
-    def calc_route_times(G:nx.MultiDiGraph,
+    def calc_route_times_best_for_each(G:nx.MultiDiGraph,
                             sources:list|dict,
                             path_function,
                             weight: str = 'travel_time',
                             route_name = 'route_time',
                             nearest_name = 'nearest',
                             cutoff=None,
-                            each_to_each=False,
-                            each_to_each_pattern='node_{}'
                             ):
         '''
-        Алгоритм расчета времен прибытия в узлы графа из стартовых узлов.
+        Алгоритм расчета времен прибытия в узлы графа из ближайшего стартового узла.
+
+        # Аргументы
+        `sources`:list|dict
+            Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
+            идентификатор узла, значение - его наименование. Может использоваться для указания узлов в которых 
+            расположены пожарные подразделения: {1234:'ПСЧ-1'}
+        `path_function`: function
+            Функция расчета кратчайших путей от единственного источника. 
+            В качестве функции могут быть переданы реализации алгоритмов из пакета
+            `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
+            Пользователь может использовать собственные функции с
+            интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
+            weight: str = "weight") -> (dict, dict)`
+        `weight`:str или function  = "travel_time"
+            Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+            вес динамически.
+        `route_name`:str='route_time'
+            Имя атрибута в котором будет сохранено время следования по маршруту
+        `nearest_name` = 'nearest'
+            Имя атрибута в котором будет сохранен идентификатор ближайшего стартового узла
+        `cutoff`:int=None
+            Ограничение расчета
+        '''
+
+        # Проверка типов входящих данных
+        if isinstance(sources, list):
+            if isinstance(sources, list):
+                if len(sources)==0:
+                    raise ValueError('В sources нет ни одного элемента!')
+                for element in sources:
+                    if not isinstance(element, int):
+                        raise TypeError("Все идентификаторы узлов в списке sources должны иметь тип данных int!")
+                    if not element in G.nodes():
+                        raise KeyError(f"Узел {element} отсутствует в графе G")
+        elif isinstance(sources, dict):
+            if len(sources)==0:
+                raise ValueError('В sources нет ни одного элемента!')
+            for node, name in sources.items():
+                if not isinstance(name, str):
+                    raise TypeError("Все имена узлов в словаре sources должны иметь тип данных str!")
+                if not node in G.nodes():
+                    raise KeyError(f"Узел {node} отсутствует в графе G")
+        else:
+            raise TypeError("Идентификатор узла должен иметь тип данных int или list(int)!")
+        if not isinstance(G, nx.MultiDiGraph):
+            raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
+
+
+        # Расчет
+        times, routes = path_function(G, sources=sources, cutoff=cutoff, weight=weight)
+        times = pd.Series(times)
+        if isinstance(sources, dict):
+            nearest = pd.Series({k:sources[route[0]] for k, route in routes.items()}, dtype=str)
+        else:
+            nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64')
+        
+        # Установка результатов расчета в качестве атрибутов ребер
+        nx.set_node_attributes(G, times, route_name)
+        nx.set_node_attributes(G, nearest, nearest_name)
+
+
+    @staticmethod
+    def calc_route_times_each_for_each(G:nx.MultiDiGraph,
+                            sources:list|dict,
+                            path_function,
+                            weight: str = 'travel_time',
+                            routes_times_name='routes_times',
+                            cutoff=None,
+                            event_after_source_calc=None,
+                            cover_count_name=None
+                            ):
+        '''
+        Алгоритм расчета времен прибытия в узлы графа из всех стартовых узлов во все узлы графа.
 
         # Аргументы
         `sources`:list|dict
@@ -275,10 +356,6 @@ class Graphs(object):
         `weight`:str или function  = "travel_time"
             Имя поля содержащего вес ребер, или функция позволяющая вычислять 
             вес динамически.
-        `route_name`:str='route_time'
-            Имя атрибута в котором будет сохранено время следования по маршруту
-        `nearest_name` = 'nearest'
-            Имя атрибута в котором будет сохранен идентификатор ближайшего стартового узла
         `cutoff`:int=None
             Ограничение расчета
         `each_to_each`:bool=False
@@ -312,28 +389,27 @@ class Graphs(object):
             raise TypeError("Идентификатор узла должен иметь тип данных int или list(int)!")
         if not isinstance(G, nx.MultiDiGraph):
             raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
+        if isinstance(cutoff, list):
+            if len(cutoff)!=len(sources):
+                raise ValueError("Количество элементов в списке cutoff должно соответствовать количеству элементов в sources!")
 
 
         # Расчет
-        if each_to_each:
-            logging.warning('Переписать отдельной функцией!')
-            for start_node in sources:
-                times, routes = path_function(G, sources=[start_node], cutoff=cutoff, weight=weight)
-                times = pd.Series(times)
-                if isinstance(sources, dict):
-                    route_name_cur = sources[start_node]
-                else:
-                    route_name_cur = start_node
-                # Установка результатов расчета в качестве атрибутов ребер
-                nx.set_node_attributes(G, times, each_to_each_pattern.format(route_name_cur))
-        else:
-            times, routes = path_function(G, sources=sources, cutoff=cutoff, weight=weight)
-            times = pd.Series(times)
+        arrivals = {k:{} for k in G.nodes()}
+        for start_node in sources:
+            times = path_function(G, source=start_node, cutoff=cutoff, weight=weight)
             if isinstance(sources, dict):
-                nearest = pd.Series({k:sources[route[0]] for k, route in routes.items()}, dtype=str)
+                route_name_cur = sources[start_node]
             else:
-                nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64')
-            
-            # Установка результатов расчета в качестве атрибутов ребер
-            nx.set_node_attributes(G, times, route_name)
-            nx.set_node_attributes(G, nearest, nearest_name)
+                route_name_cur = start_node
+            for k,v in times.items():
+                arrivals[k][route_name_cur] = v
+            # Если указано событие которое должно происходить после расчета каждого узла - выполняем его
+            if event_after_source_calc:
+                event_after_source_calc()
+
+        # Установка результатов расчета в качестве атрибутов ребер
+        if isinstance(routes_times_name, str):
+            nx.set_node_attributes(G, arrivals, routes_times_name)
+        if isinstance(cover_count_name, str):
+            nx.set_node_attributes(G, {k:len(a) for k,a in arrivals.items()}, cover_count_name)
