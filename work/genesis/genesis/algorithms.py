@@ -203,11 +203,11 @@ class Graphs(object):
             route[best_node] = best_val
             logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика {best_val}')
 
-        if debug_route:
-            return best_node, best_val, route
-        else:
+        if not debug_route:
             return best_node, best_val
-        
+        else:
+            return best_node, best_val, route
+
 
     @staticmethod
     def get_best_node_drain_max_mean(G:nx.MultiDiGraph,
@@ -239,7 +239,7 @@ class Graphs(object):
                                 reduce=reduce,
                                 all_nodes=all_nodes
                                 )
-        logging.debug(f'ПЕРВЫЙ УЗЕЛ {best_node}, метрика max {best_val}')
+        logging.debug('ПЕРВЫЙ УЗЕЛ {}, метрика max {}'.format(best_node, best_val))
         # Расчет метрикой среднего времени
         calc_node_metric_function = metric_by_time(G,
                                     path_function=path_function,
@@ -252,7 +252,7 @@ class Graphs(object):
                                 node_metric_function=calc_node_metric_function,
                                 start_node=best_node
                                 )
-        logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика mean {best_val}')
+        logging.debug('ЛУЧШИЙ УЗЕЛ {}, метрика mean {}'.format(best_node, best_val))
         return best_node, best_val
 
 
