@@ -2,15 +2,15 @@
 Алгоритмы решения отдельных задач
 '''
 
+import logging
 
 import networkx as nx
 import numpy as np
 import pandas as pd
 
 from genesis.metrics import metric_by_time
-from genesis.tools import get_all_neighbour_nodes
+from genesis.tools import get_all_neighbor_nodes
 
-import logging
 
 
 
@@ -40,20 +40,21 @@ class Graphs(object):
         Если таковых узлов нет, возвращается ошибка некорректности графа. 
         (граф должен быть проверен на корректность прежде чем будет передан функции)
         
-        Узлы для которых метрика не может быть вычислена (например слабо связанные с основным графом) 
-        не учитываются. 
+        Узлы для которых метрика не может быть вычислена (например слабо связанные 
+        с основным графом) не учитываются. 
 
         ## Важно
         Следует помнить, что некорректные узлы в случае их учета посредством снижения appr_val могут 
         давать искаженное представление о метриках графа. При этом в реальности граф дорожной сети 
-        как правило изобилует слабосвязными узлами, поэтому учет только узлов обеспечивающих 100%
+        как правило изобилует слабосвязанными узлами, поэтому учет только узлов обеспечивающих 100%
         достижимость всего графа может приводить к принципиальной невозможности расчета.
 
         ## Параметры
         `G` : MultiDiGraph
             Граф дорожной сети
         `path_function` : function
-            Функция расчета пути вида nx.multi_source_dijkstra_path_length - расчет от множества узлов.
+            Функция расчета пути вида nx.multi_source_dijkstra_path_length 
+            - расчет от множества узлов.
         `metric_function` : function
             Функция оценки. Если не указана, используется оценка по минимальному расстоянию.
         `weight` : str
@@ -66,17 +67,17 @@ class Graphs(object):
             Если указано, то рассматриваются только переданные узлы.
         `reduce` : bool = True
             Если True - при сравнении значений метрик выбирается меньшее значение, иначе большее. 
-            При расчете метрик для которых чем меньше значение тем лучше (среднее, максимальное время и т.д.) 
-            необходимо использовать reduce=True, 
+            При расчете метрик для которых чем меньше значение тем лучше (среднее, максимальное 
+            время и т.д.) необходимо использовать reduce=True, 
             при расчете метрик для которых чем больше тем лучше (ИП) - True
 
         ## Возвращает
         tuple: (list(int), float)
-            Множестов - (идентификатор узла, значение метрики узла)
+            Множество - (идентификатор узла, значение метрики узла)
         '''
         if not isinstance(G, nx.MultiDiGraph):
             raise TypeError("Тип переменной G должен быть MultiDiGraph!")
-        
+
 
         best_val = None
         best_node = None
@@ -92,15 +93,16 @@ class Graphs(object):
             except ValueError:
                 cur_val = best_val
                 correct=False
-            
-            # Если узел приемлем (т.е. из него можно достичь приемлемое количество прочих узлов графа)
+
+            # Если узел приемлем (т.е. из него можно достичь приемлемое количество прочих 
+            # узлов графа)
             if correct:
                 # Если лучший узел еще не определен, устанавливаем его для текущего узла
-                if best_val==None and not cur_val==None:
+                if best_val is None and not cur_val is None:
                     best_val = cur_val
                     best_node = []
 
-                if not best_val==None and not cur_val==None:
+                if not best_val is None and not cur_val is None:
                     if cur_val==best_val:
                         best_node+=[node]
                     if reduce and cur_val<best_val:
@@ -111,8 +113,9 @@ class Graphs(object):
                         # Если требуется поиск наибольшей метрики
                         best_val = cur_val
                         best_node = [node]
-            
-            # Если указано событие которое должно происходить после расчета каждого узла - выполняем его
+
+            # Если указано событие которое должно происходить после расчета каждого узла 
+            # - выполняем его
             if event_after_node_calc:
                 event_after_node_calc()
 
@@ -134,18 +137,20 @@ class Graphs(object):
 
         if not isinstance(G, nx.MultiDiGraph):
             raise TypeError("Тип переменной G должен быть MultiDiGraph!")
-        
+
         nodes_metric = {}
         route={}
 
-        if start_node==None:
-            # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО! Иначе можно оказаться в тупике из которого нет выхода
+        if start_node is None:
+            # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО! 
+            # Иначе можно оказаться в тупике из которого нет выхода
             cur_val = None
             i=0
             nodes_list = list(G.nodes())
-            while cur_val==None:
+            while cur_val is None:
                 if i>=G.number_of_nodes():
-                    raise ValueError('Определить наиболее выгодный стартовый узел невозможно, в связи с неприемлемой несвязностью графа')
+                    raise ValueError('Определить наиболее выгодный стартовый узел невозможно, ' \
+                    'в связи с неприемлемой несвязностью графа')
                 start_node = nodes_list[i]
                 try:
                     cur_val = node_metric_function(start_node)
@@ -163,10 +168,11 @@ class Graphs(object):
                 cur_val = None
             nodes_metric[start_node] = cur_val
             if cur_val==None:
-                raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой связностью с остальной частью графа')
+                raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой ' \
+                    'связностью с остальной частью графа')
 
         route[start_node] = cur_val
-        logging.debug(f'ПЕРВЫЙ УЗЕЛ {start_node}, метрика {cur_val}')
+        logging.debug('ПЕРВЫЙ УЗЕЛ {}, метрика {}'.format(start_node, cur_val))
 
         # Пошаговый поиск лучшего узла от start_node
         best_val = cur_val
@@ -176,21 +182,21 @@ class Graphs(object):
             tmp_node = best_node
 
             if all_nodes:
-                nnodes = get_all_neighbour_nodes(G, tmp_node)
+                nnodes = get_all_neighbor_nodes(G, tmp_node)
             else:
                 nnodes = G[tmp_node]
             for node in nnodes:
-                if node in nodes_metric.keys():
+                if node in nodes_metric:
                     cur_val = nodes_metric[node]
                 else:
                     try:
                         cur_val = node_metric_function(node)
                     except ValueError:
-                        logging.debug(f'УЗЕЛ {node}, слабосвязан')
+                        logging.debug('УЗЕЛ {}, слабосвязан'.format(node))
                         cur_val = best_val
                     nodes_metric[node] = cur_val
                 
-                logging.debug(f'УЗЕЛ {node}, метрика {cur_val}')
+                logging.debug('УЗЕЛ {}, метрика {}'.format(node, cur_val))
 
                 if reduce and cur_val<best_val:
                     # Если требуется поиск наименьшей метрики
@@ -201,7 +207,7 @@ class Graphs(object):
                     best_val = cur_val
                     best_node = node
             route[best_node] = best_val
-            logging.debug(f'ЛУЧШИЙ УЗЕЛ {best_node}, метрика {best_val}')
+            logging.debug('ЛУЧШИЙ УЗЕЛ {}, метрика {}'.format(best_node, best_val))
 
         if not debug_route:
             return best_node, best_val
@@ -323,7 +329,7 @@ class Graphs(object):
             nearest = pd.Series({k:sources[route[0]] for k, route in routes.items()}, dtype=str)
         else:
             nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64')
-        
+
         # Установка результатов расчета в качестве атрибутов ребер
         nx.set_node_attributes(G, times, route_name)
         nx.set_node_attributes(G, nearest, nearest_name)
@@ -413,3 +419,27 @@ class Graphs(object):
             nx.set_node_attributes(G, arrivals, routes_times_name)
         if isinstance(cover_count_name, str):
             nx.set_node_attributes(G, {k:len(a) for k,a in arrivals.items()}, cover_count_name)
+
+
+# class MCLP(object):
+#     '''
+#     Класс для решения задач размещения класса MCLP
+#     '''
+#     @staticmethod
+#     def mclp_step_by_step(G:nx.MultiDiGraph, 
+#                             flex_locations, 
+#                             best_node_function,
+#                             path_function,
+#                             weight: str = 'travel_time',
+#                             route_name = 'route_time',
+#                             nearest_name = 'nearest',
+#                             cutoff=None,
+#                             static_locations=None,
+#                             reduce=True,
+#                             all_nodes=False,
+#                             event_after_step_calc=None):
+#         '''
+#         Алгоритм решения задачи MCLP методом пошаговых приближений.
+#         '''
+
+#         Graphs.calc_route_times_best_for_each(G, )

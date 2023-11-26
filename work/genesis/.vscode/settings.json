@@ -7,6 +7,7 @@
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
     "cSpell.words": [
+        "appr",
         "graphml",
         "msfpl",
         "networkx",
