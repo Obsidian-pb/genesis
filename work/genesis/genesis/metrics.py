@@ -34,9 +34,9 @@ def metric_by_time(G: nx.MultiDiGraph,
     `path_function`: function
         Функция расчета кратчайших путей от единственного источника. 
         В качестве функции могут быть переданы реализации алгоритмов из пакета
-        `networkx`. Например, реализация алгоритма Дейкстры: `nx.single_source_dijkstra_path_length`.
+        `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra_path_length`.
         Пользователь может использовать собственные функции с
-        интерфейсом `func(G: Graph, source: Any, cutoff: Any | None = None, weight: str = "weight")`
+        интерфейсом `func(G: MultiDiGraph, sources: Any, cutoff: Any | None = None, weight: str = "travel_time")`
 
     `metric_function`: function
         Целевая функция расчета метрики. 
@@ -100,7 +100,13 @@ def metric_by_time(G: nx.MultiDiGraph,
         def I_calc_metric(E: Environment, **kwargs): float
         ```
     '''
-    def _metric_by_time(sources:list|int):
+
+    if not isinstance(G, nx.MultiDiGraph):
+        raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
+
+
+    def _metric_by_time(sources:list|int,
+                        g:nx.MultiDiGraph=None):
         '''
         
         `sources`:list(int)|int
@@ -108,6 +114,9 @@ def metric_by_time(G: nx.MultiDiGraph,
             исходя из расчета первого прибывшего подразделения. Т.е. Значение будет одно, отражающее
             состояние параметров прибытия из всех точек одновременно. Данный способ нельзя ипользовать для оценки 
             метрики каждого из узлов по отдельности!
+        
+        `g`: nx.MultiDiGraph=None
+            Подграф. Если указан, то расчет метрики производится для него
         '''
         if isinstance(sources, (int, list)):
             if isinstance(sources, int):
@@ -122,13 +131,16 @@ def metric_by_time(G: nx.MultiDiGraph,
                         raise KeyError(f"Узел {element} отсутствует в графе G")
         else:
             raise TypeError("Идентификатор узла должен иметь тип данных int или list(int)!")
-        if not isinstance(G, nx.MultiDiGraph):
-            raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
+        if not g is None:
+            if not isinstance(g, nx.MultiDiGraph):
+                raise TypeError("Аргумент g должен иметь тип nx.MultiDiGraph!")
+        else:
+            g=G
 
-        route_lens = path_function(G, sources, weight=weight)
-        if len(route_lens)<int(appr_val*G.number_of_nodes()):
+        route_lens = path_function(g, sources, weight=weight)
+        if len(route_lens)<int(appr_val*g.number_of_nodes()):
             if err_val==None:
-                raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи с его слабой связностью с основным графом')
+                raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи со слабой связностью с основным графом')
             else:
                 return err_val
 

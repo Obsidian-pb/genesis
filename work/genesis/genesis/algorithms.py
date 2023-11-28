@@ -33,7 +33,9 @@ class Graphs(object):
                             node_metric_function=None,
                             possible_nodes=None,
                             reduce=True,
-                            event_after_node_calc=None):
+                            event_after_node_calc=None,
+                            return_single=False,
+                            **kwargs):
         '''
         Поиск лучших узлов полным перебором. 
         Могут быть возвращены только узлы из которых можно попасть в любой другой узел графа.
@@ -118,8 +120,11 @@ class Graphs(object):
             # - выполняем его
             if event_after_node_calc:
                 event_after_node_calc()
-
-        return best_node, best_val
+                
+        if return_single:
+            return best_node[0], best_val
+        else:
+            return best_node, best_val
 
 
     @staticmethod
@@ -129,6 +134,7 @@ class Graphs(object):
                             reduce=True,
                             all_nodes=False,
                             debug_route=False,
+                            **kwargs
                            ):
         '''
         Поиск лучшего узла с использованием алгоритма водостока.
@@ -153,7 +159,8 @@ class Graphs(object):
                     'в связи с неприемлемой несвязностью графа')
                 start_node = nodes_list[i]
                 try:
-                    cur_val = node_metric_function(start_node)
+                    logging.error('Здесь заменить на входящий граф')
+                    cur_val = node_metric_function(sources=start_node, g=G)
                 except ValueError:
                     cur_val = None
                 nodes_metric[start_node] = cur_val
@@ -163,7 +170,7 @@ class Graphs(object):
             if not isinstance(start_node,int):
                 raise TypeError('Тип данных start_node должен быть только int!')
             try:
-                cur_val = node_metric_function(start_node)
+                cur_val = node_metric_function(sources=start_node, g=G)
             except ValueError:
                 cur_val = None
             nodes_metric[start_node] = cur_val
@@ -190,7 +197,7 @@ class Graphs(object):
                     cur_val = nodes_metric[node]
                 else:
                     try:
-                        cur_val = node_metric_function(node)
+                        cur_val = node_metric_function(sources=node, g=G)
                     except ValueError:
                         logging.debug('УЗЕЛ {}, слабосвязан'.format(node))
                         cur_val = best_val
@@ -223,7 +230,8 @@ class Graphs(object):
                             all_nodes=False,
                             weight: str = "travel_time",
                             appr_val=0.95,
-                            err_val=None):
+                            err_val=None,
+                            **kwargs):
         '''
         Поиск лучшего узла с использованием алгоритма водостока.
         Оценка производится последовательно метриками np.max и np.mean

@@ -122,6 +122,38 @@ def test_calc_mean(load_G):
                             weight='travel_time')(start_node)
     assert mean_time_t==mean_time
 
+def test_calc_mean_single_node_subgraph(load_G):
+    '''
+    Расчет для подграфа и одного узла
+    '''
+    G = load_G
+    node = list(G.nodes())[100]
+    arrived_nodes = nx.single_source_dijkstra_path_length(G, source=node, cutoff=2, weight='travel_time')
+    g = G.subgraph(arrived_nodes.keys())
+    mean_time_t = 1.3907426034031414
+    mean_time = metric_by_time(G,
+                            path_function=msfpl,
+                            metric_function=np.mean,
+                            weight='travel_time')(sources=node, g=g)
+    assert mean_time_t==mean_time
+
+@pytest.mark.xfail()
+def test_calc_mean_single_node_subgraph_wrong_type_g(load_G):
+    '''
+    Расчет для подграфа и одного узла.
+    Передан не верный тип подграфа - ОШИБКА
+    '''
+    G = load_G
+    node = list(G.nodes())[100]
+    arrived_nodes = nx.single_source_dijkstra_path_length(G, source=node, cutoff=2, weight='travel_time')
+    g = nx.MultiGraph(G.subgraph(arrived_nodes.keys()))
+    mean_time_t = 1.3907426034031414
+    mean_time = metric_by_time(G,
+                            path_function=msfpl,
+                            metric_function=np.mean,
+                            weight='travel_time')(sources=node, g=g)
+    assert mean_time_t==mean_time
+
 def test_calc_median(load_G):
     G = load_G
     start_node = list(G.nodes())[2000]
