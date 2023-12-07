@@ -92,3 +92,5 @@ class Progressbar(object):
         bins_still = self.bins-bins_ok
         s = "|"+"#"*bins_ok + "_"*bins_still + "| " + f'{round(100*self.val/self.scope, 1)}%'
         print(s, end='\r')
+        if bins_ok==100:
+            print('')
