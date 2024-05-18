@@ -5,6 +5,7 @@ Estimated Arrival Parameters Problem - Задача определения ож�
 '''
 
 import pandas as pd
+import geopandas as gpd
 import networkx as nx
 import osmnx as ox
 
@@ -13,10 +14,9 @@ import osmnx as ox
 
 
 @staticmethod
-def metric(
-                metric_function,
-                weight: str = "arrival_time",
-                err_val=None):
+def metric(metric_function,
+            weight: str = "arrival_time",
+            err_val=None):
     '''
     Базовая функция расчета метрик времени.
     Возвращает значение указанной метрики для набора узлов.
@@ -56,25 +56,27 @@ def metric(
     
     '''
 
-    def _metric(G:nx.MultiDiGraph):
+    def _metric(data):
         '''
 
-        `G`: nx.MultiDiGraph=None
-            Подграф. Если указан, то расчет метрики производится для него
+        `data`: pd.DataFrame, gpd.GeoDataFrame, nx.MultiDiGraph
+            Набор данных для анализа. В большинстве случаев - датафрейм.
+            Но может использоваться и граф улично-дорожной сети.
         '''
 
-        if not isinstance(G, nx.MultiDiGraph):
-            raise TypeError("Аргумент G должен иметь тип nx.MultiDiGraph!")
+        if not isinstance(data, (pd.DataFrame, gpd.GeoDataFrame, nx.MultiDiGraph)):
+            raise TypeError("Аргумент 'data' должен иметь тип (pd.DataFrame, gpd.GeoDataFrame, nx.MultiDiGraph)!")
 
-        nodes = ox.graph_to_gdfs(G, edges=False, node_geometry=False)
+        if isinstance(data, nx.MultiDiGraph):
+            data = ox.graph_to_gdfs(data, edges=False, node_geometry=False)
 
         if isinstance(weight, list):
-            if not all(w in nodes.columns for w in weight):
+            if not all(w in data.columns for w in weight):
                 raise ValueError(f'Не все указанные поля ({weight}) имеются в ' \
                                 'наборе полей графа G! '\
                                 'Возможно граф не рассчитан')
         elif isinstance(weight, str):
-            if not weight in nodes.columns:
+            if weight not in data.columns:
                 raise ValueError(f'Поле {weight} отсутствует в ' \
                                 'наборе полей графа G! '\
                                 'Возможно граф не рассчитан')
@@ -83,7 +85,7 @@ def metric(
                              'не приемлем. Должен быть str или list(str)')
 
         try:
-            val = metric_function(nodes[weight])
+            val = metric_function(data[weight])
             return val
         except Exception as exc:
             raise TypeError(
@@ -91,11 +93,6 @@ def metric(
                 ) from exc
 
     return _metric
-
-
-
-
-
 
 
 

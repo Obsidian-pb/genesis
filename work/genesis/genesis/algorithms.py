@@ -123,8 +123,7 @@ class Graphs(object):
 
         if return_single:
             return best_node[0], best_val
-        else:
-            return best_node, best_val
+        return best_node, best_val
 
 
     @staticmethod
