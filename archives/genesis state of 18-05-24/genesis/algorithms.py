@@ -8,7 +8,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from genesis.EAPP import metric_by_time
+from genesis.metrics import metric_by_time
 from genesis.tools import get_all_neighbor_nodes
 
 

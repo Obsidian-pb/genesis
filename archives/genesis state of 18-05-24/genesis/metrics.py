@@ -137,12 +137,13 @@ def metric_by_time(G: nx.MultiDiGraph,
         else:
             g=G
 
+
         route_lens = path_function(g, sources, weight=weight)
         if len(route_lens)<int(appr_val*g.number_of_nodes()):
             if err_val is None:
-                raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно вычислена в связи со слабой связностью с основным графом')
-            else:
-                return err_val
+                raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно' \
+                                 ' вычислена в связи со слабой связностью графа')
+            return err_val
 
         try:
             val = metric_function(pd.Series(route_lens))

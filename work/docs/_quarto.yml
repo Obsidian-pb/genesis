@@ -21,7 +21,7 @@ book:
       - pages/usage/environment_usage.qmd
       - pages/usage/gds_usage.qmd
       - pages/usage/metrics_calc.qmd
-    - part: pages/documentation.qmd         # Тут документация по формулам
+    - part: pages/documentation.qmd         # Тут документация по алгоритмам (описание того как что считается)
       chapters:
       - pages/documentation/algorithms.qmd
     - pages/terms.qmd
