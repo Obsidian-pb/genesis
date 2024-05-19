@@ -12,8 +12,9 @@ import numpy as np
 import pandas as pd
 
 
-from genesis.EAPP import *
-from genesis.swiss_knife import msfpl
+from genesis.estimated_arrival_parameters import *
+from genesis.optimal_service_areas import voronoi_forest, voronoi_forest_for_points, voronoi_forest_for_area
+from genesis.swiss_knife import MSF
 
 # import logging
 
@@ -25,6 +26,10 @@ from genesis.swiss_knife import msfpl
 @pytest.fixture(scope='module')
 def load_G():
     return ox.load_graphml("tests/data/test_rng.ml")
+
+@pytest.fixture(scope='module')
+def load_area():
+    return gpd.read_file("tests/data/test_polygon.gpkg")
 
 @pytest.fixture(scope='module')
 def create_G():
@@ -72,413 +77,76 @@ def create_G():
     return G
 
 
-class TestMetricsG:
+
+
+class TestMetricsArrivalTime:
     '''
-    Тестирование расчета метрик при передаче аргументом ГДС
+    Тестирование расчета метрики времени прибытия
     '''
-    def test_calc_max_single_node(self, load_G):
+    @pytest.mark.xfail()
+    def test_calc_max_graph_wrong_data_type(self, load_G):
+        '''Проверка приемлемости входящих данных'''
+        G = load_G
+        start_node = list(G.nodes())[2000]
+        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+
+        max_time_t = 28.881282428571428
+        max_time = arrival_time(np.max)(times)
+        assert max_time_t==max_time
+
+    def test_calc_max_graph(self, load_G):
         '''Тест расчета метрики максимального времени следования из одного узла'''
         G = load_G
         start_node = list(G.nodes())[2000]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
+        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
 
-        max_time_t = 27.881282428571428
-        max_time = metric(metric_function=np.max)(G)
-        assert max_time_t==max_time
+        time_t = 28.881282428571428
+        time = arrival_time(np.max)(pd.Series(times))
+        assert time_t==time
 
-    def test_calc_mean_single_node(self, load_G):
+    def test_calc_mean_graph(self, load_G):
         '''Тест расчета метрики среднего времени следования из одного узла'''
         G = load_G
-        start_node = list(G.nodes())[2000]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
+        start_node = list(G.nodes())[3000]
+        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
 
-        mean_time_t = 16.322393925534676
-        mean_time = metric(metric_function=np.mean)(G)
-        assert mean_time_t==mean_time
+        time_t = 11.595102796316963
+        time = arrival_time(np.mean)(pd.Series(times))
+        assert time_t==time
 
+    def test_calc_mean_graph_multi_nodes(self, load_G):
+        '''Тест расчета метрики среднего времени следования из нескольких узлов'''
+        G = load_G
+        start_nodes = [list(G.nodes())[1000], list(G.nodes())[3000]]
+        times = nx.multi_source_dijkstra_path_length(G, start_nodes, weight='travel_time')
 
-    def test_calc_custom_single_node(self, load_G):
-        '''
-            Тест расчета пользовательской метрики для одного узла
-            В качестве примера взята метрика ИП-10
-        '''
+        time_t = 7.27785097308451
+        time = arrival_time(np.mean)(pd.Series(times))
+        assert time_t==time
 
-        def custom_metric_function(s:pd.Series):
-            return len(s[s<=10])/len(s)
+    def test_arr_time_zero_len(self):
+        '''Тест передачи функции расчета времени прибытия данных нулевой длинны'''
+        ip = arrival_time(np.mean)(pd.Series())
+        assert ip == 0
+
+    def test_arr_time_custom_function(self, load_G):
+        '''Тест расчета метрики времени прибытия для кастомной функции'''
+        def custom(route_times: pd.Series):
+            '''Возвращается значение первого квартиля'''
+            route_times.sort_values(inplace=True, ascending=True)
+            return np.max(route_times[:int(len(route_times)*0.25)])
 
         G = load_G
-        start_node = list(G.nodes())[500]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
+        start_node = list(G.nodes())[3000]
+        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
 
-        val_t = 0.7136380123322452
-        val = metric(metric_function=custom_metric_function)(G)
-        assert val_t==val
+        time_t = 5.543804571428573
+        time = custom(pd.Series(times))
+        assert time_t==time
 
 
-    def test_calc_custom_single_node_2_columns(self, load_G):
-        '''
-            Тест расчета пользовательской метрики для одного узла
-            и двух колонок
-        '''
 
-        def custom_metric_function_2_columns(df:pd.DataFrame):
-            return np.max(df['x']+df['y'])
 
-        G = load_G    
-
-        val_t = 149.5709272
-        val = metric(metric_function=custom_metric_function_2_columns,
-                    weight=['x', 'y'])(G)
-        assert val_t==val
-
-
-    def test_calc_max_multi_node(self, load_G):
-        '''Тест расчета метрики максимального времени следования из нескольких узлов'''
-        G = load_G
-        start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
-        routes = nx.multi_source_dijkstra_path_length(G, start_nodes, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        max_time_t = 18.329245285714283
-        max_time = metric(metric_function=np.max)(G)
-        assert max_time_t==max_time
-
-
-    def test_calc_max_multi_node_reverse(self, load_G):
-        '''
-        Расчет для случая когда нужно определить время прибытия не ИЗ точек, а В них
-        '''
-        def shortest_path_length_r(G, target, weight):
-            Gr = nx.reverse(G)
-            return nx.multi_source_dijkstra_path_length(Gr, sources=target, weight=weight)
-
-        G = load_G
-        start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
-        routes = shortest_path_length_r(G, start_nodes, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        max_time_t = 19.199067214285723
-        max_time = metric(metric_function=np.max)(G)
-        assert max_time_t==max_time
-
-
-    def test_calc_mean_single_node_column_rename(self, load_G):
-        '''
-        Тест расчета метрики среднего времени следования из одного узла.
-        Переопределяется имя поля данных.
-        '''
-        # weight_field = 'time_of_arrival' # Для наглядности переменная не используется, но в реальных программах лучше использовать
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'time_of_arrival')
-
-        mean_time_t = 16.322393925534676
-        mean_time = metric(metric_function=np.mean,
-                            weight='time_of_arrival')(G)
-        assert mean_time_t==mean_time
-
-
-    @pytest.mark.xfail()
-    def test_calc_mean_single_node_wrong_weight(self, load_G):
-        '''
-        Расчет для подграфа и одного узла.
-        Передано не верное имя поля - ОШИБКА
-        '''
-        G = load_G
-        start_node = list(G.nodes())[100]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 1
-        mean_time = metric(metric_function=np.mean, weight='another_column')(G)
-        assert mean_time_t==mean_time
-
-
-    def test_cover_index_10(self, load_G):
-        '''Тест расчета ИП для 10 минутной зоны '''
-        G = load_G
-        start_node = list(G.nodes())[500]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 71.36380123322452
-        mean_time = metric(metric_function=cover_index())(G)
-        assert mean_time_t==mean_time
-
-
-    def test_cover_index_20(self, load_G):
-        '''Тест расчета ИП для 20 минутной зоны '''
-        G = load_G
-        start_node = list(G.nodes())[500]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 99.32898077620602
-        mean_time = metric(metric_function=cover_index(20))(G)
-        assert mean_time_t==mean_time
-
-
-    def test_cover_index_10_multi_nodes(self, load_G):
-        '''
-            Тест расчета ИП для 10 минутной зоны.
-            Для нескольких узлов
-        '''
-        G = load_G
-        start_nodes = [list(G.nodes())[500], list(G.nodes())[1500]]
-        routes = nx.multi_source_dijkstra_path_length(G, start_nodes, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 84.74791439970983
-        mean_time = metric(metric_function=cover_index())(G)
-        assert mean_time_t==mean_time
-
-
-
-
-
-
-    def test_calc_mean_single_node_subgraph(self, load_G):
-        '''
-        Расчет для подграфа и одного узла
-        '''
-        G = load_G
-        start_node = list(G.nodes())[100]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-        nodes = ox.graph_to_gdfs(G, edges=False)
-        arrived_nodes = nodes.query('arrival_time<=2')
-        g = G.subgraph(arrived_nodes.index)
-
-        mean_time_t = 1.3907426034031414
-        mean_time = metric(metric_function=np.mean)(g)
-        assert mean_time_t==mean_time
-
-    @pytest.mark.xfail()
-    def test_calc_mean_single_node_subgraph_wrong_type_g(self, load_G):
-        '''
-        Расчет для подграфа и одного узла.
-        Передан не верный тип подграфа - ОШИБКА
-        '''
-        G = load_G
-        start_node = list(G.nodes())[100]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-        nodes = ox.graph_to_gdfs(G, edges=False)
-        arrived_nodes = nodes.query('arrival_time<=2')
-        g = nx.MultiGraph(G.subgraph(arrived_nodes.index))
-
-        mean_time_t = 1.3907426034031414
-        mean_time = metric(metric_function=np.mean)(g)
-        assert mean_time_t==mean_time
-
-
-class TestMetricsDF:
-    '''
-    Тестирование расчета метрик при передаче аргументом набора данных
-    DataFrame или GeoDataFrame
-    '''
-    def test_calc_max_single_node(self, load_G):
-        '''Тест расчета метрики максимального времени следования из одного узла'''
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        max_time_t = 27.881282428571428
-        max_time = metric(metric_function=np.max)(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert max_time_t==max_time
-
-    def test_calc_mean_single_node(self, load_G):
-        '''Тест расчета метрики среднего времени следования из одного узла'''
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 16.322393925534676
-        mean_time = metric(metric_function=np.mean)(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert mean_time_t==mean_time
-
-
-    def test_calc_custom_single_node(self, load_G):
-        '''
-            Тест расчета пользовательской метрики для одного узла
-            В качестве примера взята метрика ИП-10
-        '''
-
-        def custom_metric_function(s:pd.Series):
-            return len(s[s<=10])/len(s)
-
-        G = load_G
-        start_node = list(G.nodes())[500]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        val_t = 0.7136380123322452
-        val = metric(metric_function=custom_metric_function)(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert val_t==val
-
-
-    def test_calc_custom_single_node_2_columns(self, load_G):
-        '''
-            Тест расчета пользовательской метрики для одного узла
-            и двух колонок
-        '''
-
-        def custom_metric_function_2_columns(df:pd.DataFrame):
-            return np.max(df['x']+df['y'])
-
-        G = load_G    
-
-        val_t = 149.5709272
-        val = metric(metric_function=custom_metric_function_2_columns,
-                    weight=['x', 'y'])(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert val_t==val
-
-
-    def test_calc_max_multi_node(self, load_G):
-        '''Тест расчета метрики максимального времени следования из нескольких узлов'''
-        G = load_G
-        start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
-        routes = nx.multi_source_dijkstra_path_length(G, start_nodes, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        max_time_t = 18.329245285714283
-        max_time = metric(metric_function=np.max)(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert max_time_t==max_time
-
-
-    def test_calc_max_multi_node_reverse(self, load_G):
-        '''
-        Расчет для случая когда нужно определить время прибытия не ИЗ точек, а В них
-        '''
-        def shortest_path_length_r(G, target, weight):
-            Gr = nx.reverse(G)
-            return nx.multi_source_dijkstra_path_length(Gr, sources=target, weight=weight)
-
-        G = load_G
-        start_nodes = [list(G.nodes())[1000], list(G.nodes())[2000]]
-        routes = shortest_path_length_r(G, start_nodes, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        max_time_t = 19.199067214285723
-        max_time = metric(metric_function=np.max)(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert max_time_t==max_time
-
-
-    def test_calc_mean_single_node_column_rename(self, load_G):
-        '''
-        Тест расчета метрики среднего времени следования из одного узла.
-        Переопределяется имя поля данных.
-        '''
-        # weight_field = 'time_of_arrival' # Для наглядности переменная не используется, но в реальных программах лучше использовать
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'time_of_arrival')
-
-        mean_time_t = 16.322393925534676
-        mean_time = metric(metric_function=np.mean,
-                            weight='time_of_arrival')(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert mean_time_t==mean_time
-
-
-    @pytest.mark.xfail()
-    def test_calc_mean_single_node_wrong_weight(self, load_G):
-        '''
-        Расчет для подграфа и одного узла.
-        Передано не верное имя поля - ОШИБКА
-        '''
-        G = load_G
-        start_node = list(G.nodes())[100]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 1
-        mean_time = metric(metric_function=np.mean, weight='another_column')(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert mean_time_t==mean_time
-
-
-    def test_cover_index_10(self, load_G):
-        '''Тест расчета ИП для 10 минутной зоны '''
-        G = load_G
-        start_node = list(G.nodes())[500]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 71.36380123322452
-        mean_time = metric(metric_function=cover_index())(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert mean_time_t==mean_time
-
-
-    def test_cover_index_20(self, load_G):
-        '''Тест расчета ИП для 20 минутной зоны '''
-        G = load_G
-        start_node = list(G.nodes())[500]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 99.32898077620602
-        mean_time = metric(metric_function=cover_index(20))(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert mean_time_t==mean_time
-
-
-    def test_cover_index_10_multi_nodes(self, load_G):
-        '''
-            Тест расчета ИП для 10 минутной зоны.
-            Для нескольких узлов
-        '''
-        G = load_G
-        start_nodes = [list(G.nodes())[500], list(G.nodes())[1500]]
-        routes = nx.multi_source_dijkstra_path_length(G, start_nodes, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-
-        mean_time_t = 84.74791439970983
-        mean_time = metric(metric_function=cover_index())(ox.graph_to_gdfs(G, edges=False, node_geometry=False))
-        assert mean_time_t==mean_time
-
-
-
-
-
-
-    def test_calc_mean_single_node_subgraph(self, load_G):
-        '''
-        Расчет для подграфа и одного узла
-        '''
-        G = load_G
-        start_node = list(G.nodes())[100]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-        nodes = ox.graph_to_gdfs(G, edges=False)
-        arrived_nodes = nodes.query('arrival_time<=2')
-        g = G.subgraph(arrived_nodes.index)
-
-        mean_time_t = 1.3907426034031414
-        mean_time = metric(metric_function=np.mean)(g)
-        assert mean_time_t==mean_time
-
-    @pytest.mark.xfail()
-    def test_calc_mean_single_node_subgraph_wrong_type_g(self, load_G):
-        '''
-        Расчет для подграфа и одного узла.
-        Передан не верный тип подграфа - ОШИБКА
-        '''
-        G = load_G
-        start_node = list(G.nodes())[100]
-        routes = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-        nx.set_node_attributes(G, routes, 'arrival_time')
-        nodes = ox.graph_to_gdfs(G, edges=False)
-        arrived_nodes = nodes.query('arrival_time<=2')
-        g = nx.MultiGraph(G.subgraph(arrived_nodes.index))
-
-        mean_time_t = 1.3907426034031414
-        mean_time = metric(metric_function=np.mean)(g)
-        assert mean_time_t==mean_time
 
 
 
@@ -510,52 +178,75 @@ class TestIPCommon:
         ip = cover_index()(pd.Series())
         assert ip == 0
 
+    def test_cover_index_correct_10_graph(self, load_G):
+        '''Тест расчета ИП-10 для реального графа'''
+        G = load_G
+        start_node = list(G.nodes())[2000]
+        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+
+        ip = cover_index()(pd.Series(times))
+        assert 10.08357558139535==ip
+
+    def test_cover_index_correct_20_graph(self, load_G):
+        '''Тест расчета ИП-20 для реального графа'''
+        G = load_G
+        start_node = list(G.nodes())[2000]
+        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+
+        ip = cover_index(20)(pd.Series(times))
+        assert 68.75==ip
+
+
+
+class TestMetricsForNode:
+    '''Тесты расчета метрик для единичного узла'''
+    def test_single_node_metric_real_graph(self, load_G):
+        '''Расчет метрики для одного узла'''
+        G = load_G
+        start_node = [list(G.nodes())[2000]]
+
+        val = nodes_metric(G=G, sources=start_node, 
+            path_function=MSF,
+            metric_function=arrival_time(np.mean),
+            voronoi_function=voronoi_forest)
+        val_t = 17.322393925534676
+        assert val_t == val
+
+    def test_multi_node_metric_real_graph(self, load_G):
+        '''Расчет метрики для множества узла'''
+        G = load_G
+        start_nodes = [list(G.nodes())[2000], list(G.nodes())[4000]]
+
+        val = nodes_metric(G=G, sources=start_nodes, 
+            path_function=MSF,
+            metric_function=arrival_time(np.mean),
+            voronoi_function=voronoi_forest)
+        val_t = 10.098875894894622
+        assert val_t == val
+
+    def test_multi_node_metric_real_graph_area(self, load_G, load_area):
+        '''Расчет метрики для множества узлов и ограничения полигоном'''
+        G = load_G
+        area = load_area
+        start_nodes = [list(G.nodes())[2000], list(G.nodes())[4000]]
+
+        val = nodes_metric(G=G, sources=start_nodes, 
+            path_function=MSF,
+            metric_function=arrival_time(np.mean),
+            voronoi_function=voronoi_forest_for_area,
+            area=area)
+        val_t = 9.404841331151413
+        assert val_t == val
+
+
+
+
+
 
 # для узла 2000:
 # {'max': 27.881282428571428,
-#  'mean': 16.322393925534676,
+#  'mean': 17.322393925534676,
 #  'median': 17.114336285714288,
-#  'ip10': 11.26,
-#  'ip20': 74.04}
+#  'ip10': 10.08357558139535,
+#  'ip20': 68.75}
 
-
-
-# def test_calc_base_overload(load_G):
-#     def calc_node_metric(G:nx.MultiDiGraph, 
-#                     source:int, 
-#                     # path_function, 
-#                     # metric_function, 
-#                     # weight: str = "travel_time",
-#                     # precision: int = 2,
-#                     **kwargs):
-#         '''
-#         Для одного узла вместо списка
-#         '''
-#         route_lens = nx.single_source_dijkstra_path_length(
-#             G, source, weight='length'
-#             )
-#         less_1000 = [1 if d<1000 else 0 for d in route_lens.values()]
-#         return round(sum(less_1000)/len(less_1000), 2)
-
-#     G = load_G
-#     start_node = list(G.nodes())[2000]
-#     assert calc_node_metric(G, start_node)==0.05
-
-# def test_calc_simple_overload(load_G):
-#     def calc_ip_15(route_times:pd.Series):
-#         # общий размер датасета
-#         tot_len = len(route_times)
-#         # сумма датасета лежащего в пределах 15 минут
-#         ip_15_sum = sum(route_times<=15)
-#         # Возвращаем отношение ip_15_len к tot_len, с точностью округления 2
-#         return round(100*ip_15_sum/tot_len, 2)
-
-#     # Применение:
-#     G = load_G
-#     start_node = list(G.nodes())[2000]
-
-#     metric_value = metric_by_time(G,
-#                                     path_function=msfpl,
-#                                     metric_function=calc_ip_15)(start_node)
-    
-#     assert metric_value==34.01
