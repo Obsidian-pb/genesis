@@ -79,7 +79,7 @@ def arrival_time(metric_function,
         # Расчет
         if len(route_times)==0:
             return zero_val
-        
+
         try:
             val = metric_function(route_times)
             return val
@@ -154,7 +154,14 @@ def cover_index(
 
 
 
-def nodes_metric(G, sources, path_function, metric_function, voronoi_function, cutoff=None, weight='travel_time', **kwargs):
+def nodes_metric(G,
+                 sources,
+                 path_function,
+                 metric_function,
+                 voronoi_function,
+                 cutoff=None,
+                 weight='travel_time',
+                 **kwargs):
     '''
     Расчет метрики `metric_function` при старте из узлов(а) `sources`.
 
@@ -189,4 +196,15 @@ def nodes_metric(G, sources, path_function, metric_function, voronoi_function, c
         вес динамически.
     '''
     results = voronoi_function(G=G, sources=sources, path_function=path_function, cutoff=cutoff, weight=weight, **kwargs)
-    return metric_function(results[1])
+    times = results[1]
+
+    # Оцениваем соотношение количества рассчитанных узлов к количеству узлов которые следует
+    # учитывать при оценке времени следования. Это либо количество узлов в графе, либо количество узлов в пределах полигона (маски)
+
+    # if len(times)<int(appr_val*G.number_of_nodes()):
+    #     if err_val is None:
+    #         raise ValueError(f'Метрика узла(ов) {sources} не может быть корректно' \
+    #                             ' вычислена в связи со слабой связностью графа')
+    #     return err_val
+
+    return metric_function(times)

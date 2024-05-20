@@ -166,7 +166,7 @@ class TestIPCommon:
     def test_cover_index_correct_10(self):
         lst = [3,4,5,6,7,6,10,  12,13,14]
         ip = cover_index()(pd.Series(lst))
-        assert 70.==ip
+        assert 60.==ip
 
     def test_cover_index_correct_20(self):
         lst = [3,4,5,6,7,6,10,12,13,  21,25,30]

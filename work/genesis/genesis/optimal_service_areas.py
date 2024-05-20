@@ -37,7 +37,7 @@ def voronoi_forest(G, sources, path_function, cutoff=None, weight='travel_time',
     '''
 
     if not isinstance(sources, (list, dict)):
-        raise TypeError(f'Тип данных аргумента `sources` должен быть (list или dict)')
+        raise TypeError('Тип данных аргумента `sources` должен быть (list или dict)')
 
     # Расчет
     times, routes = path_function(G, sources=sources, cutoff=cutoff, weight=weight)
@@ -66,6 +66,27 @@ def voronoi_forest_for_points(points, **kwargs):
     Расчет леса Вороного и возвращение значений для узлов points
 
     # Аргументы
+    `G`: nx.MultiDiGraph
+        Граф улично-дорожной сети.
+    `sources`:list|dict
+        Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
+        идентификатор узла, значение - его наименование. Может использоваться для указания узлов в которых 
+        расположены пожарные подразделения: {1234:'ПСЧ-1'}
+    `path_function`: function
+        Функция расчета кратчайших путей от единственного источника. 
+        В качестве функции могут быть переданы реализации алгоритмов из пакета
+        `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
+        Пользователь может использовать собственные функции с
+        интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
+        weight: str = "weight") -> (dict, dict)`
+    `cutoff`:int=None
+        Ограничение расчета
+    `weight`:str или function  = "travel_time"
+        Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+        вес динамически.
+    `routes_return`: bool = False
+        Возвращать ли также и маршруты следования
+
     `points`: list(int)
         Список точек значения для которых должны быть возвращены.
     `**kwargs`:
@@ -90,11 +111,32 @@ def voronoi_forest_for_points(points, **kwargs):
     return r_out
 
 
-def voronoi_forest_for_area(area:gpd.GeoDataFrame, **kwargs):
+def voronoi_forest_for_area(area:gpd.GeoDataFrame=None, **kwargs):
     '''
     Расчет леса Вороного и возвращение значений для набора геоданных area
 
     # Аргументы
+    `G`: nx.MultiDiGraph
+        Граф улично-дорожной сети.
+    `sources`:list|dict
+        Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
+        идентификатор узла, значение - его наименование. Может использоваться для указания узлов в которых 
+        расположены пожарные подразделения: {1234:'ПСЧ-1'}
+    `path_function`: function
+        Функция расчета кратчайших путей от единственного источника. 
+        В качестве функции могут быть переданы реализации алгоритмов из пакета
+        `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
+        Пользователь может использовать собственные функции с
+        интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
+        weight: str = "weight") -> (dict, dict)`
+    `cutoff`:int=None
+        Ограничение расчета
+    `weight`:str или function  = "travel_time"
+        Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+        вес динамически.
+    `routes_return`: bool = False
+        Возвращать ли также и маршруты следования
+
     `area`:gpd.GeoDataFrame
         Геодатафрейм содержащий полигоны границ области. 
         
@@ -109,9 +151,12 @@ def voronoi_forest_for_area(area:gpd.GeoDataFrame, **kwargs):
         `routes`:dict - словарь маршрутов следования в каждый из узлов
     '''
 
+    if area is None:
+        return voronoi_forest(**kwargs)
+
     if not len(area)==1:
-        raise ValueError(f'В наборе геоданных `area` должно содержаться строго 1 запись!' \
-                         'Содержится {len(area)}!')
+        raise ValueError('В наборе геоданных `area` должно содержаться строго 1 запись!' \
+                         f'Содержится {len(area)}!')
 
     try:
         G = kwargs['G']
@@ -122,7 +167,7 @@ def voronoi_forest_for_area(area:gpd.GeoDataFrame, **kwargs):
 
     if not area.crs == G.graph.get('crs'):
         raise ValueError(f'Системы координат полигона `area` ({area.crs}) и `графа` ' \
-                         'G ({G.graph.get("crs")}) не совпадают!')
+                         f'G ({G.graph.get("crs")}) не совпадают!')
 
     nodes = ox.graph_to_gdfs(G, edges=False)
     points_mask = nodes.within(area.iloc[0].geometry)
@@ -135,6 +180,27 @@ def voronoi_forest_for_points_mask(points_mask, to_df=False, **kwargs):
     Расчет леса Вороного и возвращение значений для маски узлов points
 
     # Аргументы
+    `G`: nx.MultiDiGraph
+        Граф улично-дорожной сети.
+    `sources`:list|dict
+        Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
+        идентификатор узла, значение - его наименование. Может использоваться для указания узлов в которых 
+        расположены пожарные подразделения: {1234:'ПСЧ-1'}
+    `path_function`: function
+        Функция расчета кратчайших путей от единственного источника. 
+        В качестве функции могут быть переданы реализации алгоритмов из пакета
+        `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
+        Пользователь может использовать собственные функции с
+        интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
+        weight: str = "weight") -> (dict, dict)`
+    `cutoff`:int=None
+        Ограничение расчета
+    `weight`:str или function  = "travel_time"
+        Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+        вес динамически.
+    `routes_return`: bool = False
+        Возвращать ли также и маршруты следования
+
     `points_mask`: list(int)
         Маска точек значения для которых должны быть возвращены.
     `to_df`: bool
@@ -162,6 +228,7 @@ def voronoi_forest_for_points_mask(points_mask, to_df=False, **kwargs):
         r_out=[]
         for r in results:
             val = r[points_mask]
+            # Вот так определять индекс достижимости len(val) / sum(points_mask)
             r_out.append(pd.Series(val))
         return r_out
 
@@ -169,6 +236,6 @@ def voronoi_forest_for_points_mask2(points_mask, **kwargs):
     '''
         `НЕ ИСПОЛЬЗОВАТЬ!`
 
-        Частная реадизация voronoi_forest_for_points_mask с предварительным преобразованием к DataFrame
+        Частная реализация voronoi_forest_for_points_mask с предварительным преобразованием к DataFrame
     '''
     return voronoi_forest_for_points_mask(points_mask=points_mask, to_df=True, **kwargs)
