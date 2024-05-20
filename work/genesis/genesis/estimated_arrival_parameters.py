@@ -4,12 +4,14 @@ Estimated Arrival Parameters Problem - Задача определения ож�
 Метрики прибытия пожарных подразделений
 '''
 
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 import networkx as nx
 import osmnx as ox
 
-from genesis.swiss_knife import DELAY_TIME
+from genesis.optimal_service_areas import voronoi_forest
+from genesis.swiss_knife import DELAY_TIME, MSF
 
 
 
@@ -156,9 +158,9 @@ def cover_index(
 
 def nodes_metric(G,
                  sources,
-                 path_function,
-                 metric_function,
-                 voronoi_function,
+                 path_function=MSF,
+                 metric_function=arrival_time(np.mean),
+                 voronoi_function=voronoi_forest,
                  cutoff=None,
                  weight='travel_time',
                  **kwargs):
