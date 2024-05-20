@@ -188,5 +188,5 @@ def nodes_metric(G, sources, path_function, metric_function, voronoi_function, c
         Имя поля содержащего вес ребер, или функция позволяющая вычислять 
         вес динамически.
     '''
-    _, times = voronoi_function(G=G, sources=sources, path_function=path_function, cutoff=cutoff, weight=weight, **kwargs)
-    return metric_function(times)
+    results = voronoi_function(G=G, sources=sources, path_function=path_function, cutoff=cutoff, weight=weight, **kwargs)
+    return metric_function(results[1])
