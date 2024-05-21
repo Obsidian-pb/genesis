@@ -18,8 +18,8 @@
 `shorted_path_path_length (sppl)`: алгоритм расчета кратчайшей цены следования 
     прямого пути из одной точки в другую
     
-## Переменные
-`delay_time`: Время обработки вызова. 
+## Константы
+`DELAY_TIME`: Время обработки вызова. 
     (то время которое проходит с момента поступления сообщения до момента выезда сил и средств)
 '''
 
@@ -28,15 +28,15 @@ from matplotlib.colors import LinearSegmentedColormap
 
 
 # Функции используемые при проведении расчетов
-msf = nx.multi_source_dijkstra
-ssf = nx.single_source_dijkstra
-ssfpl = nx.single_source_dijkstra_path_length
-msfpl = nx.multi_source_dijkstra_path_length
-sppl = nx.dijkstra_path_length
+MSF = nx.multi_source_dijkstra
+# ssf = nx.single_source_dijkstra
+# ssfpl = nx.single_source_dijkstra_path_length
+# msfpl = nx.multi_source_dijkstra_path_length
+# sppl = nx.dijkstra_path_length
 
 
 # Цветовые схемы
-cmap_GrGldRd = LinearSegmentedColormap.from_list("mycmap", ["green", "gold", "red"])
-cmap_RdGldGr = LinearSegmentedColormap.from_list("mycmap", ["red", "gold", "green"]) 
+CMAP_GrGldRd = LinearSegmentedColormap.from_list("mycmap", ["green", "gold", "red"])
+CMAP_RdGldGr = LinearSegmentedColormap.from_list("mycmap", ["red", "gold", "green"]) 
 
-delay_time = 1
+DELAY_TIME = 1

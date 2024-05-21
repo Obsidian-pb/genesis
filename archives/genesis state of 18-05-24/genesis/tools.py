@@ -79,21 +79,18 @@ def get_all_neighbor_nodes(G, node):
 
 class Progressbar(object):
 
-    def __init__(self, maxval, minval=0, bins=10, ok_char='#', est_char='_'):
+    def __init__(self, maxval, minval=0, bins=10):
         self.maxval = maxval
         self.minval = minval
         self.bins = bins
         self.scope = maxval-minval
         self.val=minval
-        self.ok_char = ok_char
-        self.est_char = est_char
 
     def __call__(self):
         self.val+=1
         bins_ok = int(self.bins*(self.val/self.scope))
         bins_still = self.bins-bins_ok
-        s = "|"+self.ok_char*bins_ok + self.est_char*bins_still + "| " + f'{round(100*self.val/self.scope, 1)}%'
+        s = "|"+"#"*bins_ok + "_"*bins_still + "| " + f'{round(100*self.val/self.scope, 1)}%'
         print(s, end='\r')
-        if bins_ok==self.bins:
+        if bins_ok==100:
             print('')
-        
