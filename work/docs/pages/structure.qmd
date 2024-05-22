@@ -21,3 +21,11 @@ flowchart LR
 
 ```
 
+
+```{mermaid}
+%% | label: fig-problem_solvation
+%% | fig-cap: Логика решения проблем
+flowchart LR
+
+    PROBLEM --> APPROACH --> ALGORITHM
+```

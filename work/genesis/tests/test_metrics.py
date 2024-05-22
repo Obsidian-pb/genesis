@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from genesis.estimated_arrival_parameters import ArrivalTime, CoverIndex
+from genesis.metrics import ArrivalTime, CoverIndex
 # import geopandas as gpd
 
 

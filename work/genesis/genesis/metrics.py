@@ -36,16 +36,16 @@ class ArrivalTime(MetricBase):
         self.f = f
         self.zero_val = zero_val
 
-    def __call__(self, times):
-        if not isinstance(times, (list, pd.Series)):
+    def __call__(self, state):
+        if not isinstance(state, (list, pd.Series)):
             raise TypeError(
                 f"Аргумент times может быть только типа list или pd.Series"
-                f" Имеется {type(times)}"
+                f" Имеется {type(state)}"
                 )
 
-        if len(times)==0:
+        if len(state)==0:
             return self.zero_val
-        return self.f(times)
+        return self.f(state)
 
 
 class CoverIndex(MetricBase):
@@ -64,20 +64,22 @@ class CoverIndex(MetricBase):
         self.ip_val = ip_val
         self.zero_val = zero_val
 
-    def __call__(self, times):
-        if not isinstance(times, (list, pd.Series)):
+    def __call__(self, state):
+        if not isinstance(state, (list, pd.Series)):
             raise TypeError(
                 f"Аргумент times может быть только типа list или pd.Series"
-                f" Имеется {type(times)}"
+                f" Имеется {type(state)}"
                 )
 
         # Расчет
-        if len(times)==0:
+        if len(state)==0:
             return self.zero_val
-        # ip_len = sum(times<=self.ip_val)
-        ip_len = sum([1 for t in times if t<=self.ip_val])
-        tot_len = len(times)
+        ip_len = sum([1 for t in state if t<=self.ip_val])
+        tot_len = len(state)
         return 100*ip_len/tot_len
+    
+    def compare(self, a, b):
+        return max(a, b)
 
 
 # def (MetricBase)
