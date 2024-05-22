@@ -2,9 +2,11 @@
 Инструменты обработки графов, моделей и данных. Обрезка, соединение, сохранение, загрузка
 '''
 
+import time
 import pandas as pd
 import geopandas as gpd
 import logging as lg
+import networkx as nx
 
 
 # Блок простых инструментальных функций общего назначения
@@ -69,6 +71,9 @@ def kmh_to_mm(kmh: float, precision: int = 2):
 #     return gdf
 
 def get_all_neighbor_nodes(G, node):
+    '''
+    Возвращает полный список всех соседних узлов.
+    '''
     nnodes = []
     for edge in G.out_edges(node):
         nnodes.append(edge[1])
@@ -77,8 +82,42 @@ def get_all_neighbor_nodes(G, node):
     return nnodes
 
 
-class Progressbar(object):
+def multi_source_dijkstra_reversed(G, sources, **kwargs):
+    '''
+    Алгоритм расчета кратчайших маршрутов в точки `source`
+    с использованием алгоритма Дейкстры
+    в реализации `nx.multi_source_dijkstra`.
+    '''
+    G = nx.reverse(G.copy())
+    return nx.multi_source_dijkstra(G=G, sources=sources, **kwargs)
 
+
+def timing(f, msg='', acc=2):
+    '''
+    Обертка счетчика затраченного времени
+    '''
+    def _timing(**kwargs):
+        # Фиксация стартового времени функции
+        st = time.time()
+
+        # Собственно оборачиваемая функция
+        r = f(**kwargs)
+
+        # Печать времени работы функции
+        ft = time.time()
+        if msg == '':
+            print(f'ВРЕМЯ: {round(ft-st,acc)} сек')
+        else:
+            print(f'{msg} {round(ft-st,acc)} сек')
+        return r
+    
+    return _timing
+
+
+class Progressbar(object):
+    '''
+    Прогресс бар для использования в итеративных функциях
+    '''
     def __init__(self, maxval, minval=0, bins=10, ok_char='#', est_char='_'):
         self.maxval = maxval
         self.minval = minval

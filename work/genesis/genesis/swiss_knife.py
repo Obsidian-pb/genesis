@@ -35,6 +35,7 @@ MSF = nx.multi_source_dijkstra
 # sppl = nx.dijkstra_path_length
 
 
+
 # Цветовые схемы
 CMAP_GrGldRd = LinearSegmentedColormap.from_list("mycmap", ["green", "gold", "red"])
 CMAP_RdGldGr = LinearSegmentedColormap.from_list("mycmap", ["red", "gold", "green"]) 
