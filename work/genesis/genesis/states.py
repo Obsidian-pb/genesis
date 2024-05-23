@@ -25,7 +25,13 @@ class FirstArrivalUnitState(StateBase):
         # self.state_algorithm = state_algorithm
         super().__init__(state_algorithm, **kwargs)
 
-    def __call__(self, env, points, area=None, weight='travel_time', delay=DELAY_TIME, **kwargs):
+    def __call__(self, 
+                 env, 
+                 points, 
+                 area=None, 
+                 weight='travel_time',
+                 delay=DELAY_TIME, 
+                 **kwargs):
         '''
         # Аргументы
         `env`: nx.MultiDiGraph (G)
@@ -59,13 +65,13 @@ class FirstArrivalUnitState(StateBase):
 
         # Расчет
         times, routes = self.state_algorithm(G=env, sources=points, weight=weight, **kwargs)
-        times = pd.Series(times, dtype=float, name='route_time') + delay
+        times = pd.Series(times, dtype=float, name='times') + delay
 
         # Определение стартового узла для каждого маршрута
         if isinstance(points, dict):
-            nearest = pd.Series({k:points[route[0]] for k, route in routes.items()}, dtype=str, name='first_arrival_unit')
+            nearest = pd.Series({k:points[route[0]] for k, route in routes.items()}, dtype=str, name='nearest')
         else:
-            nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64', name='first_arrival_unit')
+            nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64', name='nearest')
 
         # Отбор узлов по маске
         if not area is None:
