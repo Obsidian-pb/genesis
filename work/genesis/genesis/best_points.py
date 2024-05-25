@@ -210,7 +210,7 @@ class BestNodesHillClimbing(BestPoints):
         self.appr_val = appr_val
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env, area=None, start_node=None, all_nodes=False, debug_route=False, **kwargs):
+    def __call__(self, env:nx.MultiDiGraph, area=None, start_node=None, all_nodes=False, debug_route=False, **kwargs):
         
         if not isinstance(env, nx.MultiDiGraph):
             raise TypeError("Тип переменной G должен быть MultiDiGraph!")

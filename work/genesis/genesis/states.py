@@ -25,12 +25,12 @@ class FirstArrivalUnitState(StateBase):
         # self.state_algorithm = state_algorithm
         super().__init__(state_algorithm, **kwargs)
 
-    def __call__(self, 
-                 env, 
-                 points, 
-                 area=None, 
+    def __call__(self,
+                 env,
+                 points,
+                 area=None,
                  weight='travel_time',
-                 delay=DELAY_TIME, 
+                 delay=DELAY_TIME,
                  **kwargs):
         '''
         # Аргументы
@@ -64,6 +64,12 @@ class FirstArrivalUnitState(StateBase):
             raise TypeError(f'Аргумент `area` должен иметь тип `list`! Имеет {type(area)}')
 
         # Расчет
+        # ЗДЕСЬ G - ПОТЕНЦИАЛЬНАЯ ПРОБЛЕМА т.к. Мы явным образом передаем аргумент в nx.shortest_path,
+        # что вызовет ошибку, в случае использования функций с иными аргументами
+        # Возможно лучшим вариантом будет просто передавать **kwargs
+        # Либо переопределять в каждом отдельном случае именно State, а не state_algorithm.
+        # т.е. вместо FirstArrivalUnitState будет FirstArrivalUnitStateForG или FirstArrivalUnitStateForGAndBuildings ...
+        # times, routes = self.state_algorithm(env, points, weight, **kwargs)     # Так не надо
         times, routes = self.state_algorithm(G=env, sources=points, weight=weight, **kwargs)
         times = pd.Series(times, dtype=float, name='times') + delay
 
