@@ -9,8 +9,16 @@ class MetricBase:
     '''
     Базовый класс для Класс-функций расчета метрики по набору данных.
     '''
-    def __init__(self, **kwargs):
+    # self.comp_func=min
+
+
+    def __init__(self, comp_func=min, **kwargs):
         '''
+
+        `comp_func`: function
+            Функция по которой происходит сравнение двух метрик методом compare.
+            По умолчанию выбирается минимальная.
+
         `**kwargs`:
             Основные настройки объекта.
 
@@ -19,6 +27,7 @@ class MetricBase:
 
             Пользователь может указать собственную функцию.
         '''
+        self.comp_func=comp_func
 
     def __call__(self, state, **kwargs):
         '''
@@ -36,15 +45,13 @@ class MetricBase:
         '''
         return None
 
-    @classmethod
+    # @classmethod
     def compare(self, a, b):
         '''
         Сравнение.       
         Возвращает значение в соответствии с логикой расчетов.
-
-        По умолчанию возвращает меньшее
         '''
-        return min(a, b)
+        return self.comp_func(a, b)
 
 
 class StateBase():
@@ -72,8 +79,9 @@ class StateBase():
                 данные среды используемые для проведения расчетов.
                 Граф, растр или иное представление пространства, в том числе композитное.
 
-            `points` (`старт`): abstract
-                точка (или точки) для которых происходит оценка метрики.
+            `points`: list|dict (source)
+                Стартовые точки. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
+                идентификатор узла, значение - его наименование. 
                 Точки должны быть соотносимы с окружением `env`.
 
             `area` (`область оценки`): abstract = None
@@ -89,7 +97,7 @@ class StateBase():
 
 class BestPoints:
     '''
-    Базовый класс алгоритма расчета лушей точки
+    Базовый класс алгоритма расчета лучшей точки
     '''
     def __init__(self, state_function: StateBase, metric_function: MetricBase,  **kwargs) -> None:
         '''

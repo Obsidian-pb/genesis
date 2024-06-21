@@ -1,7 +1,5 @@
 '''
-Алгоритмы решения задачи MCLP (Maximum Covering Location Problem).
-
-Поиск оптимальных узлов графа с точки зрения максимизации покрытия.
+Алгоритмы поиска оптимальных узлов графа.
 '''
 
 # import numpy as np
@@ -322,3 +320,36 @@ class BestNodesHillClimbing(BestPoints):
             return best_node, best_metric
         else:
             return best_node, best_metric, route
+
+
+
+class BestNodesMonkey(BestPoints):
+    '''
+        Поиск лучших узлов графа с использованием алгоритма обзьяны (monkey algorithm). 
+        Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.
+        Если таковых узлов нет, возвращается ошибка некорректности графа. 
+        (граф должен быть проверен на корректность прежде чем будет передан функции)
+        
+        Узлы для которых метрика не может быть вычислена (например слабо связанные 
+        с основным графом) не учитываются. 
+
+        ## Область применения
+        Определение размещения одного узла с наилучшими показателями. 
+        Дает достаточно точное решение. Хорошо подходит для больших графов.
+    '''
+    def __init__(self,
+                 state_function: StateBase,
+                 metric_function: MetricBase,
+                 appr_val = 0.95,
+                 **kwargs) -> None:
+        self.appr_val = appr_val
+        super().__init__(state_function, metric_function, **kwargs)
+
+    def __call__(self, env:nx.MultiDiGraph, area=None, start_node=None, all_nodes=False, debug_route=False, **kwargs):
+        '''
+        Реализация: при помощи BestNodesHillClimbing ищется лучшая точка, 
+        после чего обезьяна прыгает по ближайшим вершинам и вновь использует BestNodesHillClimbing.
+
+        Так, пока не будет найден глобальный оптимум или не будет достигнуто количество итераций.
+        '''
+        pass

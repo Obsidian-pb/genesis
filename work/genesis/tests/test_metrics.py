@@ -11,7 +11,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from genesis.metrics import ArrivalTime, CoverIndex
+from genesis.metrics import MetricBase, ArrivalTime, CoverIndex
 
 from genesis.swiss_knife import MSF
 
@@ -74,6 +74,27 @@ def create_G():
     return G
 
 
+class TestMetricBase:
+    '''
+    Тесты базового класса метрик
+    '''
+
+    def test_metricbase_min(self):
+        '''
+        Сравниваются два значения и выбирается меньшее
+        '''
+        metric = MetricBase()
+        a=10
+        b=20
+
+        assert metric.compare(a ,b) == a
+
+    def test_metricbase_max(self):
+        metric = MetricBase(comp_func=max)
+        a=10
+        b=20
+
+        assert metric.compare(a ,b) == b
 
 
 class TestMetricsArrivalTime:

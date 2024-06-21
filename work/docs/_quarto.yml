@@ -17,6 +17,8 @@ book:
     - pages/structure.qmd
     - pages/rapid_start.qmd
     - pages/installation.qmd
+    - pages/concept.qmd
+    - pages/structure.qmd
     - part: pages/usage.qmd           # Тут описывается применение библиотеки
       chapters:
       - pages/usage/environment_usage.qmd

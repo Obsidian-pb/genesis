@@ -110,7 +110,7 @@ def timing(f, msg='', acc=2):
         else:
             print(f'{msg} {round(ft-st,acc)} сек')
         return r
-    
+
     return _timing
 
 
@@ -135,4 +135,4 @@ class Progressbar(object):
         print(s, end='\r')
         if bins_ok==self.bins:
             print('')
-        
+
