@@ -5,12 +5,12 @@
 # import numpy as np
 import networkx as nx
 import pandas as pd
-from genesis.core import BestPoints, MetricBase, StateBase
+from genesis.core import BestPointsBase, MetricBase, StateBase
 from genesis.tools import get_all_neighbor_nodes
 
 
 
-class NodeMetric(BestPoints):
+class NodeMetric(BestPointsBase):
     '''
     Расчет метрики для конкретного узла графа.
     
@@ -64,7 +64,7 @@ class NodeMetric(BestPoints):
         return cur_val
 
 
-class BestNodesFull(BestPoints):
+class BestNodesFull(BestPointsBase):
     '''
         Поиск лучших узлов графа полным перебором. 
         Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.
@@ -186,9 +186,9 @@ class BestNodesFull(BestPoints):
 
 
 
-class BestNodesHillClimbing(BestPoints):
+class BestNodeHillClimbing(BestPointsBase):
     '''
-        Поиск лучших узлов графа с использованием алгоритма скалолаза (hill clinbing). 
+        Поиск лучшего узла графа с использованием алгоритма скалолаза (hill clinbing). 
         Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.
         Если таковых узлов нет, возвращается ошибка некорректности графа. 
         (граф должен быть проверен на корректность прежде чем будет передан функции)
@@ -199,6 +199,7 @@ class BestNodesHillClimbing(BestPoints):
         ## Область применения
         Определение размещения одного узла с наилучшими показателями. 
         Дает достаточно точное решение. Хорошо подходит для больших графов.
+        Может давать оценку только для полного набора узлов графа (в отличие от BNF).
     '''
     def __init__(self,
                  state_function: StateBase,
@@ -208,10 +209,17 @@ class BestNodesHillClimbing(BestPoints):
         self.appr_val = appr_val
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env:nx.MultiDiGraph, area=None, start_node=None, all_nodes=False, debug_route=False, **kwargs):
+    def __call__(self,
+                 env:nx.MultiDiGraph,
+                 area=None,
+                 start_node=None,
+                 all_nodes=False,
+                 debug_route=False,
+                 node_calc_end_function=None,
+                 **kwargs):
         
         if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип переменной G должен быть MultiDiGraph!")
+            raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
 
         node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
 
@@ -264,7 +272,7 @@ class BestNodesHillClimbing(BestPoints):
             # node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
             node_metric = node_metric_func(env=env, node=start_node, area=area)
 
-            if node_metric==None:
+            if node_metric is None:
                 raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой ' \
                     'связностью с остальной частью графа')
             
@@ -316,6 +324,10 @@ class BestNodesHillClimbing(BestPoints):
             route[best_node] = best_metric
             # logging.debug('ЛУЧШИЙ УЗЕЛ {}, метрика {}'.format(best_node, best_metric))
 
+            # выполняем функцию завершения расчета для узла
+            if node_calc_end_function:
+                node_calc_end_function()
+
         if not debug_route:
             return best_node, best_metric
         else:
@@ -323,7 +335,7 @@ class BestNodesHillClimbing(BestPoints):
 
 
 
-class BestNodesMonkey(BestPoints):
+class BestNodesMonkey(BestPointsBase):
     '''
         Поиск лучших узлов графа с использованием алгоритма обзьяны (monkey algorithm). 
         Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.

@@ -29,7 +29,7 @@ class MetricBase:
         '''
         self.comp_func=comp_func
 
-    def __call__(self, state, **kwargs):
+    def __call__(self, state, area=None, **kwargs):
         '''
         `state` (`состояние`): abstract
             Абстрактный объект состояния среды.
@@ -51,6 +51,12 @@ class MetricBase:
         Сравнение.       
         Возвращает значение в соответствии с логикой расчетов.
         '''
+        if a is None and b is None:
+            return None
+        if a is None:
+            return b
+        if b is None:
+            return a
         return self.comp_func(a, b)
 
 
@@ -95,7 +101,7 @@ class StateBase():
         return None
 
 
-class BestPoints:
+class BestPointsBase:
     '''
     Базовый класс алгоритма расчета лучшей точки
     '''

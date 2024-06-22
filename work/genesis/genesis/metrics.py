@@ -29,24 +29,34 @@ class ArrivalTime(MetricBase):
         '''
         self.f = f
         self.zero_val = zero_val
+        super().__init__()
 
-    def __call__(self, state):
+    def __call__(self, state, area=None):
         if not isinstance(state, (list, pd.Series)):
             raise TypeError(
                 f"Аргумент times может быть только типа list или pd.Series"
                 f" Имеется {type(state)}"
                 )
 
-        if len(state)==0:
+        # Отбор узлов по area (списку узлов которые следует учесть в расчете)
+        if not area is None:
+            if isinstance(state, pd.Series):
+                state_c = state.loc[area]
+            else:
+                state_c = [x for x in state if x in area]
+        else:
+            state_c = state
+
+        if len(state_c)==0:
             return self.zero_val
-        return self.f(state)
+        return self.f(state_c)
 
 
 class CoverIndex(MetricBase):
     '''
     Класс-функция расчета индекса прикрытия территорий
     '''
-    def __init__(self, ip_val=10, zero_val=0) -> None:
+    def __init__(self, ip_val=10, zero_val=0, comp_func=max) -> None:
         '''
         `ip_val`:int
             Пороговое значение для определения индекса прикрытия.
@@ -58,21 +68,33 @@ class CoverIndex(MetricBase):
         '''
         self.ip_val = ip_val
         self.zero_val = zero_val
+        super().__init__(comp_func)
 
-    def __call__(self, state):
+    def __call__(self, state, area=None):
         if not isinstance(state, (list, pd.Series)):
             raise TypeError(
                 f"Аргумент times может быть только типа list или pd.Series"
                 f" Имеется {type(state)}"
                 )
 
+        # Отбор узлов по area (списку узлов которые следует учесть в расчете)
+        if not area is None:
+            if isinstance(state, pd.Series):
+                state_c = state.loc[area]
+            else:
+                state_c = [x for x in state if x in area]
+        else:
+            state_c = state
+
         # Расчет
-        if len(state)==0:
+        if len(state_c)==0:
             return self.zero_val
-        ip_len = sum([1 for t in state if t<=self.ip_val])
-        tot_len = len(state)
+        ip_len = sum([1 for t in state_c if t<=self.ip_val])
+        tot_len = len(state_c)
         return 100*ip_len/tot_len
     
-    def compare(self, a, b):
-        return max(a, b)
+    # def compare(self, a, b):
+    #     return max(a, b)
+
+
 
