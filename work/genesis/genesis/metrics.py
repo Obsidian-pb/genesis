@@ -94,7 +94,9 @@ class CoverIndex(MetricBase):
         return 100*ip_len/tot_len
     
     # def compare(self, a, b):
-    #     return max(a, b)
+    #     if a>b: return a
+    #     return b
+        # return max(a, b)
 
 
 

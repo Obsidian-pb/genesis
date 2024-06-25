@@ -205,15 +205,17 @@ class BestNodeHillClimbing(BestPointsBase):
                  state_function: StateBase,
                  metric_function: MetricBase,
                  appr_val = 0.95,
+                 all_nodes=False,
                  **kwargs) -> None:
         self.appr_val = appr_val
+        self.all_nodes=all_nodes
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self,
                  env:nx.MultiDiGraph,
                  area=None,
                  start_node=None,
-                 all_nodes=False,
+                #  all_nodes=False,
                  debug_route=False,
                  node_calc_end_function=None,
                  **kwargs):
@@ -288,7 +290,7 @@ class BestNodeHillClimbing(BestPointsBase):
         while best_node!=tmp_node:
             tmp_node = best_node
 
-            if all_nodes:
+            if self.all_nodes:
                 nnodes = get_all_neighbor_nodes(env, tmp_node)
             else:
                 nnodes = env[tmp_node]

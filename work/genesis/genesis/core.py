@@ -51,6 +51,8 @@ class MetricBase:
         Сравнение.       
         Возвращает значение в соответствии с логикой расчетов.
         '''
+        if a==b:
+            return None
         if a is None and b is None:
             return None
         if a is None:
