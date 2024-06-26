@@ -23,6 +23,10 @@ class NodeMetric(BestPointsBase):
                  err_val=None,
                  **kwargs) -> None:
         '''
+            `state_function`: StateBase
+                функция расчета состояния окружения
+            `metric_function`: MetricBase
+                Функция расчета метрики
             `appr_val`: = 0.95
                 Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
                 Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
@@ -40,22 +44,22 @@ class NodeMetric(BestPointsBase):
             ## Параметры
             `env` : MultiDiGraph (G)
                 Граф дорожной сети
+            `node`: int
+                Идентификатор узла графа для которого происходит расчет
             `area`: pd.Series = None
                 Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
                 Если не указана, расчет производится для всех узлов графа.
-            `node`: int
-                Идентификатор узла графа для которого происходит расчет
         '''
 
         # Если маска приемлемых узлов графа не передана,
         # то приемлемое количество узлов считается от количества узлов в графе
         # Иначе - от количества True в маске
-        # if area is None:
-        #     appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
-        # else:
-        #     appr_nodes_count = int(sum(area) * self.appr_val)
-        # Приемлемое количество узлов считается от количества узлов в графе
-        appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
+        if area is None:
+            appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
+        else:
+            appr_nodes_count = int(sum(area) * self.appr_val)
+        # # Приемлемое количество узлов считается от количества узлов в графе
+        # appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
 
         # Собственно расчет
         times, _ = self.state_function(env=env, points=[node], area=area, **kwargs)
@@ -93,7 +97,7 @@ class BestNodesFull(BestPointsBase):
     def __init__(self,
                  state_function: StateBase,
                  metric_function: MetricBase,
-                 appr_val = 0.95,
+                 appr_val: float = 0.95,
                  **kwargs) -> None:
         '''
         `state_function` : StateBase
@@ -108,7 +112,11 @@ class BestNodesFull(BestPointsBase):
         self.appr_val = appr_val
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env, area=None, nodes_list=None, node_calc_end_function=None, **kwargs):
+    def __call__(self, env:nx.MultiDiGraph,
+                 area:pd.Series=None,
+                 nodes_list:list=None,
+                 node_calc_end_function:callable=None,
+                 **kwargs):
         '''
         ## Параметры
         `env` : MultiDiGraph (G)
@@ -119,6 +127,12 @@ class BestNodesFull(BestPointsBase):
         `nodes_list`:list=None
             Список узлов графа которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
+        `node_calc_end_function`:callable=None
+            Функция вызываемая в конце расчета каждого узла.
+            Сигнатура функции:
+            ```
+                node_calc_end_function()
+            ```
 
         ## Возвращает
         `best_nodes_list`, `best_metric`: tuple[list[Any | None], None]
@@ -206,25 +220,54 @@ class BestNodeHillClimbing(BestPointsBase):
     def __init__(self,
                  state_function: StateBase,
                  metric_function: MetricBase,
-                 appr_val = 0.95,
-                 all_nodes=False,
+                 appr_val: float = 0.95,
+                 all_nodes: bool=False,
                  **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `appr_val`: = 0.95
+            Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+            то такой узел не рассматривается.
+        `all_nodes`: bool=False
+            Если True рассматриваются все узлы смежные с рассчитываемым узлом.
+            Если False - только исходящие.
+        '''
         self.appr_val = appr_val
         self.all_nodes=all_nodes
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self,
                  env:nx.MultiDiGraph,
-                 area=None,
-                 start_node=None,
-                 debug_route=False,
-                 node_calc_end_function=None,
+                 area:pd.Series=None,
+                 start_node:int=None,
+                 debug_route:bool=False,
+                 node_calc_end_function:callable=None,
                  **kwargs):
+        '''
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+        `start_node`: int
+            Идентификатор стартового узла
+        `debug_route`: bool=False
+            Если True - возвращается также маршрут по которому проходил алгоритм
+            в процессе поиска
+        `node_calc_end_function`: callable=None
+            Функция выполняемая в конце расчета каждого узла.
+            
+        '''
         
         if not isinstance(env, nx.MultiDiGraph):
             raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
 
-        node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
+        node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None, **kwargs)
 
         nodes_metric = {}
         route={}
@@ -250,16 +293,10 @@ class BestNodeHillClimbing(BestPointsBase):
                 start_node = nodes_list[i]
 
                 # Расчет метрики для узла `start_node`
-                # node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
-                node_metric = node_metric_func(env=env, node=start_node, area=area)
+                node_metric = node_metric_func(env=env, node=start_node, area=area, **kwargs)
                 # Если указана расчетная область и метрика не была рассчитана
                 if (node_metric is None) and (not area is None):
-                    node_metric = node_metric_func(env=env, node=start_node)
-                # times, _ = self.state_function(env=env, points=[start_node], area=area, **kwargs)
-                # if len(times)>=appr_nodes_count:
-                #     node_metric = self.metric_function(times, **kwargs)
-                # else:
-                #     node_metric = None
+                    node_metric = node_metric_func(env=env, node=start_node, **kwargs)
 
                 nodes_metric[start_node] = node_metric
                 i+=1
@@ -267,23 +304,15 @@ class BestNodeHillClimbing(BestPointsBase):
             # Использование переданного стартового узла
             if not isinstance(start_node,int):
                 raise TypeError('Тип данных start_node должен быть только int!')
-            
-            # try:
-            #     # node_metric = node_metric_function(sources=start_node, g=env)
-            #     times, _ = self.state_function(env=env, points=[start_node], area=area, **kwargs)
-            #     node_metric = self.metric_function(times, **kwargs)
-            # except ValueError:
-            #     node_metric = None
-            # Расчет метрики для узла `start_node`
-            # node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
-            node_metric = node_metric_func(env=env, node=start_node, area=area)
+
+            node_metric = node_metric_func(env=env, node=start_node, area=area, **kwargs)
 
             if node_metric is None:
                 if not area is None:
                     # raise ValueError(f'Достичь области `area` из стартового узла {start_node}' \
                     #                  'невозможно,')
                     # ВАЖНО! будет произведена оценка оценка метрики для подграфа зоны обслуживания подразделения
-                    node_metric = node_metric_func(env=env, node=start_node)
+                    node_metric = node_metric_func(env=env, node=start_node, **kwargs)
                 else:
                     raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой ' \
                         'связностью с остальной частью графа')
@@ -309,26 +338,11 @@ class BestNodeHillClimbing(BestPointsBase):
                 if node in nodes_metric:
                     node_metric = nodes_metric[node]
                 else:
-                    # try:
-                    #     node_metric = node_metric_function(sources=node, g=env)
-                    # except ValueError:
-                    #     # logging.debug('УЗЕЛ {}, слабосвязан'.format(node))
-                    #     node_metric = best_metric
-                    # Расчет метрики для узла `start_node`
-                    # node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
-                    node_metric = node_metric_func(env=env, node=node, area=area)
+                    node_metric = node_metric_func(env=env, node=node, area=area, **kwargs)
                     nodes_metric[node] = node_metric
                 
                 # logging.debug('УЗЕЛ {}, метрика {}'.format(node, node_metric))
 
-                # if reduce and node_metric<best_metric:
-                #     # Если требуется поиск наименьшей метрики
-                #     best_metric = node_metric
-                #     best_node = node
-                # if not reduce and node_metric>best_metric:
-                #     # Если требуется поиск наибольшей метрики
-                #     best_metric = node_metric
-                #     best_node = node
                 if self.metric_function.compare(best_metric, node_metric) == node_metric:
                     best_node = node
                     best_metric = node_metric
@@ -349,7 +363,7 @@ class BestNodeHillClimbing(BestPointsBase):
 
 class BestNodesMonkey(BestPointsBase):
     '''
-        Поиск лучших узлов графа с использованием алгоритма обзьяны (monkey algorithm). 
+        Поиск лучших узлов графа с использованием алгоритма обезьяны (monkey algorithm). 
         Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.
         Если таковых узлов нет, возвращается ошибка некорректности графа. 
         (граф должен быть проверен на корректность прежде чем будет передан функции)
