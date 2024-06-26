@@ -2,6 +2,8 @@
 Инструменты обработки графов, моделей и данных. Обрезка, соединение, сохранение, загрузка
 '''
 
+from typing import Any
+
 import time
 import pandas as pd
 import geopandas as gpd
@@ -10,7 +12,7 @@ import networkx as nx
 
 
 # Блок простых инструментальных функций общего назначения
-def kmh_to_mm(kmh: float, precision: int = 2):
+def kmh_to_mm(kmh: float, precision: int = 2) -> float:
     '''
     Перевод километров в час в метры в минуту
 
@@ -70,7 +72,7 @@ def kmh_to_mm(kmh: float, precision: int = 2):
 #     gdf.index.name=index_name
 #     return gdf
 
-def get_all_neighbor_nodes(G, node):
+def get_all_neighbor_nodes(G, node) -> list:
     '''
     Возвращает полный список всех соседних узлов.
     '''
@@ -82,7 +84,7 @@ def get_all_neighbor_nodes(G, node):
     return nnodes
 
 
-def multi_source_dijkstra_reversed(G, sources, **kwargs):
+def multi_source_dijkstra_reversed(G, sources, **kwargs) -> Any:
     '''
     Алгоритм расчета кратчайших маршрутов в точки `source`
     с использованием алгоритма Дейкстры
@@ -90,6 +92,23 @@ def multi_source_dijkstra_reversed(G, sources, **kwargs):
     '''
     G = nx.reverse(G.copy())
     return nx.multi_source_dijkstra(G=G, sources=sources, **kwargs)
+
+
+def list_dict_concat(a:list|dict,b:list|dict) -> list|dict:
+    '''
+    Корректно склеивает между собой списки и словари.
+    При условии, что аргумент `a` и аргумент `b` одного типа.
+
+    #Аргументы
+    `a`, `b`: list|dict
+        Аргументы которые следует склеить между собой
+    '''
+    if isinstance(a,list) and isinstance(b,list):
+        return a+b
+    elif isinstance(a,dict) and isinstance(b,dict):
+        return {**a, **b}
+    else:
+        raise TypeError(f'Аргументы имеют различный тип данных: {a:type(a)}, {b:type(b)}')
 
 
 def timing(f, msg='', acc=2):

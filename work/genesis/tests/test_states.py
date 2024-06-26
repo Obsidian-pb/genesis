@@ -4,8 +4,9 @@
 `pytest tests/test_states.py -s`
 '''
 
-import numpy as np
 import pytest
+
+import numpy as np
 
 import osmnx as ox
 import networkx as nx

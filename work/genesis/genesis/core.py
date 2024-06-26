@@ -109,9 +109,9 @@ class BestPointsBase:
     '''
     def __init__(self, state_function: StateBase, metric_function: MetricBase,  **kwargs) -> None:
         '''
-        `state_function`: abstract
+        `state_function`: StateBase
             функция расчета состояния окружения
-        `metric_function`: abstract
+        `metric_function`: MetricBase
             Функция расчета метрики
         '''
         self.state_function = state_function

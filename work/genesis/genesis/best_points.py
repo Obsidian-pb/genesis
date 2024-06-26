@@ -50,10 +50,12 @@ class NodeMetric(BestPointsBase):
         # Если маска приемлемых узлов графа не передана,
         # то приемлемое количество узлов считается от количества узлов в графе
         # Иначе - от количества True в маске
-        if area is None:
-            appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
-        else:
-            appr_nodes_count = int(sum(area) * self.appr_val)
+        # if area is None:
+        #     appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
+        # else:
+        #     appr_nodes_count = int(sum(area) * self.appr_val)
+        # Приемлемое количество узлов считается от количества узлов в графе
+        appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
 
         # Собственно расчет
         times, _ = self.state_function(env=env, points=[node], area=area, **kwargs)
@@ -110,7 +112,7 @@ class BestNodesFull(BestPointsBase):
         '''
         ## Параметры
         `env` : MultiDiGraph (G)
-            Граф дорожной сети
+            Граф улично-дорожной сети
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
@@ -126,7 +128,7 @@ class BestNodesFull(BestPointsBase):
         if not isinstance(env, nx.MultiDiGraph):
             raise TypeError('Тип данных аргумента `env` должен быть nx.MultiDiGraph')
         if not area is None and not isinstance(area, pd.Series):
-            raise TypeError(f'Аргумент `area` должен иметь тип `list`! Имеет {type(area)}')
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
         # Если списка узлов изначально не передано, рассматриваются все узлы графа
         if nodes_list is None:
@@ -139,7 +141,7 @@ class BestNodesFull(BestPointsBase):
         #     appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
         # else:
         #     appr_nodes_count = int(sum(area) * self.appr_val)
-        
+
         best_metric = None
         # best_node = None
         best_nodes_list = []
@@ -215,7 +217,6 @@ class BestNodeHillClimbing(BestPointsBase):
                  env:nx.MultiDiGraph,
                  area=None,
                  start_node=None,
-                #  all_nodes=False,
                  debug_route=False,
                  node_calc_end_function=None,
                  **kwargs):
@@ -251,6 +252,9 @@ class BestNodeHillClimbing(BestPointsBase):
                 # Расчет метрики для узла `start_node`
                 # node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
                 node_metric = node_metric_func(env=env, node=start_node, area=area)
+                # Если указана расчетная область и метрика не была рассчитана
+                if (node_metric is None) and (not area is None):
+                    node_metric = node_metric_func(env=env, node=start_node)
                 # times, _ = self.state_function(env=env, points=[start_node], area=area, **kwargs)
                 # if len(times)>=appr_nodes_count:
                 #     node_metric = self.metric_function(times, **kwargs)
@@ -275,8 +279,14 @@ class BestNodeHillClimbing(BestPointsBase):
             node_metric = node_metric_func(env=env, node=start_node, area=area)
 
             if node_metric is None:
-                raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой ' \
-                    'связностью с остальной частью графа')
+                if not area is None:
+                    # raise ValueError(f'Достичь области `area` из стартового узла {start_node}' \
+                    #                  'невозможно,')
+                    # ВАЖНО! будет произведена оценка оценка метрики для подграфа зоны обслуживания подразделения
+                    node_metric = node_metric_func(env=env, node=start_node)
+                else:
+                    raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой ' \
+                        'связностью с остальной частью графа')
             
             nodes_metric[start_node] = node_metric
 
