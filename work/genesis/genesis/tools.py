@@ -110,6 +110,16 @@ def list_dict_concat(a:list|dict,b:list|dict) -> list|dict:
     else:
         raise TypeError(f'Аргументы имеют различный тип данных: {a:type(a)}, {b:type(b)}')
 
+def k_v_dict(d, f=min):
+    '''
+    Получаем номер ключа в словаре которому соответствует значение с
+    минимальным/максимальным/средним и т.д. значением, в зависимости
+    от функции f.
 
+    Самый быстрый способ.
+    '''
+    v=list(d.values())
+    k=list(d.keys())
+    return k[v.index(f(v))]
 
 
