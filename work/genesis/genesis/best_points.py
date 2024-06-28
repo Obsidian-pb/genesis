@@ -114,7 +114,7 @@ class BestNodesFull(BestPointsBase):
 
     def __call__(self, env:nx.MultiDiGraph,
                  area:pd.Series=None,
-                 nodes_list:list=None,
+                 nodes_list:set=None,
                  node_calc_end_function:callable=None,
                  **kwargs):
         '''
@@ -124,8 +124,8 @@ class BestNodesFull(BestPointsBase):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
-        `nodes_list`:list=None
-            Список узлов графа которые будут рассмотрены в качестве кандидатов.
+        `nodes_list`:set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
         `node_calc_end_function`:callable=None
             Функция вызываемая в конце расчета каждого узла.
@@ -343,10 +343,12 @@ class BestNodeHillClimbing(BestPointsBase):
                 else:
                     node_metric = node_metric_func(env=env, node=node, area=area, **kwargs)
                     nodes_metric[node] = node_metric
-                
+
                 # logging.debug('УЗЕЛ {}, метрика {}'.format(node, node_metric))
 
-                if self.metric_function.compare(best_metric, node_metric) == node_metric:
+                # Если метрики одинаковы, в данном случае - ситуация неприемлемая и должна быть исключена.
+                if best_metric!=node_metric and \
+                        self.metric_function.compare(best_metric, node_metric) == node_metric:
                     best_node = node
                     best_metric = node_metric
 

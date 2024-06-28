@@ -56,7 +56,7 @@ class CoverIndex(MetricBase):
     '''
     Класс-функция расчета индекса прикрытия территорий
     '''
-    def __init__(self, ip_val=10, zero_val=0, comp_func=max) -> None:
+    def __init__(self, ip_val:int=10, zero_val:float=0, comp_func:callable=max) -> None:
         '''
         `ip_val`:int
             Пороговое значение для определения индекса прикрытия.
@@ -65,6 +65,8 @@ class CoverIndex(MetricBase):
         `zero_val`: float = 0
             Значение которое будет возвращено в случае передачи набора данных 
             `route_times` без элементов.
+        `comp_func`: callable
+            Функция сравнения значений метрики
         '''
         self.ip_val = ip_val
         self.zero_val = zero_val
