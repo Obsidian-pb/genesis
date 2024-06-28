@@ -159,6 +159,7 @@ class BestNodesFull(BestPointsBase):
         best_metric = None
         # best_node = None
         best_nodes_list = []
+        # best_nodes_list = set()
 
         for node in nodes_list:
 
@@ -181,24 +182,26 @@ class BestNodesFull(BestPointsBase):
                 if best_metric is None:
                     best_metric = node_metric
                     best_nodes_list = [node]
+                    # best_nodes_list = set([node])
                     # best_node = node
-
                 # проверяем лучше ли метрика среды для текущего узла, чем лучшая до этого
-                # if best_metric > node_metric:
-
-                if self.metric_function.compare(best_metric, node_metric) == node_metric:
-                    if best_metric == node_metric:
-                        best_nodes_list.append(node)
-                    else:
-                        best_nodes_list = [node]
-                    # best_node = node
-                    best_metric = node_metric
+                else:
+                    # if best_metric > node_metric:
+                    if self.metric_function.compare(best_metric, node_metric) == node_metric:
+                        if best_metric == node_metric:
+                            best_nodes_list.append(node)
+                            # best_nodes_list.add(node)
+                        else:
+                            best_nodes_list = [node]
+                            # best_nodes_list = set([node])
+                        # best_node = node
+                        best_metric = node_metric
 
             # выполняем функцию завершения расчета для узла
             if node_calc_end_function:
                 node_calc_end_function()
 
-        return best_nodes_list, best_metric
+        return list(best_nodes_list), best_metric
 
 
 

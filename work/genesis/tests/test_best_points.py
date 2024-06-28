@@ -70,6 +70,27 @@ def create_G():
     G.add_edge(12, 13, key=0, travel_time=8)
     return G
 
+@pytest.fixture(scope='module')
+def create_points_mask():
+    points_mask = {
+        1:False,
+        2:False,
+        3:False,
+        4:True,
+        5:True,
+        6:True,
+        7:True,
+        8:True,
+        9:True,
+        10:True,
+        11:True,
+        12:False,
+        13:False,
+        14:False,
+        15:False
+    }
+    return pd.Series(points_mask)
+
 
 class TestBestNodesFull:
     '''
@@ -93,4 +114,22 @@ class TestBestNodesFull:
         assert best_nodes==[4]
         assert best_metric==100.0
 
+    def test_best_nodes_full_in_area(self, create_G, create_points_mask):
+        '''
+        Базовый тест работоспособности
+        '''
+        G = create_G
+        points_mask = create_points_mask
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), ArrivalTime())(G, area=points_mask)
+        assert best_nodes==[3]
+        assert best_metric==8.0
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), ArrivalTime(np.max))(G, area=points_mask)
+        assert best_nodes==[3, 4]
+        assert best_metric==13.0
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex())(G, area=points_mask)
+        assert best_nodes==[2]
+        assert best_metric==85.71428571428571
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex(20))(G, area=points_mask)
+        assert best_nodes==[1,2,3,4]
+        assert best_metric==100.0
         

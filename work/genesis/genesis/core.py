@@ -52,7 +52,7 @@ class MetricBase:
         Возвращает значение в соответствии с логикой расчетов.
         '''
         if a==b:
-            return None
+            return b        # Требуется доп. проверка: Не понятно как это будет себя вести с другими алгоритмами.
         if a is None and b is None:
             return None
         if a is None:
