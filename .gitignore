@@ -19,3 +19,4 @@ work/documentation/*
 *.DS_Store
 
 
+/work/genesis/tests/data
