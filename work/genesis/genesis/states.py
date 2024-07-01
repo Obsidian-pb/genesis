@@ -9,6 +9,7 @@ import osmnx as ox
 
 from genesis.core import StateBase
 from genesis.swiss_knife import DELAY_TIME, MSF
+from genesis.tools import get_duplicates_list
 
 
 class FirstArrivalUnitState(StateBase):
@@ -60,6 +61,16 @@ class FirstArrivalUnitState(StateBase):
             raise TypeError('Тип данных аргумента `env` должен быть nx.MultiDiGraph')
         if not isinstance(points, (list, dict)):
             raise TypeError('Тип данных аргумента `points` должен быть (list или dict)')
+        if isinstance(points, (list)):
+            if len(points)!=len(set(points)):
+                duplicates = get_duplicates_list(points)
+                raise ValueError(f'Значения элементов аргумента `points` не могут повторяться! '
+                                 f'Список повторяющихся значений: {duplicates}')
+        if isinstance(points, (dict)):
+            if len(points)!=len(set(points.values())):
+                duplicates = get_duplicates_list(points.values())
+                raise ValueError(f'Значения values элементов аргумента `points` не могут повторяться! '
+                                 f'Список повторяющихся значений: {duplicates}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `list`! Имеет {type(area)}')
 

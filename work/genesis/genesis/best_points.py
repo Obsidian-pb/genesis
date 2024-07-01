@@ -226,7 +226,7 @@ class BestNodeHillClimbing(BestPointsBase):
                  state_function: StateBase,
                  metric_function: MetricBase,
                  appr_val: float = 0.95,
-                 all_nodes: bool=False,
+                 all_neighbors: bool=True,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -238,12 +238,15 @@ class BestNodeHillClimbing(BestPointsBase):
             Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
             Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
             то такой узел не рассматривается.
-        `all_nodes`: bool=False
+        `all_neighbors`: bool=True
             Если True рассматриваются все узлы смежные с рассчитываемым узлом.
             Если False - только исходящие.
         '''
+        if appr_val > 1 or appr_val<0:
+            raise ValueError(f'Аргумент `appr_val` должен находиться в диапазоне (0, 1)!'
+                             f'Сейчас {appr_val}')
         self.appr_val = appr_val
-        self.all_nodes=all_nodes
+        self.all_neighbors=all_neighbors
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self,
@@ -271,6 +274,7 @@ class BestNodeHillClimbing(BestPointsBase):
         
         if not isinstance(env, nx.MultiDiGraph):
             raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
+        
 
         node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None, **kwargs)
 
@@ -334,7 +338,7 @@ class BestNodeHillClimbing(BestPointsBase):
         while best_node!=tmp_node:
             tmp_node = best_node
 
-            if self.all_nodes:
+            if self.all_neighbors:
                 nnodes = get_all_neighbor_nodes(env, tmp_node)
             else:
                 nnodes = env[tmp_node]
@@ -359,7 +363,7 @@ class BestNodeHillClimbing(BestPointsBase):
 
             # выполняем функцию завершения расчета для узла
             if node_calc_end_function:
-                node_calc_end_function()
+                node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
         if not debug_route:
             return best_node, best_metric
@@ -370,24 +374,24 @@ class BestNodeHillClimbing(BestPointsBase):
 # Временно здесь - потом вынести в отдельный модель для кастомизированных решений
 class BestNodeHillClimbing_maxMean(BestNodeHillClimbing):
     def __init__(self, 
-                 state_function: StateBase, 
-                 metric_function: MetricBase = None, 
-                 appr_val: float = 0.95, 
-                 all_nodes: bool = False, 
+                 state_function: StateBase,
+                 metric_function: MetricBase = None,
+                 appr_val: float = 0.95,
+                 all_neighbors: bool = True,
                  **kwargs) -> None:
-        super().__init__(state_function, metric_function, appr_val, all_nodes, **kwargs)
+        super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
-    def __call__(self, env: nx.MultiDiGraph, 
-                 area: pd.Series = None, 
-                 start_node: int = None, 
-                 debug_route: bool = False, 
-                 node_calc_end_function: callable = None, 
+    def __call__(self, env: nx.MultiDiGraph,
+                 area: pd.Series = None,
+                 start_node: int = None,
+                 debug_route: bool = False,
+                 node_calc_end_function: callable = None,
                  **kwargs):
 
         bnch_max = BestNodeHillClimbing(state_function=self.state_function,
-                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_nodes=self.all_nodes)
+                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_nodes=self.all_neighbors)
         bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
-                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_nodes)
+                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_neighbors)
 
         best_node, best_metric = bnch_max(env=env, area=area, start_node=start_node)
         best_node, best_metric = bnch_mean(env=env, area=area, start_node=best_node)

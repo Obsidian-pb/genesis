@@ -228,6 +228,26 @@ class TestBestNodeHillClimbing:
         assert best_nodes == 4
         assert best_metric == 100.0
 
+    def test_bnhc_only_out(self, create_G):
+        '''
+        Простой тест.
+        Только для исходящих соседних узлов.
+        '''
+        G = create_G
+
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())(G)
+        assert best_nodes == 1
+        assert best_metric == 9.666666666666666
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime(np.max))(G)
+        assert best_nodes == 4
+        assert best_metric == 18.0
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex())(G)
+        assert best_nodes == 1
+        assert best_metric == 60.0
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex(20))(G)
+        assert best_nodes == 4
+        assert best_metric == 100.0
+
     def test_bnhc_area(self, create_G, create_points_mask):
         '''
         Тест работоспособности в пределах некоторой области
@@ -292,6 +312,29 @@ class TestBestNodeHillClimbing:
     def test_bnhc_G(self, load_G):
         '''
         Тест расчета для большого графа
+        '''
+        G = load_G
+        bnhc = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())
+        best_nodes, best_metric = bnhc(env=G)
+        assert best_nodes == 426923808
+        assert best_metric == 8.355415617070701
+        bnhc = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime(np.max))
+        best_nodes, best_metric = bnhc(env=G)
+        assert best_nodes == 2034401823
+        assert best_metric == 18.917574142857145
+        bnhc = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex())
+        best_nodes, best_metric = bnhc(env=G)
+        assert best_nodes == 4116048897
+        assert best_metric == 60.247093023255815
+        bnhc = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex(20))
+        best_nodes, best_metric = bnhc(env=G)
+        assert best_nodes == 2034401903
+        assert best_metric == 100.0
+
+    def test_bnhc_G_only_outs(self, load_G):
+        '''
+        Тест расчета для большого графа. 
+        Только для исходящих соседних узлов.
         '''
         G = load_G
         bnhc = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())

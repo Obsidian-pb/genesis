@@ -6,7 +6,7 @@
 
 import pytest
 
-from genesis.tools import list_dict_concat, kmh_to_mm
+from genesis.tools import k_v_dict, list_dict_concat, kmh_to_mm
 
 class TestListDictConcat:
     def test_list_dict_concat_list_list(self):
@@ -77,3 +77,31 @@ class TestKMHtoMM:
         a = 40
         b = kmh_to_mm(a, precision=2)
         assert b == 666.67
+
+class TestKVDict:
+    '''
+    Тесты функции k_v_dict
+    '''
+    def test_kvd(self):
+        '''
+        Базовый тест.
+        Ключ с наименьшим значением.
+        '''
+        d = {'a':10, 'b':30, 'c':20}
+        cor = 'a'
+
+        res = k_v_dict(d)
+
+        assert cor == res
+
+    def test_kvd_max(self):
+        '''
+        Базовый тест.
+        Ключ с наибольшим значением.
+        '''
+        d = {'a':10, 'b':30, 'c':20}
+        cor = 'b'
+
+        res = k_v_dict(d, max)
+
+        assert cor == res
