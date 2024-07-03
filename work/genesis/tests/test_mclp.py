@@ -15,10 +15,15 @@ import geopandas as gpd
 
 from genesis.best_points import BestNodesFull, BestNodeHillClimbing
 from genesis.core import BestPointsBase, StateBase, MetricBase
-from genesis.mclp import BestNodesKoptG
+from genesis.mclp import BestNodesGA, BestNodesKoptG
 from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.states import FirstArrivalUnitState
 
+
+
+@pytest.fixture(scope='module')
+def load_G():
+    return ox.load_graphml("tests/data/test_rng.ml")
 
 @pytest.fixture(scope='module')
 def load_area():
@@ -251,3 +256,112 @@ class TestBestNodesKoptG:
         
         assert optimal_nodes == {6211105430: 'c', 2034401777: 'd'}
         assert best_metric  ==  5.012592071760797
+
+
+class TestGA:
+    '''
+    Тесты для GA
+    '''
+    def test_ga(self, load_G):
+        '''
+        Тест GA. Основной.
+        '''
+        G = load_G
+
+        nodes = list(G.nodes())
+        existed_units = {nodes[1000]: 'A',
+                nodes[2000]: 'B',
+                }
+        new_units = {nodes[3000]: 'c',
+                    nodes[4000]: 'd'}
+
+        BNGA = BestNodesGA(state_function=FirstArrivalUnitState(),
+                            metric_function=ArrivalTime(),
+                            epochs=5,
+                            )
+
+        _, best_metric = BNGA(env=G,
+            static_nodes=existed_units,
+            dynamic_nodes=new_units,
+            )
+
+        assert best_metric <= 5.5
+
+    def test_ga_area(self, load_G, load_area):
+        '''
+        Тест GA в пределах некоторой области
+        '''
+        G = load_G
+        area = load_area
+        nodes = ox.graph_to_gdfs(G, edges=False)
+        points_mask = nodes.within(area.iloc[0].geometry)
+
+        nodes = list(G.nodes())
+        existed_units = {nodes[1000]: 'A',
+                nodes[2000]: 'B',
+                }
+        new_units = {nodes[3000]: 'c',
+                    nodes[4000]: 'd'}
+
+        BNGA = BestNodesGA(state_function=FirstArrivalUnitState(),
+                            metric_function=ArrivalTime(),
+                            epochs=5,
+                            )
+
+        _, best_metric = BNGA(env=G,
+            static_nodes=existed_units,
+            dynamic_nodes=new_units,
+            area=points_mask,
+            )
+
+        assert best_metric <= 4
+
+
+    def test_ga_cover_index(self, load_G):
+        '''
+        Тест GA. Метрика: ИП-5
+        Только динамические узлы.
+        '''
+        G = load_G
+
+        nodes = list(G.nodes())
+        new_units = {nodes[3000]: 'c',
+                    nodes[4000]: 'd'}
+
+        BNGA = BestNodesGA(state_function=FirstArrivalUnitState(),
+                            metric_function=CoverIndex(5),
+                            epochs=10,
+                            )
+
+        _, best_metric = BNGA(env=G,
+            dynamic_nodes=new_units,
+            )
+
+        assert best_metric > 30
+
+
+    def test_ga_many_units(self, load_G):
+        '''
+        Тест ГА для множества подразделений
+        '''
+        G = load_G
+        nodes = list(G.nodes())
+        new_units = {nodes[1000]:'a',
+                    nodes[1500]:'b',
+                    nodes[2000]:'c',
+                    nodes[2500]:'d',
+                    nodes[3000]:'e',
+                    nodes[3500]:'f',
+                    nodes[4000]:'g',}
+
+        BNGA = BestNodesGA(FirstArrivalUnitState(),
+                        ArrivalTime(),
+                        population_size=20,
+                        elite_size=10,
+                        epochs=5,
+                        )
+
+        _, best_metric = BNGA(env=G, 
+                                        dynamic_nodes=new_units
+                                        )
+        assert best_metric < 4.76783714891767
