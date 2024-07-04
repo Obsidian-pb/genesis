@@ -347,11 +347,11 @@ class BestNodesGA(BestPointsBase):
         
         # 0. Проверка корректности пришедших данных
         if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+            raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
         if not isinstance(dynamic_nodes, dict):
-            raise TypeError("Тип аргумента `dynamic_nodes` должен быть dict!")
+            raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
         if not static_nodes is None and not isinstance(static_nodes, dict):
-            raise TypeError("Тип аргумента `static_nodes` должен быть dict!")
+            raise TypeError("Тип аргумента `static_nodes` должен быть `dict`!")
         if len(dynamic_nodes)<2:
             raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
