@@ -6,6 +6,7 @@ import random
 import networkx as nx
 import numpy as np
 import pandas as pd
+import math
 
 from genesis.core import BestPointsBase, MetricBase, StateBase
 from genesis.best_points import NodeMetric
@@ -344,7 +345,7 @@ class BestNodesGA(BestPointsBase):
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
         '''
-        
+
         # 0. Проверка корректности пришедших данных
         if not isinstance(env, nx.MultiDiGraph):
             raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
@@ -382,7 +383,7 @@ class BestNodesGA(BestPointsBase):
             weights = bot_fit
             best_metric = max(bot_fit)
         best_bot = population[bot_fit.index(best_metric)]
-        
+
         # 2. На каждой эпохе
         for epoch in range(self.epochs):
 
@@ -431,7 +432,7 @@ class BestNodesGA(BestPointsBase):
 
             # Заменяем предыдущую популяцию новой
             population = new_population
-            
+
             # Оценка приспособленности всех особей
             bot_fit = [self._fit_function(env=env,
                                       nodes=list_dict_concat(dn, static_nodes),
@@ -449,7 +450,7 @@ class BestNodesGA(BestPointsBase):
                 cur_metric = max(bot_fit)
             # Нормализация весов (для более выраженной точности расчета)
             weights = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
-            
+
             # Определяем лучше ли лучшее на эпохе решение чем имеющееся
             if self.metric_function.compare(best_metric, cur_metric) == cur_metric:
                 best_bot = population[bot_fit.index(cur_metric)]
@@ -464,3 +465,266 @@ class BestNodesGA(BestPointsBase):
 
 
         return  best_bot, best_metric
+
+
+
+class BestNodesSA(BestPointsBase):
+    '''
+    Поиск лучших узлов для размещения n объектов.
+
+    Расчет производится алгоритмом имитации отжига.
+
+    ## Область применения
+    Определение размещения множества узлов в графе, при котором 
+    обеспечиваются наилучшие некоторые целевые метрики. 
+    
+    ### Достоинства
+    Дает решение высокой точности. Подходит для средних графов.
+    
+    ### Недостатки
+    Долго считает. 
+    '''
+    def __init__(self, state_function: StateBase,
+                 metric_function: MetricBase,
+                 initial_temperature: float = 1,
+                 end_temperature: float = 0.0001,
+                 turns: int = 1000000,
+                 mutation_max_count: int = 1,
+                 appr_val_in_area: float = 0,
+                 bad_val_in_area: int|None = 1000,
+                 turn_end_function: callable = None,
+                 best_state_find_function: callable = None,
+                 **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `initial_temperature`: float  = 1
+            Начальная температура
+        `end_temperature`: float = 0.0001
+            Конечная температура
+        `mutation_max_count`: int = 1
+            Максимальное количество единиц мутации.
+        `appr_val_in_area`: int=0
+            Доля узлов графа в пределах area, покрытие которой 
+            считается приемлемой для принятия расчетной метрики. 
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее 
+            количество узлов, то такой узел не рассматривается.
+            При расчет размещения нескольких узлов неминуемо возникает ситуация при которой
+            часть территории area будет недостижима. Поэтому по умолчанию считается
+        `bad_val_in_area`: int=1000
+            Значение указываемое для узла, в случае если
+            из него нельзя попасть в `appr_val_in_area` долю узлов в пределах
+            `area`.
+        `turn_end_function`: callable  = None
+            Функция вызываемая на каждой итерации расчета.
+        `best_state_find_function`: callable = None
+            Функция вызываемая после каждого улучшения абсолютного оптимума.
+        '''
+
+        if initial_temperature  <  0:
+            raise ValueError('Начальная температура должна быть >= 0')
+        if end_temperature  <  0:
+            raise ValueError('Конечная температура должна быть >= 0')
+        if end_temperature  >  initial_temperature:
+            raise ValueError('Конечная температура должна быть <= начальной')
+        if mutation_max_count  <=  0:
+            raise ValueError('Максимальное количество единиц мутации должно быть > 0')
+        if appr_val_in_area <0 or appr_val_in_area > 1:
+            raise ValueError('Доля узлов графа в пределах area, должна лежать в диапазоне (0,1)')
+
+
+        self.initial_temperature = initial_temperature
+        self.end_temperature = end_temperature
+        self.turns = turns
+        self.appr_val_in_area = appr_val_in_area
+        self.mutation_max_count = mutation_max_count
+        self.bad_val_in_area = bad_val_in_area
+        self.turn_end_function = turn_end_function
+        self.best_state_find_function = best_state_find_function
+        super().__init__(state_function, metric_function, **kwargs)
+
+
+    def _decrease_temperature(self, T0, t):
+        '''
+        Функция изменения температуры
+
+        ## Аргументы
+        `T0` - начальная температура
+
+        `t` - текущая итерация
+
+        ## Возвращает
+        Температура на итерации t
+        '''
+        return T0/(1+t)
+
+    def _get_transition_probability(self, dE, T):
+        '''
+        Функция расчета вероятности перехода из состояния i в состояние j
+
+        ## Аргументы
+        `dE` - энергия перехода
+
+        `T` - температура
+
+        ## Возвращает
+        Вероятность перехода
+        '''
+        try:
+            return math.exp(-dE/T)
+        except OverflowError as e:
+            # print(dE, T)
+            return 0
+            # raise OverflowError(dE, T)
+
+    def _calculate_energy(self, env: nx.MultiDiGraph, nodes: list, area=None, **kwargs):
+        '''
+        Расчет энергии состояния.
+        Здесь это значение целевой метрики.
+
+        ## Аргументы
+        `env`: nx.MultiDiGraph
+            окружение
+        `nodes`: list
+            список стартовых узлов. Например мест размещения пожарных депо
+        `area`: pd.Series
+            маска доступности узлов
+        `**kwargs` - дополнительные аргументы
+        '''
+        # 1. Расчет состояния
+        times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
+
+        if not area is None:
+            appr_nodes_count = area.sum() * self.appr_val_in_area
+            if len(times) < appr_nodes_count:
+                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
+                return self.bad_val_in_area
+
+        # 2. Расчет стартовой метрики состояния и определение стартового размещения
+        best_metric = self.metric_function(times, **kwargs)
+
+        return best_metric
+
+    def _generate_state_candidate(self, state, g_nodes):
+        '''
+        Функция порождает новое состояние
+        '''
+        new_state = state.copy()
+
+        # Здесь вся магия
+        for _ in range(self.mutation_max_count):
+            # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+            node, unit = random.choice(list(new_state.items()))
+            del new_state[node]
+
+            # Поиск нового узла, которого при этом нет в new_dynamic_nodes
+            node = random.choice(g_nodes)
+            while node in new_state.keys():
+                node = random.choice(g_nodes)
+
+            new_state[node] = unit
+
+        # Возвращаем новое состояние
+        return new_state
+
+    def _is_transition(self, probability):
+        value = random.random()
+        return value <= probability
+
+    def __call__(self,
+                 env,
+                 dynamic_nodes: dict,
+                 static_nodes: dict = None,
+                 area=None,
+                 **kwargs):
+        '''
+        Запуск работы алгоритма имитации отжига
+
+        ## Аргументы
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `dynamic_nodes`: dict
+            Список стартовых узлов графа в которых размещены
+            подразделения оптимальные места которых следует определить.
+        `static_nodes`: dict = None
+            Список стартовых узлов графа в которых размещены
+            подразделения изменять размещение которых не следует.
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+        '''
+
+        # 0. Проверяем пришедшие данные
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
+        if not isinstance(dynamic_nodes, dict):
+            raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
+        if not static_nodes is None and not isinstance(static_nodes, dict):
+            raise TypeError("Тип аргумента `static_nodes` должен быть `dict`!")
+        if len(dynamic_nodes) < 2:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+
+        if static_nodes is None:
+            static_nodes = {}
+        g_nodes = list(env.nodes())
+
+        # 1. Рассчитываем исходное состояние и энергию, устанавливаем начальную температуру
+        best_state = dynamic_nodes
+        current_state = dynamic_nodes
+
+        current_energy = self._calculate_energy(env=env,
+                                      nodes=list_dict_concat(current_state, static_nodes),
+                                      area=area,
+                                      **kwargs)
+        best_energy = current_energy
+        T = self.initial_temperature
+
+        # 2. Выполняем расчет
+        for i in range(self.turns):
+            state_candidate = self._generate_state_candidate(current_state, g_nodes)
+            candidate_energy = self._calculate_energy(env=env,
+                                nodes=list_dict_concat(state_candidate, static_nodes),
+                                area=area,
+                                **kwargs)
+
+            if current_energy != candidate_energy and \
+                    self.metric_function.compare(current_energy, candidate_energy) == candidate_energy:
+                current_energy = candidate_energy
+                current_state = state_candidate
+
+                if best_energy != current_energy and \
+                    self.metric_function.compare(best_energy, current_energy) == current_energy: # Здесь проверку на тип оптимизации (мин/макс)
+                    best_energy = current_energy
+                    best_state = state_candidate
+
+                    # Выполнение функции окончания расчета на эпохе
+                    if self.best_state_find_function:
+                        self.best_state_find_function(turn=i,
+                                                T = T,
+                                                best_metric=best_energy,
+                                                cur_metric=candidate_energy,
+                                                best_bot=best_state)
+            else:
+                p = self._get_transition_probability(candidate_energy-current_energy, T)
+                if self._is_transition(p):
+                    current_energy = candidate_energy
+                    current_state = state_candidate
+
+            T = self._decrease_temperature(self.initial_temperature, i)
+            if T < self.end_temperature:
+                return current_state, best_energy
+            
+            # Выполнение функции окончания расчета на эпохе
+            if self.turn_end_function:
+                self.turn_end_function(turn=i,
+                                        T = T,
+                                        best_metric=best_energy,
+                                        cur_metric=candidate_energy,
+                                        best_bot=best_state)
+
+        return best_state, best_energy

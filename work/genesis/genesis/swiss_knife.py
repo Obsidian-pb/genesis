@@ -24,7 +24,7 @@
 '''
 
 import networkx as nx
-from matplotlib.colors import LinearSegmentedColormap 
+from matplotlib.colors import LinearSegmentedColormap
 
 
 # Функции используемые при проведении расчетов

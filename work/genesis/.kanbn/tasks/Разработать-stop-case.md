@@ -1,9 +1,11 @@
 ---
 created: 2024-07-03T06:04:30.880Z
-updated: 2024-07-03T06:04:30.877Z
+updated: 2024-07-05T16:50:23.322Z
 assigned: ""
-progress: 0
+progress: 0.2
 tags: []
+started: 2024-07-05T00:00:00.000Z
+completed: 2024-07-05T16:50:23.322Z
 ---
 
 # Разработать StopCase

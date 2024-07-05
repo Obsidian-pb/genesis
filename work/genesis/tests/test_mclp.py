@@ -15,7 +15,7 @@ import geopandas as gpd
 
 from genesis.best_points import BestNodesFull, BestNodeHillClimbing
 from genesis.core import BestPointsBase, StateBase, MetricBase
-from genesis.mclp import BestNodesGA, BestNodesKoptG
+from genesis.mclp import BestNodesGA, BestNodesKoptG, BestNodesSA
 from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.states import FirstArrivalUnitState
 
@@ -365,3 +365,112 @@ class TestGA:
                                         dynamic_nodes=new_units
                                         )
         assert best_metric < 4.76783714891767
+
+
+class TestSA:
+    '''
+    Тесты для реализации имитации отжига
+    '''
+    def test_sa(self, load_G):
+        '''
+        Тест SA. Основной.
+        '''
+        G = load_G
+
+        nodes = list(G.nodes())
+        existed_units = {nodes[1000]: 'A',
+                nodes[2000]: 'B',
+                }
+        new_units = {nodes[3000]: 'c',
+                    nodes[4000]: 'd'}
+
+        BNSA = BestNodesSA(FirstArrivalUnitState(),
+                    ArrivalTime(),
+                    end_temperature = 0.01,
+                    )
+
+        best_nodes, best_metric = BNSA(env=G, 
+                                  static_nodes=existed_units,
+                                  dynamic_nodes=new_units,
+                                  )
+
+        assert best_metric <= 7.3
+        assert isinstance(best_nodes, dict)
+        assert isinstance(best_metric, float)
+
+    def test_sa_area(self, load_G, load_area):
+        '''
+        Тест SA в пределах некоторой области
+        '''
+        G = load_G
+        area = load_area
+        nodes = ox.graph_to_gdfs(G, edges=False)
+        points_mask = nodes.within(area.iloc[0].geometry)
+
+        nodes = list(G.nodes())
+        existed_units = {nodes[1000]: 'A',
+                nodes[2000]: 'B',
+                }
+        new_units = {nodes[3000]: 'c',
+                    nodes[4000]: 'd'}
+
+        BNSA = BestNodesSA(FirstArrivalUnitState(),
+                    ArrivalTime(),
+                    end_temperature = 0.01,
+                    )
+
+        _, best_metric = BNSA(env=G, 
+                                  static_nodes=existed_units,
+                                  dynamic_nodes=new_units,
+                                  area=points_mask,
+                                  )
+
+
+        assert best_metric <= 5.3
+
+    def test_sa_cover_index(self, load_G):
+        '''
+        Тест SA. Метрика: ИП-5
+        Только динамические узлы.
+        '''
+        G = load_G
+
+        nodes = list(G.nodes())
+        new_units = {nodes[3000]: 'c',
+                    nodes[4000]: 'd'}
+
+        BNSA = BestNodesSA(state_function=FirstArrivalUnitState(),
+                            metric_function=CoverIndex(5),
+                    end_temperature = 0.01,
+                    )
+
+        _, best_metric = BNSA(env=G,
+                                  dynamic_nodes=new_units,
+                                  )
+
+        assert best_metric > 18
+
+    def test_ga_many_units(self, load_G):
+        '''
+        Тест ГА для множества подразделений
+        '''
+        G = load_G
+        nodes = list(G.nodes())
+        new_units = {nodes[1000]:'a',
+                    nodes[1500]:'b',
+                    nodes[2000]:'c',
+                    nodes[2500]:'d',
+                    nodes[3000]:'e',
+                    nodes[3500]:'f',
+                    nodes[4000]:'g',}
+
+        BNSA = BestNodesSA(state_function=FirstArrivalUnitState(),
+                            metric_function=ArrivalTime(),
+                            mutation_max_count=3,
+                            end_temperature = 0.01,
+                            )
+
+        _, best_metric = BNSA(env=G,
+                                  dynamic_nodes=new_units,
+                                  )
+        assert best_metric < 4.5
