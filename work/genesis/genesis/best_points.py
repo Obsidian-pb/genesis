@@ -281,7 +281,7 @@ class BestNodeHillClimbing(BestPointsBase):
         nodes_metric = {}
         route={}
 
-        # Если маска приемлемых узлов графа не передана, 
+        # Если маска приемлемых узлов графа не передана,
         # то приемлемое количество узлов считается от количества узлов в графе
         # Иначе - от количества True в маске
         # if area is None:
@@ -290,7 +290,7 @@ class BestNodeHillClimbing(BestPointsBase):
         #     appr_nodes_count = int(sum(area) * self.appr_val)
 
         if start_node is None:
-            # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО! 
+            # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО!
             # Иначе можно оказаться в тупике из которого нет выхода
             node_metric = None
             i=0
@@ -402,6 +402,33 @@ class BestNodeHillClimbing_maxMean(BestNodeHillClimbing):
 
         return best_node, best_metric
 
+class BestNodesHalfDiameter(BestPointsBase):
+    '''
+        Поиск лучших узлов графа с использованием алгоритма расчета точки в середине графа. 
+        Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.
+        Если таковых узлов нет, возвращается ошибка некорректности графа. 
+        (граф должен быть проверен на корректность прежде чем будет передан функции)
+        
+        Узлы для которых метрика не может быть вычислена (например слабо связанные 
+        с основным графом) не учитываются. 
+
+        ## Область применения
+        Определение размещения одного узла с наилучшими показателями. 
+        Дает достаточно точное решение. Хорошо подходит для больших графов.
+    '''
+    def __init__(self,
+                 state_function: StateBase,
+                 metric_function: MetricBase,
+                 appr_val = 0.95,
+                 **kwargs) -> None:
+        self.appr_val = appr_val
+        super().__init__(state_function, metric_function, **kwargs)
+
+    def __call__(self, env:nx.MultiDiGraph, **kwargs):
+        '''
+        
+        '''
+        pass
 
 
 class BestNodesMonkey(BestPointsBase):

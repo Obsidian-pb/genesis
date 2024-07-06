@@ -19,6 +19,7 @@ completedColumns:
 - [Сделать-расчет-локальных-оптимумов](tasks/Сделать-расчет-локальных-оптимумов.md)
 - [Гибридный-алгоритм-ГА-ИО-hill-climber](tasks/Гибридный-алгоритм-ГА-ИО-hill-climber.md)
 - [Алгоритм-bn-по-времени-прибытия-к-зданиям](tasks/Алгоритм-bn-по-времени-прибытия-к-зданиям.md)
+- [best-node-half-diameter](tasks/best-node-half-diameter.md)
 
 ## In Progress
 
