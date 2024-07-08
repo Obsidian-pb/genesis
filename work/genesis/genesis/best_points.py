@@ -414,21 +414,67 @@ class BestNodesHalfDiameter(BestPointsBase):
 
         ## Область применения
         Определение размещения одного узла с наилучшими показателями. 
-        Дает достаточно точное решение. Хорошо подходит для больших графов.
+        Дает приближенное решение. Не рекомендуется к использованию как 
+        самостоятельное решение. Однако может использоваться как способ
+        ускорения работы других функций позволяющих искать размещение от
+        стартового узла (BestNodeHillClimbing, BestNodeHillClimbing_maxMean и т.д.)
     '''
     def __init__(self,
-                 state_function: StateBase,
-                 metric_function: MetricBase,
-                 appr_val = 0.95,
+                 state_function: StateBase = None,
+                 metric_function: MetricBase = None,
+                 weight: str = 'travel_time',
                  **kwargs) -> None:
-        self.appr_val = appr_val
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            Не используется! функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Не используется! Функция расчета метрики
+        `weight`:str или callable  = "travel_time"
+            Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+            вес динамически.
+        '''
+        self.weight = weight
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env:nx.MultiDiGraph, **kwargs):
+    def __call__(self, env:nx.MultiDiGraph, area=None, **kwargs):
         '''
-        
+        ## Аргументы
+
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `area`
+            Не используется!
         '''
-        pass
+        # Проверка корректности пришедших данных
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError(f'Неверный тип аргумента `env`! Должен быть `nx.MultiDiGraph` - имеется `{type(env)}`.')
+
+        # 1 Выбираем произвольную точку. По-умолчанию берем просто первую из списка узлов
+        nd = list(env.nodes())[0]
+        # 2.1 Находим самую отдаленную от нее (входящую) -- периферия №1
+        lngs = nx.shortest_path_length(env, target=nd, weight=self.weight)
+        corner_1 = max(lngs, key=lngs.get)
+        # 2.2 Находим самую отдаленную от нее (входящую) -- периферия №2
+        lngs = nx.shortest_path_length(env, target=corner_1, weight=self.weight)
+        corner_2 = max(lngs, key=lngs.get)
+
+        # Рассчитываем длину диаметра и маршрут следования по нему
+        diameter = nx.shortest_path_length(env, corner_1, corner_2, weight=self.weight)
+        short_path = nx.shortest_path(env, corner_1, corner_2, weight=self.weight)
+
+        if len(short_path) < 2:
+            return short_path[0]
+
+        # Находим точку примерно по середине диаметра
+        tot_len = 0
+        nd1 = short_path[0]
+        for nd1, nd2 in zip(short_path[:-1],short_path[1:]):
+            cur_len = env.get_edge_data(nd1, nd2, 0)[self.weight]
+            tot_len += cur_len
+            if tot_len >= diameter / 2: break
+
+        return nd1
 
 
 class BestNodesMonkey(BestPointsBase):

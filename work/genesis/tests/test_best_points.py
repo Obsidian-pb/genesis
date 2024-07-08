@@ -13,7 +13,8 @@ import networkx as nx
 import pandas as pd
 import geopandas as gpd
 
-from genesis.best_points import BestNodesFull, BestNodeHillClimbing
+from genesis.best_points import BestNodesFull, BestNodeHillClimbing, BestNodesHalfDiameter
+
 from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.states import FirstArrivalUnitState
 
@@ -407,4 +408,33 @@ class TestBestNodeHillClimbing:
         best_node, best_metric = BestNodeHillClimbing_MaxMean(G, area=points_mask)
         assert best_node == 1577701962
         assert best_metric == 4.328401644772975
+
+class TestBestNodeHalfGiameter:
+    '''
+    Тесты функции `BestNodesHalfDiameter`.
+    '''
+    def test_bnh_G(self, load_G):
+        '''
+        Базовый расчет
+        '''
+        G = load_G
+
+        bnhd = BestNodesHalfDiameter()
+        best_node = bnhd(env=G)
+
+        assert best_node == 4116048896
+
+    def test_bnh_wrong_G(self):
+        '''
+        Проверка на ошибку при некорректном графе
+        '''
+        G = nx.Graph()
+        G.add_nodes_from([1, 2, 3])
+        G.add_edges_from([(1, 2), (2, 3)])
+
+        bnhd = BestNodesHalfDiameter()
+        with pytest.raises(TypeError):
+            bnhd(env=G)
+
+    
 
