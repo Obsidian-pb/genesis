@@ -23,10 +23,10 @@ completedColumns:
 ## In Progress
 
 - [Алгоритм-обезьяньего-поиска](tasks/Алгоритм-обезьяньего-поиска.md)
+- [best-node-half-diameter](tasks/best-node-half-diameter.md)
 
 ## Done
 
-- [best-node-half-diameter](tasks/best-node-half-diameter.md)
 - [Разработать-stop-case](tasks/Разработать-stop-case.md)
 - [ИО-для-размещения](tasks/ИО-для-размещения.md)
 - [ГА-для-размещения](tasks/ГА-для-размещения.md)
