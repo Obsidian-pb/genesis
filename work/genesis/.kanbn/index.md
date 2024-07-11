@@ -19,6 +19,7 @@ completedColumns:
 - [Гибридный-алгоритм-ГА-ИО-hill-climber](tasks/Гибридный-алгоритм-ГА-ИО-hill-climber.md)
 - [Алгоритм-bn-по-времени-прибытия-к-зданиям](tasks/Алгоритм-bn-по-времени-прибытия-к-зданиям.md)
 - [Сделать-расчет-локальных-оптимумов](tasks/Сделать-расчет-локальных-оптимумов.md)
+- [Рассмотреть-статью-про-алгоритм-bacterial-foraging-algorithm-bfa](tasks/Рассмотреть-статью-про-алгоритм-bacterial-foraging-algorithm-bfa.md)
 
 ## In Progress
 
