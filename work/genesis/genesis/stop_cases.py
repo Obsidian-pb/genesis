@@ -26,3 +26,16 @@ class MoreEqualStopCase(StopCaseBase):
     def __call__(self, value):
         return value >= self.value
 
+class NSameStopCase(StopCaseBase):
+    '''
+    Критерий остановки по условию, что на протяжении нескольких итераций
+    значения равны, т.е. не изменяются
+    '''
+    def __init__(self, n=5):
+        self.history = []
+        self.n = n
+
+    def __call__(self, value):
+        self.history.append(value)
+        last = self.history[-self.n:]
+        return [value]*self.n == last

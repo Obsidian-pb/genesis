@@ -15,7 +15,6 @@ completedColumns:
 
 ## Todo
 
-- [Расширить-ГА-до-lscp](tasks/Расширить-ГА-до-lscp.md)
 - [Гибридный-алгоритм-ГА-ИО-hill-climber](tasks/Гибридный-алгоритм-ГА-ИО-hill-climber.md)
 - [Алгоритм-bn-по-времени-прибытия-к-зданиям](tasks/Алгоритм-bn-по-времени-прибытия-к-зданиям.md)
 - [Сделать-расчет-локальных-оптимумов](tasks/Сделать-расчет-локальных-оптимумов.md)
@@ -23,12 +22,13 @@ completedColumns:
 
 ## In Progress
 
-- [Алгоритм-обезьяньего-поиска](tasks/Алгоритм-обезьяньего-поиска.md)
-- [best-node-half-diameter](tasks/best-node-half-diameter.md)
+- [Расширить-kopt-до-lscp](tasks/Расширить-kopt-до-lscp.md)
 
 ## Done
 
-- [Разработать-stop-case](tasks/Разработать-stop-case.md)
+- [Разработать-nsame-stop-case](tasks/Разработать-nsame-stop-case.md)
+- [Алгоритм-обезьяньего-поиска](tasks/Алгоритм-обезьяньего-поиска.md)
+- [best-node-half-diameter](tasks/best-node-half-diameter.md)
 - [ИО-для-размещения](tasks/ИО-для-размещения.md)
 - [ГА-для-размещения](tasks/ГА-для-размещения.md)
 - [Покрыть-тестами-best-nodes-koptG](tasks/Покрыть-тестами-best-nodes-koptG.md)
@@ -39,3 +39,4 @@ completedColumns:
 - [Разобраться-с-выбором-узла-с-лучшей-метрикой-из-двух](tasks/Разобраться-с-выбором-узла-с-лучшей-метрикой-из-двух.md)
 - [Покрыть-тестами-best-node-hill-climb](tasks/Покрыть-тестами-best-node-hill-climb.md)
 - [Покрыть-тестами-best-nodes-full](tasks/Покрыть-тестами-best-nodes-full.md)
+- [Разработать-stop-case-base](tasks/Разработать-stop-case-base.md)

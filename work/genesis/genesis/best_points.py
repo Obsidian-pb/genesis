@@ -2,10 +2,13 @@
 Алгоритмы поиска оптимальных узлов графа.
 '''
 
-# import numpy as np
+import random
+
 import networkx as nx
+import osmnx as ox
 import numpy as np
 import pandas as pd
+
 from genesis.core import BestPointsBase, MetricBase, StateBase
 from genesis.metrics import ArrivalTime
 from genesis.tools import get_all_neighbor_nodes
@@ -227,6 +230,7 @@ class BestNodeHillClimbing(BestPointsBase):
                  metric_function: MetricBase,
                  appr_val: float = 0.95,
                  all_neighbors: bool=True,
+                 node_calc_end_function:callable=None,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -241,12 +245,15 @@ class BestNodeHillClimbing(BestPointsBase):
         `all_neighbors`: bool=True
             Если True рассматриваются все узлы смежные с рассчитываемым узлом.
             Если False - только исходящие.
+        `node_calc_end_function`: callable=None
+            Функция выполняемая в конце расчета каждого узла.
         '''
         if appr_val > 1 or appr_val<0:
             raise ValueError(f'Аргумент `appr_val` должен находиться в диапазоне (0, 1)!'
                              f'Сейчас {appr_val}')
         self.appr_val = appr_val
         self.all_neighbors=all_neighbors
+        self.node_calc_end_function = node_calc_end_function
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self,
@@ -254,7 +261,7 @@ class BestNodeHillClimbing(BestPointsBase):
                  area:pd.Series=None,
                  start_node:int=None,
                  debug_route:bool=False,
-                 node_calc_end_function:callable=None,
+                #  node_calc_end_function:callable=None,
                  **kwargs):
         '''
         `env`:nx.MultiDiGraph
@@ -267,9 +274,6 @@ class BestNodeHillClimbing(BestPointsBase):
         `debug_route`: bool=False
             Если True - возвращается также маршрут по которому проходил алгоритм
             в процессе поиска
-        `node_calc_end_function`: callable=None
-            Функция выполняемая в конце расчета каждого узла.
-            
         '''
         
         if not isinstance(env, nx.MultiDiGraph):
@@ -362,8 +366,8 @@ class BestNodeHillClimbing(BestPointsBase):
             # logging.debug('ЛУЧШИЙ УЗЕЛ {}, метрика {}'.format(best_node, best_metric))
 
             # выполняем функцию завершения расчета для узла
-            if node_calc_end_function:
-                node_calc_end_function(best_node=best_node, best_metric=best_metric)
+            if self.node_calc_end_function:
+                self.node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
         if not debug_route:
             return best_node, best_metric
@@ -477,33 +481,204 @@ class BestNodesHalfDiameter(BestPointsBase):
         return nd1
 
 
-class BestNodesMonkey(BestPointsBase):
+class BestNodeMonkey(BestNodeHillClimbing):
     '''
-        Поиск лучших узлов графа с использованием алгоритма обезьяны (monkey algorithm). 
-        Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.
-        Если таковых узлов нет, возвращается ошибка некорректности графа. 
+        Поиск лучших узлов графа с использованием алгоритма обезьяньего поиска
+        (Monkey Search Algorithm).
+        Могут быть возвращены только узлы из которых можно попасть в большую часть 
+        других узлов графа.
+        Если таковых узлов нет, возвращается ошибка некорректности графа.
         (граф должен быть проверен на корректность прежде чем будет передан функции)
-        
-        Узлы для которых метрика не может быть вычислена (например слабо связанные 
-        с основным графом) не учитываются. 
+
+        Узлы для которых метрика не может быть вычислена (например слабо связанные
+        с основным графом) не учитываются.
 
         ## Область применения
-        Определение размещения одного узла с наилучшими показателями. 
+        Определение размещения одного узла с наилучшими показателями.
         Дает достаточно точное решение. Хорошо подходит для больших графов.
     '''
     def __init__(self,
                  state_function: StateBase,
                  metric_function: MetricBase,
-                 appr_val = 0.95,
+                 appr_val: float = 0.95,
+                 all_neighbors: bool=True,
+                 global_jumps_count: int = 3,
+                 local_jumps_count: int = 10,
+                 local_jump_max_distance: int = 1000,
+                 after_global_jump_function: callable = None,
+                 after_local_jump_function: callable = None,
                  **kwargs) -> None:
-        self.appr_val = appr_val
-        super().__init__(state_function, metric_function, **kwargs)
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `appr_val`: = 0.95
+            Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+            то такой узел не рассматривается.
+        `all_neighbors`: bool=True
+            Если True рассматриваются все узлы смежные с рассчитываемым узлом.
+            Если False - только исходящие.
+        `global_jumps_count`: int=3
+            Количество глобальных прыжков (начиная со стартового).
+            Глобальный прыжок осуществляется путем случайного выбора произвольного узла графа.
+        `local_jumps_count`: int=10
+            Количество локальных прыжков.
+        `local_jump_max_distance`: int=1000
+            Максимальное расстояние локального прыжка.
+            Локальный прыжок осуществляется путем случайного выбора 
+            узла графа на расстоянии `local_jump_max_distance` метров от текущей вершины.
+        `after_global_jump_function`: callable=None
+            Функция вызываемая после каждого глобального прыжка.
+        `after_local_jump_function`: callable=None
+            Функция вызывается после каждого локального прыжка
+        '''
+        self.node_metric_func = NodeMetric(state_function,
+                                           metric_function,
+                                           appr_val,
+                                           err_val=None,
+                                           **kwargs)
+        self.global_jumps_count = global_jumps_count
+        self.local_jumps_count = local_jumps_count
+        self.local_jump_max_distance = local_jump_max_distance
+        self.after_global_jump_function = after_global_jump_function
+        self.after_local_jump_function = after_local_jump_function
+        super().__init__(state_function,
+                         metric_function,
+                         appr_val=appr_val,
+                         all_neighbors=all_neighbors,
+                         **kwargs)
 
-    def __call__(self, env:nx.MultiDiGraph, area=None, start_node=None, all_nodes=False, debug_route=False, **kwargs):
+
+    def _get_sample_node(self, env, area, **kwargs):
+        '''
+        Получение случайного узла.
+        Из узла можно попасть в большую часть других узлов графа (согласно `appr_val`)
+        '''
+        node_metric = None
+        i=0
+        nodes_list = list(env.nodes())
+        while node_metric is None:
+            if i>=env.number_of_nodes():
+                raise ValueError('Определить наиболее выгодный стартовый узел невозможно, ' \
+                'в связи с неприемлемой несвязностью графа')
+            start_node = random.choice(nodes_list)
+
+            # Расчет метрики для узла `start_node`
+            node_metric = self.node_metric_func(env=env, node=start_node, area=area, **kwargs)
+            # Если указана расчетная область и метрика не была рассчитана
+            if (node_metric is None) and (not area is None):
+                node_metric = self.node_metric_func(env=env, node=start_node, **kwargs)
+
+            i+=1
+
+        return start_node, node_metric
+
+
+    def __call__(self,
+                 env:nx.MultiDiGraph,
+                 area=None,
+                 **kwargs) -> tuple[int | None, float | None]:
         '''
         Реализация: при помощи BestNodesHillClimbing ищется лучшая точка, 
         после чего обезьяна прыгает по ближайшим вершинам и вновь использует BestNodesHillClimbing.
 
         Так, пока не будет найден глобальный оптимум или не будет достигнуто количество итераций.
+
+        ## Аргументы
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+
+        ## Возвращает
+        `best_node`: int, `best_metric`: float
+            Лучший узел, лучшая метрика
         '''
-        pass
+
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
+
+        # Первый глобальный прыжок - случайный выбор старта
+        start_node, node_metric = self._get_sample_node(env, area, **kwargs)
+        best_node = start_node
+        best_metric  = node_metric
+
+
+        # Совершаем прыжки, начиная с первого
+        for global_jump_number in range(self.global_jumps_count):
+
+            # 1 Подъем на гору
+            try:
+                best_node_local, best_metric_local = super().__call__(
+                    env=env,
+                    start_node=start_node,
+                    area=area,
+                    **kwargs,
+                    )
+            except Exception as _:
+                best_node_local, best_metric_local = None, None
+
+            # Проверка на улучшение метрики и узла
+            if best_node != best_node_local and \
+                    self.metric_function.compare(best_metric, best_metric_local) == best_metric_local:
+                best_node = best_node_local
+                best_metric = best_metric_local
+
+            # Событие после подъема на гору
+            if self.after_global_jump_function is not None:
+                self.after_global_jump_function(
+                    global_jump_number = global_jump_number,
+                    best_node = best_node,
+                    best_metric = best_metric,
+                    best_node_current = best_node_local,
+                    best_metric_current = best_metric_local
+                    )
+
+            # 2 Локальные прыжки
+            # 2.1 Определение узлов в округе
+            g_nodes = ox.project_gdf(ox.graph_to_gdfs(env, edges=False))
+            buffer = g_nodes.loc[best_node_local:best_node_local].geometry.buffer(self.local_jump_max_distance)
+            nodes_in_buffer = g_nodes[g_nodes.within(buffer.iloc[0])]
+            nodes_in_buffer = list(nodes_in_buffer.index)
+
+            # 2.2 Локальные прыжки
+            global_number = 0
+            jump_number = 0
+            while jump_number <= self.local_jumps_count:
+                global_number+=1
+                jump_number+=1
+                jump_node = random.choice(nodes_in_buffer)
+                # Вычисление метрики для узла `jump_node`
+                try:
+                    best_node_after_jump, best_metric_after_jump = super().__call__(env=env,
+                                                               start_node=jump_node,
+                                                               area=area,
+                                                               **kwargs)
+                except Exception as _:
+                    best_node_after_jump, best_metric_after_jump = None, None
+
+                # if best_metric_after_jump<best_metric:  # Здесь заменить на Compare
+                if best_node != best_node_after_jump and \
+                        self.metric_function.compare(best_metric, best_metric_after_jump) == best_metric_after_jump:
+                    best_node = best_node_after_jump
+                    best_metric = best_metric_after_jump
+
+                # Событие после подъема на гору
+                if self.after_local_jump_function is not None:
+                    self.after_local_jump_function(
+                        global_jump_number = global_jump_number,
+                        local_jump_number = jump_number,
+                        best_node = best_node,
+                        best_metric = best_metric,
+                        best_node_current = best_node_after_jump,
+                        best_metric_current = best_metric_after_jump
+                        )
+
+            # Глобальный прыжок (выбор нового случайного узла)
+            start_node, node_metric = self._get_sample_node(env, area, **kwargs)
+
+        return best_node, best_metric

@@ -122,6 +122,12 @@ def k_v_dict(d, f=min):
     k=list(d.keys())
     return k[v.index(f(v))]
 
+def get_dict_key(dictionary, value):
+    for key, value_in_dict in dictionary.items():
+        if value_in_dict == value:
+            return key
+    return None
+
 def get_duplicates_list(seq):
     '''
     Получение списка дублирующихся во входящем списке значений

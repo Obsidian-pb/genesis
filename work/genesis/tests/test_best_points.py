@@ -13,7 +13,7 @@ import networkx as nx
 import pandas as pd
 import geopandas as gpd
 
-from genesis.best_points import BestNodesFull, BestNodeHillClimbing, BestNodesHalfDiameter
+from genesis.best_points import BestNodeMonkey, BestNodesFull, BestNodeHillClimbing, BestNodesHalfDiameter
 
 from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.states import FirstArrivalUnitState
@@ -409,7 +409,7 @@ class TestBestNodeHillClimbing:
         assert best_node == 1577701962
         assert best_metric == 4.328401644772975
 
-class TestBestNodeHalfGiameter:
+class TestBestNodeHalfDiameter:
     '''
     Тесты функции `BestNodesHalfDiameter`.
     '''
@@ -436,5 +436,51 @@ class TestBestNodeHalfGiameter:
         with pytest.raises(TypeError):
             bnhd(env=G)
 
-    
+class TestBestNodeMonkey:
+    '''
+    Тесты функции `BestNodeMonkey`.
+    '''
+    def test_bnm_G(self, load_G):
+        '''
+        Тест для расчета на полном графе (общий)
+        '''
+        G = load_G
+        bnmsa = BestNodeMonkey(FirstArrivalUnitState(), ArrivalTime(), global_jumps_count=5)
+        best_nodes, best_metric = bnmsa(env=G)
+        assert best_nodes == 426923808
+        assert best_metric == 8.355415617070701
+        # bnmsa = BestNodeMonkey(FirstArrivalUnitState(), ArrivalTime(np.max), global_jumps_count=5)
+        # best_nodes, best_metric = bnmsa(env=G)
+        # assert best_nodes == 2034401823
+        # assert best_metric == 18.917574142857145
+        # bnmsa = BestNodeMonkey(FirstArrivalUnitState(), CoverIndex(), global_jumps_count=5)
+        # best_nodes, best_metric = bnmsa(env=G)
+        # assert best_nodes == 4116048897
+        # assert best_metric == 60.247093023255815
+        # bnmsa = BestNodeMonkey(FirstArrivalUnitState(), CoverIndex(20), global_jumps_count=5)
+        # best_nodes, best_metric = bnmsa(env=G)
+        # assert best_nodes == 2034401903
+        # assert best_metric == 100.0
 
+    def test_bnm_G_all_neighbours(self, load_G):
+        '''
+        Тест для расчета на полном графе (общий)
+        '''
+        G = load_G
+
+        bnmsa = BestNodeMonkey(FirstArrivalUnitState(), ArrivalTime(), all_neighbors=True)
+        _, best_metric = bnmsa(env=G)
+
+        assert best_metric < 9
+
+    def test_bnm_wrong_G(self):
+        '''
+        Проверка на ошибку при некорректном графе
+        '''
+        G = nx.Graph()
+        G.add_nodes_from([1, 2, 3])
+        G.add_edges_from([(1, 2), (2, 3)])
+
+        bnmsa = BestNodeMonkey(FirstArrivalUnitState(), ArrivalTime(), all_neighbors=True)
+        with pytest.raises(TypeError):
+            bnmsa(env=G)
