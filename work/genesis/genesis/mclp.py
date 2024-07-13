@@ -8,12 +8,12 @@ import numpy as np
 import pandas as pd
 import math
 
-from genesis.core import BestPointsBase, MetricBase, StateBase
+from genesis.core import BestPointsBase, MetricBase, StateBase, MCLPBase
 from genesis.best_points import NodeMetric
 from genesis.tools import list_dict_concat
 
 
-class BestNodesKoptG(BestPointsBase):
+class BestNodesKoptG(MCLPBase):
     '''
     Поиск лучших узлов для размещения n объектов.
 
@@ -60,8 +60,8 @@ class BestNodesKoptG(BestPointsBase):
 
     def __call__(self,
                  env:nx.MultiDiGraph,
-                 dynamic_nodes: list|dict,
-                 static_nodes: list|dict = None,
+                 dynamic_nodes: dict,
+                 static_nodes: dict = None,
                  before_iters_start_function: callable =None,
                  iter_calc_end_function: callable =None,
                  area: pd.Series = None,
@@ -71,10 +71,10 @@ class BestNodesKoptG(BestPointsBase):
 
         `env`:nx.MultiDiGraph
             Граф улично-дорожной сети
-        `dynamic_nodes`: list|dict
+        `dynamic_nodes`: dict
             Список стартовых узлов графа в которых размещены
             подразделения оптимальные места которых следует определить.
-        `static_nodes`: list|dict = None
+        `static_nodes`: dict = None
             Список стартовых узлов графа в которых размещены
             подразделения изменять размещение которых не следует.
         `before_iters_start_function`: callable=None
@@ -113,9 +113,8 @@ class BestNodesKoptG(BestPointsBase):
         if not isinstance(env, nx.MultiDiGraph):
             raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
         if not static_nodes is None:
-            if not ((isinstance(dynamic_nodes,list) and isinstance(static_nodes,list)) or \
-                (isinstance(dynamic_nodes,dict) and isinstance(static_nodes,dict))):
-                raise TypeError(f'Аргументы `dynamic_nodes` и `static_nodes` должны быть одинакового типа: list|dict'
+            if not (isinstance(dynamic_nodes,dict) and isinstance(static_nodes,dict)):
+                raise TypeError(f'Аргументы `dynamic_nodes` и `static_nodes` должны быть одинакового типа: dict'
                                 f'Имеют: {type(dynamic_nodes)}, {type(static_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
@@ -130,10 +129,10 @@ class BestNodesKoptG(BestPointsBase):
         # 1.1. Если статические узлы не указаны - заменяем значение переменной с None
         # на [] или {} в зависимости от типа данных `dynamic_nodes`
         if static_nodes is None:
-            if isinstance(dynamic_nodes,list):
-                static_nodes = []
-            elif isinstance(dynamic_nodes,dict):
-                static_nodes = {}
+            # if isinstance(dynamic_nodes,list):
+            #     static_nodes = []
+            # elif isinstance(dynamic_nodes,dict):
+            static_nodes = {}
 
         # 1.2. Получение суммарного списка (или словаря) узлов для расчета состояния и метрик
         start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
@@ -226,7 +225,7 @@ class BestNodesKoptG(BestPointsBase):
         return best_dynamic_nodes, best_metric
 
         
-class BestNodesGA(BestPointsBase):
+class BestNodesGA(MCLPBase):
     '''
     Поиск лучших узлов для размещения n объектов.
 
@@ -468,7 +467,7 @@ class BestNodesGA(BestPointsBase):
 
 
 
-class BestNodesSA(BestPointsBase):
+class BestNodesSA(MCLPBase):
     '''
     Поиск лучших узлов для размещения n объектов.
 
@@ -575,7 +574,7 @@ class BestNodesSA(BestPointsBase):
         '''
         try:
             return math.exp(-dE/T)
-        except OverflowError as e:
+        except OverflowError as _:
             # print(dE, T)
             return 0
             # raise OverflowError(dE, T)

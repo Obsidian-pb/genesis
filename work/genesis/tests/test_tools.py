@@ -6,7 +6,7 @@
 
 import pytest
 
-from genesis.tools import k_v_dict, list_dict_concat, kmh_to_mm
+from genesis.tools import get_dict_key, k_v_dict, list_dict_concat, kmh_to_mm
 
 class TestListDictConcat:
     def test_list_dict_concat_list_list(self):
@@ -103,5 +103,20 @@ class TestKVDict:
         cor = 'b'
 
         res = k_v_dict(d, max)
+
+        assert cor == res
+
+class TestGetDictKey:
+    '''
+    Тесты функции get_dict_key
+    '''
+    def test_get_dict_key(self):
+        '''
+        Базовый тест
+        '''
+        d = {'a':10, 'b':30, 'c':20}
+        cor = 'b'
+
+        res = get_dict_key(d, 30)
 
         assert cor == res

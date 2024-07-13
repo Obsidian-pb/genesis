@@ -22,10 +22,15 @@ completedColumns:
 
 ## In Progress
 
+- [random-nodes-selector](tasks/random-nodes-selector.md)
+- [genesis-node-selector](tasks/genesis-node-selector.md)
 - [Расширить-kopt-до-lscp](tasks/Расширить-kopt-до-lscp.md)
 
 ## Done
 
+- [Сделать-базовый-класс-point-selector-base](tasks/Сделать-базовый-класс-point-selector-base.md)
+- [Сделать-базовые-классы-mclp-и-lscp](tasks/Сделать-базовые-классы-mclp-и-lscp.md)
+- [Сделать-базовый-класс-node-choose-base](tasks/Сделать-базовый-класс-node-choose-base.md)
 - [Разработать-nsame-stop-case](tasks/Разработать-nsame-stop-case.md)
 - [Алгоритм-обезьяньего-поиска](tasks/Алгоритм-обезьяньего-поиска.md)
 - [best-node-half-diameter](tasks/best-node-half-diameter.md)

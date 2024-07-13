@@ -13,7 +13,9 @@ from genesis.tools import get_duplicates_list
 
 
 class FirstArrivalUnitState(StateBase):
-    def __init__(self, state_algorithm=MSF, **kwargs):
+    def __init__(self,
+                 state_algorithm=MSF,
+                 **kwargs):
         '''
             `state_algorithm`: function
             Функция расчета кратчайших путей от единственного источника. 

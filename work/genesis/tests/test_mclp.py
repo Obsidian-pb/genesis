@@ -68,31 +68,31 @@ class TestBestNodesKoptG:
         assert optimal_nodes == {2034401275: 'c', 2034401857: 'd'}
         assert best_metric  ==  5.4003346334809885
 
-    def test_kopt_list(self, load_G_simplyfied):
-        '''
-        Базовый тест работоспособности
-        '''
-        G = load_G_simplyfied
+    # def test_kopt_list(self, load_G_simplyfied):
+    #     '''
+    #     Базовый тест работоспособности (использование list исключено из функционала)
+    #     '''
+    #     G = load_G_simplyfied
 
-        nodes = list(G.nodes())
-        existed_units = [nodes[100], nodes[200]]
-        new_units = [nodes[300], nodes[400]]
-        BNHC = BestNodeHillClimbing(state_function=FirstArrivalUnitState(),
-                       metric_function=ArrivalTime(),
-                       )
+    #     nodes = list(G.nodes())
+    #     existed_units = [nodes[100], nodes[200]]
+    #     new_units = [nodes[300], nodes[400]]
+    #     BNHC = BestNodeHillClimbing(state_function=FirstArrivalUnitState(),
+    #                    metric_function=ArrivalTime(),
+    #                    )
 
-        BNG = BestNodesKoptG(state_function=FirstArrivalUnitState(),
-                            metric_function=ArrivalTime(),
-                            best_point_function=BNHC,
-                            iterations=5,
-                            )
+    #     BNG = BestNodesKoptG(state_function=FirstArrivalUnitState(),
+    #                         metric_function=ArrivalTime(),
+    #                         best_point_function=BNHC,
+    #                         iterations=5,
+    #                         )
 
-        optimal_nodes, best_metric = BNG(env=G,
-            static_nodes=existed_units,
-            dynamic_nodes=new_units,
-            )
-        assert optimal_nodes == [2034401275, 2034401857]
-        assert best_metric  ==  5.4003346334809885
+    #     optimal_nodes, best_metric = BNG(env=G,
+    #         static_nodes=existed_units,
+    #         dynamic_nodes=new_units,
+    #         )
+    #     assert optimal_nodes == [2034401275, 2034401857]
+    #     assert best_metric  ==  5.4003346334809885
 
     def test_static_immutable(self, load_G_simplyfied):
         '''

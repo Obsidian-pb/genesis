@@ -1,8 +1,8 @@
 ---
 created: 2024-07-03T06:05:10.226Z
-updated: 2024-07-12T12:46:06.999Z
+updated: 2024-07-13T16:17:36.452Z
 assigned: ""
-progress: 0.5
+progress: 0.35
 tags: []
 started: 2024-07-12T00:00:00.000Z
 ---
