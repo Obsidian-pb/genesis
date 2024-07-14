@@ -4,6 +4,7 @@
 
 
 import random
+import warnings
 
 import pandas as pd
 import networkx as nx
@@ -68,10 +69,9 @@ class RandomNodesSelector(PointSelectorBase):
 
 class GenesisNodeSelector(PointSelectorBase):
     '''
-    Простой выбор случайного узла в графе
+    Выбор наихудшего узла соседнего с наихудшим подразделением
     '''
     def __init__(self,
-                #  state_algorithm=MSF,
                  state_function: StateBase,
                  metric_function: MetricBase,
                  appr_val: float = 0.95,
@@ -79,15 +79,10 @@ class GenesisNodeSelector(PointSelectorBase):
                  **kwargs) -> None:
         '''
         ## Аргументы
-        `state_algorithm`: function
-            Функция расчета кратчайших путей от единственного источника. 
-            В качестве функции могут быть переданы реализации алгоритмов из пакета
-            `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
-            Пользователь может использовать собственные функции с
-            интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
-            weight: str = "weight") -> (dict, dict)`
         `state_function`: StateBase
             функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
         `appr_val`: = 0.95
             Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
             Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
@@ -131,6 +126,8 @@ class GenesisNodeSelector(PointSelectorBase):
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
+        warnings.warn('Следует учесть возможность появления случая когда подразделений нет вообще!')
+
         # 1. Расчет состояния прибытия
         times, nearest = self.state_function(env = env,
                                              points = points,
@@ -154,7 +151,7 @@ class GenesisNodeSelector(PointSelectorBase):
                     worst_unit_id = unit_id
                     worst_unit_metric = unit_metric
 
-        # 3. Поиск наихудшего узла соседнего с наихудшим узлом
+        # 3. Поиск наихудшего узла соседнего с наихудшим подразделением
         worst_unit_node = get_dict_key(points, worst_unit_id)
         worst_node = None
         worst_node_metric = None
@@ -174,3 +171,93 @@ class GenesisNodeSelector(PointSelectorBase):
                     worst_node_metric = node_metric
 
         return worst_node
+
+
+class WorstNodeSelector(PointSelectorBase):
+    '''
+    Выбор узла с наихудшей метрикой, 
+    (?) из которого при этом можно попасть
+    в большую часть графа
+    '''
+    def __init__(self,
+                 state_function: StateBase,
+                 metric_function: MetricBase,
+                 appr_val: float = 0.5,
+                 weight='travel_time',
+                 **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `appr_val`: = 0.5
+            Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+            то такой узел не рассматривается.
+        `weight`:str или callable  = "travel_time"
+            Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+            вес динамически.
+        '''
+        self.state_function = state_function
+        self.metric_function = metric_function
+        self.appr_val = appr_val
+        self.weight = weight
+        super().__init__(**kwargs)
+
+    def __call__(self,
+                env:nx.MultiDiGraph,
+                points:dict,
+                area: pd.Series = None,
+                **kwargs):
+        '''
+        Запуск работы алгоритма
+
+        ## Аргументы
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `points`: dict
+            Список стартовых узлов графа в которых размещены
+            подразделения.
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+        '''
+
+        # 0. Проверка корректности пришедших данных
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+        if not isinstance(points,dict):
+            raise TypeError(f'Аргумент `points` должен иметь тип: dict'
+                            f'Имеет: {type(points)}')
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+
+        # 1. Расчет состояния прибытия
+        times, _ = self.state_function(env = env,
+                                             points = points,
+                                             area = area,
+                                             **kwargs)
+
+        # 2. Сортировка узлов по времени прибытия
+        times = times.sort_values(ascending=False)
+
+        # 3. Последовательный перебор наихудших узлов и оценка достижимости из каждого из них
+        # 3.1. Определение количества допустимых узлов
+        # ... Тут нужно подумать ...
+        if area is None:
+            appr_nodes_count = int(env.number_of_nodes()*self.appr_val)
+        else:
+            appr_nodes_count = int(area.sum()*self.appr_val)
+        # 3.2. Перебор узлов
+        for node in times.index:
+            node_times, _ = self.state_function(env = env,
+                                                points = [node],
+                                                area = area,
+                                                **kwargs)
+            print(node, len(node_times), appr_nodes_count)
+            if len(node_times) >= appr_nodes_count:
+                return node
+
+        # 4. Если по какой-то причине ни один узел не был найден вызываем ошибку
+        raise LookupError('Не удалось найти ни одного узла')
