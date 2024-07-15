@@ -59,6 +59,9 @@ class RandomNodesSelector(PointSelectorBase):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
         if k < 1:
             raise ValueError(f'Аргумент `k` должен быть >= 1! Имеет: {k}')
+        
+        if k != 1:
+            warnings.warn(f'Аргумент `k` не желательно делать отличным от 1! Имеет: {k}. Использовать с осторожностью!')
 
         # 1. Выбор случайных n узлов из числа не входящих в points
         points_set = set(points.keys())
@@ -68,6 +71,9 @@ class RandomNodesSelector(PointSelectorBase):
             nodes_set = set(env.nodes()) & set(area[area].keys()) - points_set
         new_nodes = random.choices(list(nodes_set), k=k)
 
+        # Если нужно получить один узел, возвращаем вместо списка значение int
+        if len(new_nodes)==1:
+            return new_nodes[0]
         return new_nodes
 
 

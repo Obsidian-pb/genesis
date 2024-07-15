@@ -217,15 +217,28 @@ class LSCPBase:
     '''
     Базовый класс алгоритма расчета лучшей размещения точек
     '''
-    def __init__(self, mclp_function: MCLPBase, stop_case_function: StopCaseBase,  **kwargs) -> None:
+    def __init__(self,
+                 mclp_function: MCLPBase,
+                 point_selector: PointSelectorBase,
+                 stop_case_function: StopCaseBase,
+                 names_pattern: str = '{}',
+                 **kwargs) -> None:
         '''
         `mclp_function`: StateBase
             функция расчета лучшего размещения точек
+        `point_selector`: PointSelectorBase
+            Функция выбора новой точки (кандидата).
         `stop_case_function`: MetricBase
             Функция оценки достижения критерия остановки
+        `names_pattern`: str
+            Шаблон имен новых точек. По умолчанию names_pattern: `str = '{}'`.
+            Применяется как `names_pattern.format(iteration)`, где 
+            `iteration` - номер итерации.
         '''
         self.mclp_function = mclp_function
+        self.point_selector = point_selector
         self.stop_case_function = stop_case_function
+        self.names_pattern = names_pattern
 
     def __call__(self, env, area=None, **kwargs):
         '''

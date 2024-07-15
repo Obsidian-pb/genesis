@@ -2,6 +2,12 @@
 Тесты для расчетов селекторов узлов
 
 `pytest tests/test_selectors.py -s`
+
+Тесты:
+    работоспособность в целом
+    приемлемость данных
+    узел находится в area
+    для детерминированных расчетов - ИД узла
 '''
 
 import pytest
@@ -9,10 +15,9 @@ import pytest
 import osmnx as ox
 import networkx as nx
 import numpy as np
-import pandas as pd
 import geopandas as gpd
 
-from genesis.metrics import MetricBase, ArrivalTime, CoverIndex
+from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.point_selectors import RandomNodesSelector, GenesisNodeSelector, WorstNodeSelector
 from genesis.states import FirstArrivalUnitState
 from genesis.swiss_knife import MSF
@@ -55,10 +60,30 @@ class TestRandomNodesSelector:
         }
         new_node = RandomNodesSelector()(G, all_units)
 
-        assert len(new_node) == 1
-        assert isinstance(new_node[0], int)
-        assert new_node[0] in nodes
-        assert not new_node[0] in list(all_units.keys())
+        assert isinstance(new_node, int)
+        assert new_node in nodes
+        assert not new_node in list(all_units.keys())
+
+    def test_random_nodes_selector2(self, load_G_simplyfied):
+        '''
+        Тесты базового расчета
+        '''
+        G = load_G_simplyfied
+
+        nodes = list(G.nodes())
+        all_units = {
+            nodes[100]:'A',
+            nodes[200]:'B',
+            nodes[300]:'C',
+            nodes[400]:'D',
+        }
+        nodes_count=2
+        new_node = RandomNodesSelector()(G, all_units, k=nodes_count)
+
+        assert len(new_node) == nodes_count
+        assert all(isinstance(nn, int) for nn in new_node) 
+        assert all(nn in nodes for nn in new_node)
+        assert all(not nn in list(all_units.keys()) for nn in new_node)
 
     def test_random_nodes_selector_data(self, load_G_simplyfied, load_area):
         '''
@@ -163,7 +188,6 @@ class TestGenesisNodeSelector:
         assert len(all_units) == 4      # Проверка того, что исходный список узлов не изменился
 
 
-# Расчеты для прочих MetricBase
     def test_genesis_node_selector_diff_metrics(self, load_G_simplyfied):
         '''
         Тесты расчета для ArrivalTime для разных метрик
@@ -261,7 +285,6 @@ class TestWorstNodeSelector:
         assert new_node not in all_units.keys()
         assert new_node == 10816267941
 
-    # Расчеты для area
     def test_worst_node_selector_area(self, load_G_simplyfied, load_area):
         '''
         Тест для расчета в пределах area
@@ -286,12 +309,71 @@ class TestWorstNodeSelector:
         assert new_node in list(points_mask[points_mask].index)
         assert new_node == 9774067518
 
+    def test_worst_node_selector_diff_metrics(self, load_G_simplyfied):
+        '''
+        Тесты расчета для ArrivalTime для разных метрик
+        '''
+        G = load_G_simplyfied
 
+        nodes = list(G.nodes())
+        all_units = {
+            nodes[100]:'A',
+            nodes[200]:'B',
+            nodes[300]:'C',
+            nodes[400]:'D',
+        }
+        selector = WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime(np.max))
+        new_node = selector(G, all_units)
 
+        assert isinstance(new_node, int)
+        assert new_node in nodes
+        assert new_node not in all_units.keys()
+        assert new_node == 10816267941
 
+        selector = WorstNodeSelector(FirstArrivalUnitState(), CoverIndex(5))
+        new_node = selector(G, all_units)
 
-# Тесты:
-# работоспособность в целом
-# приемлемость данных
-# узел находится в area
-# для детерминированных расчетов - ИД узла
+        assert isinstance(new_node, int)
+        assert new_node in nodes
+        assert new_node not in all_units.keys()
+        assert new_node == 10816267941
+
+    def test_worst_node_selector_data(self, load_G_simplyfied):
+        G = nx.Graph()
+        G.add_node(1)
+        G.add_node(2)
+        G.add_node(3)
+        G.add_node(4)
+        G.add_edge(1,2)
+        G.add_edge(2,3)
+        G.add_edge(3,4)
+        nodes = list(G.nodes())
+        all_units = {
+            nodes[1]:'A',
+            nodes[2]:'B',
+        }
+        with pytest.raises(TypeError):
+            WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, all_units)
+
+        G = load_G_simplyfied
+        nodes = list(G.nodes())
+        all_units = [
+            nodes[100],
+            nodes[200],
+        ]
+        with pytest.raises(TypeError):
+            WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, all_units)
+
+        all_units = {
+            nodes[100]:'A',
+            nodes[200]:'B',
+            nodes[300]:'C',
+            nodes[400]:'D',
+        }
+        points_mask = [1,2,3,4,5,6,7,8,9]
+        with pytest.raises(TypeError):
+            WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, all_units, area=points_mask)
+
+        # Тест на пустой список
+        with pytest.raises(ValueError):
+            GenesisNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, {})

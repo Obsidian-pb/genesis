@@ -23,10 +23,10 @@ completedColumns:
 ## In Progress
 
 - [Расширить-kopt-до-lscp](tasks/Расширить-kopt-до-lscp.md)
-- [worst-node-selector](tasks/worst-node-selector.md)
 
 ## Done
 
+- [worst-node-selector](tasks/worst-node-selector.md)
 - [random-nodes-selector](tasks/random-nodes-selector.md)
 - [Сделать-базовый-класс-point-selector-base](tasks/Сделать-базовый-класс-point-selector-base.md)
 - [Сделать-базовые-классы-mclp-и-lscp](tasks/Сделать-базовые-классы-mclp-и-lscp.md)

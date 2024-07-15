@@ -463,7 +463,7 @@ class BestNodesGA(MCLPBase):
                                         best_bot=best_bot)
 
 
-        return  best_bot, best_metric
+        return best_bot, best_metric
 
 
 
