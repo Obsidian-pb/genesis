@@ -18,7 +18,7 @@ import numpy as np
 import geopandas as gpd
 
 from genesis.metrics import ArrivalTime, CoverIndex
-from genesis.point_selectors import RandomNodesSelector, GenesisNodeSelector, WorstNodeSelector
+from genesis.point_selectors import FarNodeSelector, RandomNodesSelector, GenesisNodeSelector
 from genesis.states import FirstArrivalUnitState
 from genesis.swiss_knife import MSF
 
@@ -259,14 +259,14 @@ class TestGenesisNodeSelector:
             GenesisNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, {})
 
 
-class TestWorstNodeSelector:
+class TestFarNodeSelector:
     '''
-    Тесты для WorstNodeSelector
+    Тесты для FarNodeSelector
     '''
 
-    def test_worst_node_selector(self, load_G_simplyfied):
+    def test_far_node_selector(self, load_G_simplyfied):
         '''
-        Базовый тест для WorstNodeSelector
+        Базовый тест для FarNodeSelector
         '''
         G = load_G_simplyfied
 
@@ -277,7 +277,7 @@ class TestWorstNodeSelector:
             nodes[300]:'C',
             nodes[400]:'D',
         }
-        selector = WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())
+        selector = FarNodeSelector(FirstArrivalUnitState())
         new_node = selector(G, all_units)
 
         assert isinstance(new_node, int)
@@ -285,7 +285,7 @@ class TestWorstNodeSelector:
         assert new_node not in all_units.keys()
         assert new_node == 10816267941
 
-    def test_worst_node_selector_area(self, load_G_simplyfied, load_area):
+    def test_far_node_selector_area(self, load_G_simplyfied, load_area):
         '''
         Тест для расчета в пределах area
         '''
@@ -303,13 +303,13 @@ class TestWorstNodeSelector:
         g_nodes_gdf = ox.graph_to_gdfs(G, edges=False)
         points_mask = g_nodes_gdf.within(area.iloc[0].geometry)
 
-        selector = WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())
+        selector = FarNodeSelector(FirstArrivalUnitState())
         new_node = selector(G, all_units, area=points_mask)
 
         assert new_node in list(points_mask[points_mask].index)
         assert new_node == 9774067518
 
-    def test_worst_node_selector_diff_metrics(self, load_G_simplyfied):
+    def test_far_node_selector_diff_metrics(self, load_G_simplyfied):
         '''
         Тесты расчета для ArrivalTime для разных метрик
         '''
@@ -322,7 +322,7 @@ class TestWorstNodeSelector:
             nodes[300]:'C',
             nodes[400]:'D',
         }
-        selector = WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime(np.max))
+        selector = FarNodeSelector(FirstArrivalUnitState())
         new_node = selector(G, all_units)
 
         assert isinstance(new_node, int)
@@ -330,7 +330,7 @@ class TestWorstNodeSelector:
         assert new_node not in all_units.keys()
         assert new_node == 10816267941
 
-        selector = WorstNodeSelector(FirstArrivalUnitState(), CoverIndex(5))
+        selector = FarNodeSelector(FirstArrivalUnitState())
         new_node = selector(G, all_units)
 
         assert isinstance(new_node, int)
@@ -338,7 +338,7 @@ class TestWorstNodeSelector:
         assert new_node not in all_units.keys()
         assert new_node == 10816267941
 
-    def test_worst_node_selector_data(self, load_G_simplyfied):
+    def test_far_node_selector_data(self, load_G_simplyfied):
         G = nx.Graph()
         G.add_node(1)
         G.add_node(2)
@@ -353,7 +353,7 @@ class TestWorstNodeSelector:
             nodes[2]:'B',
         }
         with pytest.raises(TypeError):
-            WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, all_units)
+            FarNodeSelector(FirstArrivalUnitState())(G, all_units)
 
         G = load_G_simplyfied
         nodes = list(G.nodes())
@@ -362,7 +362,7 @@ class TestWorstNodeSelector:
             nodes[200],
         ]
         with pytest.raises(TypeError):
-            WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, all_units)
+            FarNodeSelector(FirstArrivalUnitState())(G, all_units)
 
         all_units = {
             nodes[100]:'A',
@@ -372,8 +372,8 @@ class TestWorstNodeSelector:
         }
         points_mask = [1,2,3,4,5,6,7,8,9]
         with pytest.raises(TypeError):
-            WorstNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, all_units, area=points_mask)
+            FarNodeSelector(FirstArrivalUnitState())(G, all_units, area=points_mask)
 
         # Тест на пустой список
         with pytest.raises(ValueError):
-            GenesisNodeSelector(FirstArrivalUnitState(), ArrivalTime())(G, {})
+            FarNodeSelector(FirstArrivalUnitState())(G, {})

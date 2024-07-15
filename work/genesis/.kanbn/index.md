@@ -22,7 +22,7 @@ completedColumns:
 
 ## In Progress
 
-- [Расширить-kopt-до-lscp](tasks/Расширить-kopt-до-lscp.md)
+- [Разработать-lscpcommon](tasks/Разработать-lscpcommon.md)
 
 ## Done
 

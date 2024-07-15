@@ -195,15 +195,15 @@ class GenesisNodeSelector(PointSelectorBase):
         return worst_node
 
 
-class WorstNodeSelector(PointSelectorBase):
+class FarNodeSelector(PointSelectorBase):
     '''
-    Выбор узла с наихудшей метрикой, 
+    Выбор наиболее удаленного от имеющихся размещений узла, 
     (?) из которого при этом можно попасть
     в большую часть графа
     '''
     def __init__(self,
                  state_function: StateBase,
-                 metric_function: MetricBase,
+                #  metric_function: MetricBase,
                  appr_val: float = 0.5,
                  weight='travel_time',
                  **kwargs) -> None:
@@ -222,7 +222,7 @@ class WorstNodeSelector(PointSelectorBase):
             вес динамически.
         '''
         self.state_function = state_function
-        self.metric_function = metric_function
+        # self.metric_function = metric_function
         self.appr_val = appr_val
         self.weight = weight
         super().__init__(**kwargs)

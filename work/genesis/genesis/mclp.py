@@ -118,6 +118,8 @@ class BestNodesKoptG(MCLPBase):
                                 f'Имеют: {type(dynamic_nodes)}, {type(static_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+        if len(dynamic_nodes)<1:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {len(dynamic_nodes)}')
 
         # Если передана область которую следует учитывать в расчете
         # установить для нее приемлемый охват равный `self.appr_val_in_area`
@@ -127,11 +129,8 @@ class BestNodesKoptG(MCLPBase):
                                                  self.appr_val_in_area)
 
         # 1.1. Если статические узлы не указаны - заменяем значение переменной с None
-        # на [] или {} в зависимости от типа данных `dynamic_nodes`
+        # на {}
         if static_nodes is None:
-            # if isinstance(dynamic_nodes,list):
-            #     static_nodes = []
-            # elif isinstance(dynamic_nodes,dict):
             static_nodes = {}
 
         # 1.2. Получение суммарного списка (или словаря) узлов для расчета состояния и метрик
@@ -352,7 +351,7 @@ class BestNodesGA(MCLPBase):
             raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
         if not static_nodes is None and not isinstance(static_nodes, dict):
             raise TypeError("Тип аргумента `static_nodes` должен быть `dict`!")
-        if len(dynamic_nodes)<2:
+        if len(dynamic_nodes) < 2:
             raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
@@ -531,7 +530,7 @@ class BestNodesSA(MCLPBase):
             raise ValueError('Конечная температура должна быть <= начальной')
         if mutation_max_count  <=  0:
             raise ValueError('Максимальное количество единиц мутации должно быть > 0')
-        if appr_val_in_area <0 or appr_val_in_area > 1:
+        if appr_val_in_area < 0 or appr_val_in_area > 1:
             raise ValueError('Доля узлов графа в пределах area, должна лежать в диапазоне (0,1)')
 
 
@@ -667,6 +666,8 @@ class BestNodesSA(MCLPBase):
             raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+        if len(dynamic_nodes)<1:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {len(dynamic_nodes)}')
 
         if static_nodes is None:
             static_nodes = {}

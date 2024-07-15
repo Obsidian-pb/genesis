@@ -222,6 +222,7 @@ class LSCPBase:
                  point_selector: PointSelectorBase,
                  stop_case_function: StopCaseBase,
                  names_pattern: str = '{}',
+                 start_names_index: int = 1,
                  **kwargs) -> None:
         '''
         `mclp_function`: StateBase
@@ -234,11 +235,14 @@ class LSCPBase:
             Шаблон имен новых точек. По умолчанию names_pattern: `str = '{}'`.
             Применяется как `names_pattern.format(iteration)`, где 
             `iteration` - номер итерации.
+        `start_names_index`: int
+            Начальный индекс имени новых точек.
         '''
         self.mclp_function = mclp_function
         self.point_selector = point_selector
         self.stop_case_function = stop_case_function
         self.names_pattern = names_pattern
+        self.start_names_index = start_names_index
 
     def __call__(self, env, area=None, **kwargs):
         '''
