@@ -394,7 +394,7 @@ class BestNodesGA(MCLPBase):
                     # Определение весов
                     pop_weight = pd.DataFrame({'w': weights, 'p': population})
                     pop_weight = pop_weight.sort_values('w', ascending=False)
-                    pop_weight = pop_weight[:self.elite_size]
+                    pop_weight = pop_weight.loc[:self.elite_size]
                     population = pop_weight['p'].to_list()
                     weights = pop_weight['w'].to_list()
 

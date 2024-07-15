@@ -51,6 +51,10 @@ class RandomNodesSelector(PointSelectorBase):
         if not isinstance(points,dict):
             raise TypeError(f'Аргумент `points` должен иметь тип: dict'
                             f'Имеет: {type(points)}')
+        if len(points) < 1:
+            raise ValueError('Аргумент `points` должен содержать хотя бы 1 элемент! ' + \
+                             'В случае если в `env` отсутствуют известные размещения `points`, ' + \
+                             'используйте методы класса `BestPointsBase`')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
         if k < 1:
@@ -123,14 +127,26 @@ class GenesisNodeSelector(PointSelectorBase):
         if not isinstance(points,dict):
             raise TypeError(f'Аргумент `points` должен иметь тип: dict'
                             f'Имеет: {type(points)}')
+        if len(points) < 1:
+            raise ValueError('Аргумент `points` должен содержать хотя бы 1 элемент! ' + \
+                             'В случае если в `env` отсутствуют известные размещения `points`, ' + \
+                             'используйте методы класса `BestPointsBase`')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
-        warnings.warn('Следует учесть возможность появления случая когда подразделений нет вообще!')
+        # 1. В случае, если указана area определяем подразделения лежащие внутри area
+        if area is None:
+            points_scope = points   #.copy()
+        else:
+            points_scope = dict(filter(lambda x: x[0] in area[area].index, points.items()))   #.copy()
+            if len(points_scope) != len(points):
+                diff = {k:v for k,v in points.items() if not k in points_scope.keys()}
+                warnings.warn(f'{diff} лежат вне пределов `area`. Результат определения следующей точки может быть не верен')
+
 
         # 1. Расчет состояния прибытия
         times, nearest = self.state_function(env = env,
-                                             points = points,
+                                             points = points_scope,
                                              area = area,
                                              **kwargs)
 
@@ -152,7 +168,7 @@ class GenesisNodeSelector(PointSelectorBase):
                     worst_unit_metric = unit_metric
 
         # 3. Поиск наихудшего узла соседнего с наихудшим подразделением
-        worst_unit_node = get_dict_key(points, worst_unit_id)
+        worst_unit_node = get_dict_key(points_scope, worst_unit_id)
         worst_node = None
         worst_node_metric = None
         for node in env[worst_unit_node]:
@@ -255,7 +271,7 @@ class WorstNodeSelector(PointSelectorBase):
                                                 points = [node],
                                                 area = area,
                                                 **kwargs)
-            print(node, len(node_times), appr_nodes_count)
+            # print(node, len(node_times), appr_nodes_count)
             if len(node_times) >= appr_nodes_count:
                 return node
 

@@ -22,7 +22,6 @@ completedColumns:
 
 ## In Progress
 
-- [genesis-node-selector](tasks/genesis-node-selector.md)
 - [Расширить-kopt-до-lscp](tasks/Расширить-kopt-до-lscp.md)
 - [worst-node-selector](tasks/worst-node-selector.md)
 
@@ -46,3 +45,4 @@ completedColumns:
 - [Покрыть-тестами-best-node-hill-climb](tasks/Покрыть-тестами-best-node-hill-climb.md)
 - [Покрыть-тестами-best-nodes-full](tasks/Покрыть-тестами-best-nodes-full.md)
 - [Разработать-stop-case-base](tasks/Разработать-stop-case-base.md)
+- [genesis-node-selector](tasks/genesis-node-selector.md)
