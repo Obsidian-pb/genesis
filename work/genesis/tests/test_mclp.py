@@ -1,11 +1,10 @@
 '''
-Тесты для расчетов лучшей точки
+Тесты для расчетов MCLP
 
-`pytest tests/test_states.py -s`
+`pytest tests/test_mclp.py -s`
 '''
 
 import pytest
-from unittest.mock import Mock
 
 import numpy as np
 import osmnx as ox
@@ -13,8 +12,8 @@ import networkx as nx
 import pandas as pd
 import geopandas as gpd
 
-from genesis.best_points import BestNodesFull, BestNodeHillClimbing
-from genesis.core import BestPointsBase, StateBase, MetricBase
+from genesis.best_points import BestNodeHillClimbing
+from genesis.core import StateBase, MetricBase
 from genesis.mclp import BestNodesGA, BestNodesKoptG, BestNodesSA
 from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.states import FirstArrivalUnitState
@@ -68,31 +67,6 @@ class TestBestNodesKoptG:
         assert optimal_nodes == {2034401275: 'c', 2034401857: 'd'}
         assert best_metric  ==  5.4003346334809885
 
-    # def test_kopt_list(self, load_G_simplyfied):
-    #     '''
-    #     Базовый тест работоспособности (использование list исключено из функционала)
-    #     '''
-    #     G = load_G_simplyfied
-
-    #     nodes = list(G.nodes())
-    #     existed_units = [nodes[100], nodes[200]]
-    #     new_units = [nodes[300], nodes[400]]
-    #     BNHC = BestNodeHillClimbing(state_function=FirstArrivalUnitState(),
-    #                    metric_function=ArrivalTime(),
-    #                    )
-
-    #     BNG = BestNodesKoptG(state_function=FirstArrivalUnitState(),
-    #                         metric_function=ArrivalTime(),
-    #                         best_point_function=BNHC,
-    #                         iterations=5,
-    #                         )
-
-    #     optimal_nodes, best_metric = BNG(env=G,
-    #         static_nodes=existed_units,
-    #         dynamic_nodes=new_units,
-    #         )
-    #     assert optimal_nodes == [2034401275, 2034401857]
-    #     assert best_metric  ==  5.4003346334809885
 
     def test_static_immutable(self, load_G_simplyfied):
         '''
