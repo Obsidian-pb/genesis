@@ -2,13 +2,17 @@
 Инструменты обработки графов, моделей и данных. Обрезка, соединение, сохранение, загрузка
 '''
 
+from typing import Any
+
+import time
 import pandas as pd
 import geopandas as gpd
 import logging as lg
+import networkx as nx
 
 
 # Блок простых инструментальных функций общего назначения
-def kmh_to_mm(kmh: float, precision: int = 2):
+def kmh_to_mm(kmh: float, precision: int = 2) -> float:
     '''
     Перевод километров в час в метры в минуту
 
@@ -68,7 +72,10 @@ def kmh_to_mm(kmh: float, precision: int = 2):
 #     gdf.index.name=index_name
 #     return gdf
 
-def get_all_neighbor_nodes(G, node):
+def get_all_neighbor_nodes(G, node) -> list:
+    '''
+    Возвращает полный список всех соседних узлов.
+    '''
     nnodes = []
     for edge in G.out_edges(node):
         nnodes.append(edge[1])
@@ -77,23 +84,59 @@ def get_all_neighbor_nodes(G, node):
     return nnodes
 
 
-class Progressbar(object):
+def multi_source_dijkstra_reversed(G, sources, **kwargs) -> Any:
+    '''
+    Алгоритм расчета кратчайших маршрутов в точки `source`
+    с использованием алгоритма Дейкстры
+    в реализации `nx.multi_source_dijkstra`.
+    '''
+    G = nx.reverse(G.copy())
+    return nx.multi_source_dijkstra(G=G, sources=sources, **kwargs)
 
-    def __init__(self, maxval, minval=0, bins=10, ok_char='#', est_char='_'):
-        self.maxval = maxval
-        self.minval = minval
-        self.bins = bins
-        self.scope = maxval-minval
-        self.val=minval
-        self.ok_char = ok_char
-        self.est_char = est_char
 
-    def __call__(self):
-        self.val+=1
-        bins_ok = int(self.bins*(self.val/self.scope))
-        bins_still = self.bins-bins_ok
-        s = "|"+self.ok_char*bins_ok + self.est_char*bins_still + "| " + f'{round(100*self.val/self.scope, 1)}%'
-        print(s, end='\r')
-        if bins_ok==self.bins:
-            print('')
-        
+def list_dict_concat(a:list|dict,b:list|dict) -> list|dict:
+    '''
+    Корректно склеивает между собой списки и словари.
+    При условии, что аргумент `a` и аргумент `b` одного типа.
+
+    #Аргументы
+    `a`, `b`: list|dict
+        Аргументы которые следует склеить между собой
+    '''
+    if isinstance(a,list) and isinstance(b,list):
+        return a+b
+    elif isinstance(a,dict) and isinstance(b,dict):
+        return {**a, **b}
+    else:
+        raise TypeError(f'Аргументы имеют различный тип данных: {a:type(a)}, {b:type(b)}')
+
+def k_v_dict(d, f=min):
+    '''
+    Получаем номер ключа в словаре которому соответствует значение с
+    минимальным/максимальным/средним и т.д. значением, в зависимости
+    от функции f.
+
+    Самый быстрый способ.
+    '''
+    v=list(d.values())
+    k=list(d.keys())
+    return k[v.index(f(v))]
+
+def get_dict_key(dictionary, value):
+    for key, value_in_dict in dictionary.items():
+        if value_in_dict == value:
+            return key
+    return None
+
+def get_duplicates_list(seq):
+    '''
+    Получение списка дублирующихся во входящем списке значений
+    '''
+    duplicates = []
+    unique = []
+    for s in seq:
+        if s not in unique:
+            unique.append(s)
+        else:
+            duplicates.append(s)
+    return duplicates

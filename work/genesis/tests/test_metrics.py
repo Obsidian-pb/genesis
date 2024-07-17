@@ -11,25 +11,22 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+from genesis.metrics import MetricBase, ArrivalTime, CoverIndex
 
-from genesis.estimated_arrival_parameters import *
-from genesis.optimal_service_areas import voronoi_forest, voronoi_forest_for_points, voronoi_forest_for_area
 from genesis.swiss_knife import MSF
 
-# import logging
 
 
 
-# lg.basicConfig(level=lg.DEBUG, filename="logs/test_metrics.log", filemode="w")
 
 
 @pytest.fixture(scope='module')
 def load_G():
     return ox.load_graphml("tests/data/test_rng.ml")
 
-@pytest.fixture(scope='module')
-def load_area():
-    return gpd.read_file("tests/data/test_polygon.gpkg")
+# @pytest.fixture(scope='module')
+# def load_area():
+#     return gpd.read_file("tests/data/test_polygon.gpkg")
 
 @pytest.fixture(scope='module')
 def create_G():
@@ -77,75 +74,78 @@ def create_G():
     return G
 
 
+class TestMetricBase:
+    '''
+    Тесты базового класса метрик
+    '''
+
+    def test_metricbase_min(self):
+        '''
+        Сравниваются два значения и выбирается меньшее
+        '''
+        metric = MetricBase()
+        a=10
+        b=20
+
+        assert metric.compare(a ,b) == a
+
+    def test_metricbase_max(self):
+        metric = MetricBase(comp_func=max)
+        a=10
+        b=20
+
+        assert metric.compare(a ,b) == b
 
 
 class TestMetricsArrivalTime:
     '''
     Тестирование расчета метрики времени прибытия
     '''
-    @pytest.mark.xfail()
-    def test_calc_max_graph_wrong_data_type(self, load_G):
-        '''Проверка приемлемости входящих данных'''
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+    # @pytest.mark.xfail()
+    # def test_calc_max_graph_wrong_data_type(self, load_G):
+    #     '''Проверка приемлемости входящих данных'''
+    #     G = load_G
+    #     start_node = list(G.nodes())[2000]
+    #     times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
 
-        max_time_t = 28.881282428571428
-        max_time = arrival_time(np.max)(times)
-        assert max_time_t==max_time
+    #     max_time_t = 28.881282428571428
+    #     max_time = arrival_time(np.max)(times)
+    #     assert max_time_t==max_time
 
-    def test_calc_max_graph(self, load_G):
-        '''Тест расчета метрики максимального времени следования из одного узла'''
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+    def test_calc_mean_time_list(self):
+        '''Тест расчета среднего времени для списка'''
+        l = [10,20,30,40]
+        metric = ArrivalTime()(l)
 
-        time_t = 28.881282428571428
-        time = arrival_time(np.max)(pd.Series(times))
-        assert time_t==time
+        metric_est=25
+        assert metric_est == metric
 
-    def test_calc_mean_graph(self, load_G):
-        '''Тест расчета метрики среднего времени следования из одного узла'''
-        G = load_G
-        start_node = list(G.nodes())[3000]
-        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+    def test_calc_mean_time_list_zero(self):
+        '''Тест расчета среднего времени для списка нулевой длины'''
+        l = []
+        metric = ArrivalTime()(l)
 
-        time_t = 11.595102796316963
-        time = arrival_time(np.mean)(pd.Series(times))
-        assert time_t==time
+        metric_est=0
+        assert metric_est == metric
 
-    def test_calc_mean_graph_multi_nodes(self, load_G):
-        '''Тест расчета метрики среднего времени следования из нескольких узлов'''
-        G = load_G
-        start_nodes = [list(G.nodes())[1000], list(G.nodes())[3000]]
-        times = nx.multi_source_dijkstra_path_length(G, start_nodes, weight='travel_time')
+    def test_calc_max_time_list(self):
+        '''Тест расчета максимального времени для списка'''
+        l = [10,20,30,40]
+        metric_function = ArrivalTime(f=np.max)
+        metric = metric_function(l)
 
-        time_t = 7.27785097308451
-        time = arrival_time(np.mean)(pd.Series(times))
-        assert time_t==time
+        metric_est=40
+        assert metric_est == metric
 
-    def test_arr_time_zero_len(self):
-        '''Тест передачи функции расчета времени прибытия данных нулевой длинны'''
-        ip = arrival_time(np.mean)(pd.Series())
-        assert ip == 0
+    def test_calc_mean_time_g(self, create_G):
+        '''Тест расчета среднего времени для результата расчета графа (pd.Series)'''
+        G = create_G
+        start_node = list(G.nodes())[0]
+        times, _  = MSF(G, [start_node])
+        metric = ArrivalTime()(pd.Series(times))
 
-    def test_arr_time_custom_function(self, load_G):
-        '''Тест расчета метрики времени прибытия для кастомной функции'''
-        def custom(route_times: pd.Series):
-            '''Возвращается значение первого квартиля'''
-            route_times.sort_values(inplace=True, ascending=True)
-            return np.max(route_times[:int(len(route_times)*0.25)])
-
-        G = load_G
-        start_node = list(G.nodes())[3000]
-        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
-
-        time_t = 5.543804571428573
-        time = custom(pd.Series(times))
-        assert time_t==time
-
-
-
+        metric_est=round(1.9333333333333333, 2)
+        assert metric_est == round(metric, 2)
 
 
 
@@ -156,88 +156,40 @@ class TestIPCommon:
     '''
     Тестирование основных методов расчета индекса прикрытия
     '''
-    @pytest.mark.xfail()
-    def test_cover_index_wrong_argument_type(self):
-        '''Тест передачи на вход некорректного формата данных'''
-        lst = [3,4,5,6,7,6,10,  12,13,14]
-        ip = cover_index()(lst)
-        assert 70.==ip
+    def test_cover_index_list(self):
+        '''Тест расчета ИП-10 для списка'''
+        l = [1,2,3,6,10, 12,24,27,30,32]
+        metric = CoverIndex()(l)
 
-    def test_cover_index_correct_10(self):
-        lst = [3,4,5,6,7,6,10,  12,13,14]
-        ip = cover_index()(pd.Series(lst))
-        assert 60.==ip
+        metric_est=50.0
+        assert metric_est == metric
 
-    def test_cover_index_correct_20(self):
-        lst = [3,4,5,6,7,6,10,12,13,  21,25,30]
-        ip = cover_index(ip_val=20)(pd.Series(lst))
-        assert 75.==ip
+    def test_cover_index_20_list(self):
+        '''Тест расчета ИП-20 для списка'''
+        l = [10,12, 24,27]
+        metric_function = CoverIndex()
+        metric = metric_function(l)
 
-    def test_cover_index_zero_len(self):
-        '''Тест передачи функции расчета ИП данных нулевой длинны'''
-        ip = cover_index()(pd.Series())
-        assert ip == 0
+        metric_est=25.0
+        assert metric_est == metric
 
-    def test_cover_index_correct_10_graph(self, load_G):
-        '''Тест расчета ИП-10 для реального графа'''
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+    def test_cover_index_list_zero(self):
+        '''Тест расчета ИП-10 для списка нулевой длины'''
+        l = []
+        metric = CoverIndex()(l)
 
-        ip = cover_index()(pd.Series(times))
-        assert 10.08357558139535==ip
+        metric_est=0
+        assert metric_est == metric
 
-    def test_cover_index_correct_20_graph(self, load_G):
-        '''Тест расчета ИП-20 для реального графа'''
-        G = load_G
-        start_node = list(G.nodes())[2000]
-        times = nx.single_source_dijkstra_path_length(G, start_node, weight='travel_time')
+    def test_cover_index_g(self, create_G):
+        '''Тест расчета ИП-10 для pd.Series - результата расчета графа'''
+        G = create_G
+        start_node = list(G.nodes())[0]
+        times, _ = MSF(G, [start_node])
+        metric = CoverIndex()(pd.Series(times))
 
-        ip = cover_index(20)(pd.Series(times))
-        assert 68.75==ip
-
-
-
-class TestMetricsForNode:
-    '''Тесты расчета метрик для единичного узла'''
-    def test_single_node_metric_real_graph(self, load_G):
-        '''Расчет метрики для одного узла'''
-        G = load_G
-        start_node = [list(G.nodes())[2000]]
-
-        val = nodes_metric(G=G, sources=start_node, 
-            path_function=MSF,
-            metric_function=arrival_time(np.mean),
-            voronoi_function=voronoi_forest)
-        val_t = 17.322393925534676
-        assert val_t == val
-
-    def test_multi_node_metric_real_graph(self, load_G):
-        '''Расчет метрики для множества узла'''
-        G = load_G
-        start_nodes = [list(G.nodes())[2000], list(G.nodes())[4000]]
-
-        val = nodes_metric(G=G, sources=start_nodes, 
-            path_function=MSF,
-            metric_function=arrival_time(np.mean),
-            voronoi_function=voronoi_forest)
-        val_t = 10.098875894894622
-        assert val_t == val
-
-    def test_multi_node_metric_real_graph_area(self, load_G, load_area):
-        '''Расчет метрики для множества узлов и ограничения полигоном'''
-        G = load_G
-        area = load_area
-        start_nodes = [list(G.nodes())[2000], list(G.nodes())[4000]]
-
-        val = nodes_metric(G=G, sources=start_nodes, 
-            path_function=MSF,
-            metric_function=arrival_time(np.mean),
-            voronoi_function=voronoi_forest_for_area,
-            area=area)
-        val_t = 9.404841331151413
-        assert val_t == val
-
+        metric_est=100
+        assert metric_est == int(metric)
 
 
 

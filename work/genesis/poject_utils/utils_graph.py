@@ -75,7 +75,7 @@ for edge in G.edges:
         speed = hwy_speeds.get(road, defSpeed)
     except TypeError: # Тип дороги бывает списком, обычно ['residential', 'сервис']
         if isinstance(road, list):
-            speed = hwy_speeds.get(road, defSpeed)
+            speed = hwy_speeds.get(road[0], defSpeed)
         else:
             speed = defSpeed
 

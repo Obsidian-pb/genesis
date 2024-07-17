@@ -1,0 +1,41 @@
+# Концепция проведения расчетов
+
+Здесь представлено видение структуры системы проведения расчетов численности и размещения пожарных подразделений, в целом.
+
+```{mermaid}
+%% | label: fig-system_structure
+%% | fig-cap: Структура системы расчетов
+flowchart LR
+    classDef aborted stroke:#f66,stroke-dasharray: 5 5
+
+    subgraph Core
+        direction TB
+        Metric --> BNA[Best Node \nAlgorithm]
+        BNA --> MCLP
+        BNA --> SCLP
+    end
+
+    MaxF(max):::aborted --> Metric
+
+    F --> BNA
+
+```
+
+Ключевыми элементами являются 
+
+State (состояние) 
+: состояние модели. Например, время прибытия первого пожарного подразделения в некоторый набор точек на территории города.
+
+Metric (метрика) 
+: некоторая количественная оценка состояния State.
+
+
+
+
+```{mermaid}
+%% | label: fig-problem_solvation
+%% | fig-cap: Логика решения проблем
+flowchart LR
+
+    PROBLEM --> APPROACH --> ALGORITHM
+```

@@ -1,85 +1,730 @@
 '''
-Алгоритмы решения задачи MCLP (Maximum Covering Location Problem).
-
-Поиск оптимальных узлов графа с точки зрения максимизации покрытия.
+Реализация алгоритмов поиска оптимального размещения нескольких наилучшим образом расположенных узлов (MCLP)
 '''
 
+import random
+import networkx as nx
 import numpy as np
-from genesis.estimated_arrival_parameters import arrival_time, nodes_metric
-from genesis.optimal_service_areas import voronoi_forest
-from genesis.swiss_knife import MSF
+import pandas as pd
+import math
+
+from genesis.core import BestPointsBase, MetricBase, StateBase, MCLPBase
+from genesis.best_points import NodeMetric
+from genesis.tools import list_dict_concat
 
 
-def best_node_full(G,
-                   path_function=MSF,
-                   metric_function=arrival_time(np.mean),
-                   voronoi_function=voronoi_forest,
-                   nodes_list=None,
-                   node_calc_end_function=None,
-                   reduce=True,
-                   **kwargs):
-   '''
-        Поиск лучших узлов полным перебором. 
-        Могут быть возвращены только узлы из которых можно попасть в большую часть других узлов графа.
-        Если таковых узлов нет, возвращается ошибка некорректности графа. 
-        (граф должен быть проверен на корректность прежде чем будет передан функции)
-        
-        Узлы для которых метрика не может быть вычислена (например слабо связанные 
-        с основным графом) не учитываются. 
+class BestNodesKoptG(MCLPBase):
+    '''
+    Поиск лучших узлов для размещения n объектов.
 
-        ## Важно
-        Следует помнить, что некорректные узлы в случае их учета посредством снижения appr_val могут 
-        давать искаженное представление о метриках графа. При этом в реальности граф дорожной сети 
-        как правило изобилует слабосвязанными узлами, поэтому учет только узлов обеспечивающих 100%
-        достижимость всего графа может приводить к принципиальной невозможности расчета.
+    Расчет производится алгоритмом k-mean адаптированным для расчета
+    в графовом пространстве и абстрагированным от применения метрики
+    mean (среднее).
 
-        ## Параметры
-        `G` : MultiDiGraph
-            Граф дорожной сети
-        `path_function` : function
-            Функция расчета пути вида nx.multi_source_dijkstra_path_length 
-            - расчет от множества узлов.
-        `metric_function` : function
-            Функция оценки. Если не указана, используется оценка по минимальному расстоянию.
-        `weight` : str
-            имя поля ребер ГДС содержащего вес пути (в данном случае имеется в виду время следования)
-        `appr_val`: = 0.95
-            Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
+    ## Область применения
+    Определение размещения множества узлов в графе, при котором 
+    обеспечиваются наилучшие некоторые целевые метрики. 
+    Дает достаточно точное решение. Хорошо подходит для больших графов.
+    '''
+
+    def __init__(self,
+                 state_function: StateBase,
+                 metric_function: MetricBase,
+                 best_point_function: BestPointsBase,
+                 iterations:int=5,
+                 appr_val_in_area=0,
+                 **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `best_point_function`: BestPointsBase
+            Функция расчета лучшего размещения узла
+        `iterations`:int=5
+            Количество итераций расчета
+        `appr_val_in_area`: int=0
+            Доля узлов графа в пределах area, покрытие которой считается приемлемой для принятия расчетной метрики. 
             Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
             то такой узел не рассматривается.
-        `possible_nodes`:list=None
-            Если указано, то рассматриваются только переданные узлы.
-        `reduce` : bool = True
-            Если True - при сравнении значений метрик выбирается меньшее значение, иначе большее. 
-            При расчете метрик для которых чем меньше значение тем лучше (среднее, максимальное 
-            время и т.д.) необходимо использовать reduce=True, 
-            при расчете метрик для которых чем больше тем лучше (ИП) - True
+            При расчет размещения нескольких узлов неминуемо возникает ситуация при которой
+            часть территории area будет недостижима. Поэтому по умолчанию считается
+        '''
+        
+        self.best_point_function = best_point_function
+        self.iterations = iterations
+        self.appr_val_in_area = appr_val_in_area
+        super().__init__(state_function, metric_function, **kwargs)
+
+
+    def __call__(self,
+                 env:nx.MultiDiGraph,
+                 dynamic_nodes: dict,
+                 static_nodes: dict = None,
+                 before_iters_start_function: callable =None,
+                 iter_calc_end_function: callable =None,
+                 area: pd.Series = None,
+                 **kwargs):
+        '''
+        ## Аргументы
+
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `dynamic_nodes`: dict
+            Список стартовых узлов графа в которых размещены
+            подразделения оптимальные места которых следует определить.
+        `static_nodes`: dict = None
+            Список стартовых узлов графа в которых размещены
+            подразделения изменять размещение которых не следует.
+        `before_iters_start_function`: callable=None
+            Функция выполняемая перед началом итеративного расчета.
+            Сигнатура функции:
+            ```
+            before_iters_start_function(
+                                    best_metric: float,
+                                    dynamic_nodes: list|dict,
+                                    static_nodes: list|dict
+                                    )
+            ```
+            Если не указана, ничего не происходит.
+        `iter_calc_end_function`: callable=None
+            Функция выполняемая в конце каждой итерации.
+            Сигнатура функции:
+            ```
+            before_iters_start_function(
+                                    best_metric: float,
+                                    dynamic_nodes: list|dict,
+                                    static_nodes: list|dict
+                                    )
+            ```
+            Если не указана, ничего не происходит.
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
 
         ## Возвращает
-        tuple: (list(int), float)
-            Множество - (идентификатор узла, значение метрики узла)
+        `best_dynamic_nodes, best_metric`: tuple[list | dict, float]
+            Список или словарь лучших мест размещения, значение метрики metric_function
+            для лучшего размещения.
         '''
-   
-   if nodes_list is None:
-        nodes_list = G.nodes()
-   
-   best_metric = None
-   best_node = None
-   for node in nodes_list:
-      node_metric = nodes_metric(G=G,
-            sources=[node],
-            path_function=path_function,
-            metric_function=metric_function,
-            voronoi_function=voronoi_function,
-            **kwargs)
-      # здесь должна быть проверка на корректность охвата графа
-      if best_metric is None:
-         best_metric = node_metric
-         best_node = node
-      if best_metric > node_metric:
-         best_metric = node_metric
-         best_node = node
-      if node_calc_end_function:
-         node_calc_end_function()
-      
-   return best_node, best_metric
+        
+        # 0. Проверка корректности пришедших данных
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+        if not static_nodes is None:
+            if not (isinstance(dynamic_nodes,dict) and isinstance(static_nodes,dict)):
+                raise TypeError(f'Аргументы `dynamic_nodes` и `static_nodes` должны быть одинакового типа: dict'
+                                f'Имеют: {type(dynamic_nodes)}, {type(static_nodes)}')
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+        if len(dynamic_nodes)<1:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {len(dynamic_nodes)}')
+
+        # Если передана область которую следует учитывать в расчете
+        # установить для нее приемлемый охват равный `self.appr_val_in_area`
+        # (0 по умолчанию)
+        if not area is None:
+            self.best_point_function.__setattr__('appr_val',
+                                                 self.appr_val_in_area)
+
+        # 1.1. Если статические узлы не указаны - заменяем значение переменной с None
+        # на {}
+        if static_nodes is None:
+            static_nodes = {}
+
+        # 1.2. Получение суммарного списка (или словаря) узлов для расчета состояния и метрик
+        start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
+
+        # 2.1. Расчет состояния
+        times, nearest = self.state_function(env=env, points=start_nodes, **kwargs)
+
+        # 2.2. Расчет стартовой метрики состояния и определение стартового размещения
+        best_metric = self.metric_function(times, area=area, **kwargs)
+        best_dynamic_nodes = dynamic_nodes
+
+        # 3. Выполняем функцию перед началом итераций
+        if before_iters_start_function:
+            before_iters_start_function(
+                                    best_metric=best_metric,
+                                    dynamic_nodes=dynamic_nodes,
+                                    static_nodes=static_nodes
+                                    )
+
+        # 4. Итерации расчета лучшего размещения
+        for iteration in range(self.iterations):
+
+            # 1. Поиск для каждого из dinamic_nodes наилучшего размещения в пределах своей зоны обслуживания
+            # 1.1. Для списка:
+            if isinstance(dynamic_nodes, list):
+                new_dynamic_nodes = []
+                for dynamic_node in dynamic_nodes:
+
+                    # Определяем список узлов в которые из узла dynamic_node можно прибыть первым
+                    node_area_nodes = [n for n,v in nearest.items() if v==dynamic_node]
+
+                    # Определяем подграф зоны обслуживания для узла dynamic_node
+                    node_area_G = nx.subgraph(env, node_area_nodes)
+
+                    # Определяем лучший узел
+                    best_nodes, _ = self.best_point_function(env=node_area_G, 
+                                                                    start_node=dynamic_node,
+                                                                    area=area,
+                                                                    **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
+                    if isinstance(best_nodes, list):
+                        best_nodes = best_nodes[0]
+                    # Добавляем полученный узел в новый список
+                    new_dynamic_nodes.append(best_nodes)
+            # 1.2. Для словаря:
+            else:
+                new_dynamic_nodes = {}
+                for dynamic_node_id, dynamic_node_key in dynamic_nodes.items():
+
+                    # Определяем список узлов в которые из узла dynamic_node можно прибыть первым
+                    node_area_nodes = [k for k,v in nearest.items() if v==dynamic_node_key]
+
+                    # Определяем подграф зоны обслуживания для узла dynamic_node
+                    node_area_G = nx.subgraph(env, node_area_nodes)
+
+                    # Определяем лучший узел
+                    best_nodes, _ = self.best_point_function(env=node_area_G, 
+                                                                    start_node=dynamic_node_id,
+                                                                    area=area,
+                                                                    **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
+
+                    if isinstance(best_nodes, list):
+                        best_nodes = best_nodes[0]
+                    # Добавляем полученный узел в новый список
+                    new_dynamic_nodes[best_nodes] = dynamic_node_key
+
+            # 2. Заменяем список dynamic_nodes списком с новыми, лучшими узлами
+            dynamic_nodes = new_dynamic_nodes
+
+            # 3. Приведение к типу переменной в соответствии с типом `dynamic_nodes`
+            start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
+
+            # 4. Расчет состояния
+            times, nearest = self.state_function(env=env, points=start_nodes, **kwargs)   # area=area, 
+
+            # 5. Расчет метрики состояния
+            state_metric = self.metric_function(times, area=area, **kwargs)
+
+            # 6. Оценка метрики состояния
+            if self.metric_function.compare(best_metric, state_metric) == state_metric:
+                best_metric = state_metric
+                best_dynamic_nodes = dynamic_nodes
+
+            # 7. Выполняем функцию завершения расчета для итерации
+            if iter_calc_end_function:
+                iter_calc_end_function(i=iteration,
+                                       best_metric=best_metric,
+                                       dynamic_nodes=best_dynamic_nodes,
+                                       static_nodes=static_nodes)
+
+        return best_dynamic_nodes, best_metric
+
+        
+class BestNodesGA(MCLPBase):
+    '''
+    Поиск лучших узлов для размещения n объектов.
+
+    Расчет производится генетическим алгоритмом.
+
+    ## Область применения
+    Определение размещения множества узлов в графе, при котором 
+    обеспечиваются наилучшие некоторые целевые метрики. 
+    
+    Дает решение высокой точности. Хорошо подходит для больших графов.
+    '''
+
+    def __init__(self,
+                 state_function: StateBase,
+                 metric_function: MetricBase,
+                 population_size:int = 25,
+                 epochs:int = 50,
+                 mutation_rate:float = 0.5,
+                 elite_size:int = 0,
+                 appr_val_in_area:float = 0,
+                 mutation_max_count:int = 1,
+                 bad_val_in_area:int = 1000,
+                 epoch_end_function:callable = None,
+                 **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `population_size`:int = 25
+            Размер популяции
+        `epochs`: int = 50
+            Количество эпох расчета
+        `mutation_rate`: float = 0.1
+            Вероятность единичной мутации
+        `elite_size`: int =  0
+            Количество особей в элитной группе.
+            Если указан 0, то механизм элитизма не задействуется.
+        `appr_val_in_area`: int=0
+            Доля узлов графа в пределах area, покрытие которой считается приемлемой для принятия расчетной метрики. 
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+            то такой узел не рассматривается.
+            При расчет размещения нескольких узлов неминуемо возникает ситуация при которой
+            часть территории area будет недостижима. Поэтому по умолчанию считается
+        `mutation_max_count`: int = 1
+            Максимальное количество единиц мутации.
+        `bad_val_in_area`: int=1000
+            Значение указываемое для узла, в случае если
+            из него нельзя попасть в `appr_val_in_area` долю узлов в пределах
+            `area`.
+        `epoch_end_function`: callable = None
+            Функция вызываемая после каждой эпохи расчета.
+        '''
+        if population_size <= 5:
+            raise ValueError('Размер популяции должен быть > 0, так же не рекомендуется использовать размер популяции < 5')
+        if epochs  <=  0:
+            raise ValueError('Количество эпох должно быть > 0')
+        if mutation_max_count  <=  0:
+            raise ValueError('Максимальное количество единиц мутации должно быть > 0')
+        if mutation_rate <0 or mutation_rate > 1:
+            raise ValueError('Вероятность мутации должна лежать в диапазоне (0,1)')
+        if appr_val_in_area <0 or appr_val_in_area > 1:
+            raise ValueError('Доля узлов графа в пределах area, должна лежать в диапазоне (0,1)')
+        if elite_size < 0:
+            raise ValueError('Количество особей в элитной группе должно быть >= 0')
+        
+        self.population_size = population_size
+        self.epochs = epochs
+        self.mutation_rate = mutation_rate
+        self.elite_size = elite_size
+        self.appr_val_in_area = appr_val_in_area
+        self.mutation_max_count = mutation_max_count
+        self.bad_val_in_area = bad_val_in_area
+        self.epoch_end_function = epoch_end_function
+        super().__init__(state_function, metric_function, **kwargs)
+
+    def _fit_function(self, env, nodes, area=None, **kwargs):
+        '''
+        Расчет функции приспособленности
+        '''
+        # 2.1. Расчет состояния
+        times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
+
+        if not area is None:
+            appr_nodes_count = area.sum() * self.appr_val_in_area
+            if len(times) < appr_nodes_count:
+                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
+                return self.bad_val_in_area
+
+        # 2.2. Расчет стартовой метрики состояния и определение стартового размещения
+        best_metric = self.metric_function(times, **kwargs)
+
+        return best_metric
+
+
+    def __call__(self,
+                 env:nx.MultiDiGraph,
+                 dynamic_nodes: dict,
+                 static_nodes: dict = None,
+                 area: pd.Series = None,
+                 **kwargs):
+        '''
+        Запуск работы генетического алгоритма
+
+        ## Аргументы
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `dynamic_nodes`: list|dict
+            Список стартовых узлов графа в которых размещены
+            подразделения оптимальные места которых следует определить.
+        `static_nodes`: list|dict = None
+            Список стартовых узлов графа в которых размещены
+            подразделения изменять размещение которых не следует.
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+        '''
+
+        # 0. Проверка корректности пришедших данных
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
+        if not isinstance(dynamic_nodes, dict):
+            raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
+        if not static_nodes is None and not isinstance(static_nodes, dict):
+            raise TypeError("Тип аргумента `static_nodes` должен быть `dict`!")
+        if len(dynamic_nodes) < 2:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+
+
+        # 1.1. Если статические узлы не указаны - заменяем значение переменной с None
+        # на {}
+        if static_nodes is None:
+            static_nodes = {}
+
+        # Последовательность узлов графа (для последующего обращения к нему)
+        g_nodes = list(env.nodes())
+
+        # ===================================== Генетический алгоритм ==============
+        # 1. Создание стартовой популяции
+        population = [dynamic_nodes for _ in range(self.population_size)]
+        # Оценка приспособленности всех особей
+        bot_fit = [self._fit_function(env=env,
+                                      nodes=list_dict_concat(dn, static_nodes),
+                                      area=area,
+                                      **kwargs) for dn in population]
+        if self.metric_function.compare(1,2)==1:        # Для минимизации:
+            max_val  = max(bot_fit)
+            weights = [1.1*max_val-x for x in bot_fit]
+            best_metric = min(bot_fit)
+        else:                                           # Для максимизации:
+            weights = bot_fit
+            best_metric = max(bot_fit)
+        best_bot = population[bot_fit.index(best_metric)]
+
+        # 2. На каждой эпохе
+        for epoch in range(self.epochs):
+
+            new_population = []
+            # Генерация новой популяции
+            for _ in range(self.population_size):
+                # Элитарность
+                if self.elite_size>0:
+                    # Определение весов
+                    pop_weight = pd.DataFrame({'w': weights, 'p': population})
+                    pop_weight = pop_weight.sort_values('w', ascending=False)
+                    pop_weight = pop_weight.loc[:self.elite_size]
+                    population = pop_weight['p'].to_list()
+                    weights = pop_weight['w'].to_list()
+
+                # Отбор по правилу рулетки
+                parent_bot_1 = random.choices(population, weights=weights)[0]
+                parent_bot_2 = random.choices(population, weights=weights)[0]
+
+                # Скрещивание (одноточечное)
+                split_point = int(len(parent_bot_1)/2)
+                left_gen_vals = list(parent_bot_1.values())[:split_point]
+                right_gen_vals  = list(parent_bot_1.values())[split_point:]
+                left_genome_part = {k:v for k, v in parent_bot_1.items() if v in left_gen_vals}
+                right_genome_part = {k:v for k, v in parent_bot_2.items() if v in right_gen_vals}
+                new_dynamic_nodes = {**left_genome_part, **right_genome_part}
+
+                # Мутация (выбор произвольного узла)
+                for _ in range(self.mutation_max_count):
+                    if random.random() < self.mutation_rate:
+                        # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+                        node, unit = random.choice(list(new_dynamic_nodes.items()))
+                        del new_dynamic_nodes[node]
+
+                        # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
+                        node = random.choice(g_nodes)
+                        while node in new_dynamic_nodes.keys():
+                            node = random.choice(g_nodes)
+
+                        new_dynamic_nodes[node] = unit
+
+                        # print(node, unit, new_dynamic_nodes)
+
+                # Добавляем его в новую популяцию
+                new_population.append(new_dynamic_nodes)
+
+            # Заменяем предыдущую популяцию новой
+            population = new_population
+
+            # Оценка приспособленности всех особей
+            bot_fit = [self._fit_function(env=env,
+                                      nodes=list_dict_concat(dn, static_nodes),
+                                      area=area,
+                                      **kwargs) for dn in population]
+
+            # Определение лучшего на эпохе значения метрики
+            # и весов в зависимости от приспособленности        
+            if self.metric_function.compare(1,2)==1:    # Для минимизации:
+                max_val  = max(bot_fit)
+                weights = [max_val-x for x in bot_fit]
+                cur_metric = min(bot_fit)
+            else:                                       # Для максимизации
+                weights = bot_fit
+                cur_metric = max(bot_fit)
+            # Нормализация весов (для более выраженной точности расчета)
+            weights = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
+
+            # Определяем лучше ли лучшее на эпохе решение чем имеющееся
+            if self.metric_function.compare(best_metric, cur_metric) == cur_metric:
+                best_bot = population[bot_fit.index(cur_metric)]
+                best_metric  = cur_metric
+
+            # Выполнение функции окончания расчета на эпохе
+            if self.epoch_end_function:
+                self.epoch_end_function(epoch=epoch,
+                                        best_metric=best_metric,
+                                        cur_metric=cur_metric,
+                                        best_bot=best_bot)
+
+
+        return best_bot, best_metric
+
+
+
+class BestNodesSA(MCLPBase):
+    '''
+    Поиск лучших узлов для размещения n объектов.
+
+    Расчет производится алгоритмом имитации отжига.
+
+    ## Область применения
+    Определение размещения множества узлов в графе, при котором 
+    обеспечиваются наилучшие некоторые целевые метрики. 
+    
+    ### Достоинства
+    Дает решение высокой точности. Подходит для средних графов.
+    
+    ### Недостатки
+    Долго считает. 
+    '''
+    def __init__(self, state_function: StateBase,
+                 metric_function: MetricBase,
+                 initial_temperature: float = 1,
+                 end_temperature: float = 0.0001,
+                 turns: int = 1000000,
+                 mutation_max_count: int = 1,
+                 appr_val_in_area: float = 0,
+                 bad_val_in_area: int|None = 1000,
+                 turn_end_function: callable = None,
+                 best_state_find_function: callable = None,
+                 **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `initial_temperature`: float  = 1
+            Начальная температура
+        `end_temperature`: float = 0.0001
+            Конечная температура
+        `mutation_max_count`: int = 1
+            Максимальное количество единиц мутации.
+        `appr_val_in_area`: int=0
+            Доля узлов графа в пределах area, покрытие которой 
+            считается приемлемой для принятия расчетной метрики. 
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее 
+            количество узлов, то такой узел не рассматривается.
+            При расчет размещения нескольких узлов неминуемо возникает ситуация при которой
+            часть территории area будет недостижима. Поэтому по умолчанию считается
+        `bad_val_in_area`: int=1000
+            Значение указываемое для узла, в случае если
+            из него нельзя попасть в `appr_val_in_area` долю узлов в пределах
+            `area`.
+        `turn_end_function`: callable  = None
+            Функция вызываемая на каждой итерации расчета.
+        `best_state_find_function`: callable = None
+            Функция вызываемая после каждого улучшения абсолютного оптимума.
+        '''
+
+        if initial_temperature  <  0:
+            raise ValueError('Начальная температура должна быть >= 0')
+        if end_temperature  <  0:
+            raise ValueError('Конечная температура должна быть >= 0')
+        if end_temperature  >  initial_temperature:
+            raise ValueError('Конечная температура должна быть <= начальной')
+        if mutation_max_count  <=  0:
+            raise ValueError('Максимальное количество единиц мутации должно быть > 0')
+        if appr_val_in_area < 0 or appr_val_in_area > 1:
+            raise ValueError('Доля узлов графа в пределах area, должна лежать в диапазоне (0,1)')
+
+
+        self.initial_temperature = initial_temperature
+        self.end_temperature = end_temperature
+        self.turns = turns
+        self.appr_val_in_area = appr_val_in_area
+        self.mutation_max_count = mutation_max_count
+        self.bad_val_in_area = bad_val_in_area
+        self.turn_end_function = turn_end_function
+        self.best_state_find_function = best_state_find_function
+        super().__init__(state_function, metric_function, **kwargs)
+
+
+    def _decrease_temperature(self, T0, t):
+        '''
+        Функция изменения температуры
+
+        ## Аргументы
+        `T0` - начальная температура
+
+        `t` - текущая итерация
+
+        ## Возвращает
+        Температура на итерации t
+        '''
+        return T0/(1+t)
+
+    def _get_transition_probability(self, dE, T):
+        '''
+        Функция расчета вероятности перехода из состояния i в состояние j
+
+        ## Аргументы
+        `dE` - энергия перехода
+
+        `T` - температура
+
+        ## Возвращает
+        Вероятность перехода
+        '''
+        try:
+            return math.exp(-dE/T)
+        except OverflowError as _:
+            # print(dE, T)
+            return 0
+            # raise OverflowError(dE, T)
+
+    def _calculate_energy(self, env: nx.MultiDiGraph, nodes: list, area=None, **kwargs):
+        '''
+        Расчет энергии состояния.
+        Здесь это значение целевой метрики.
+
+        ## Аргументы
+        `env`: nx.MultiDiGraph
+            окружение
+        `nodes`: list
+            список стартовых узлов. Например мест размещения пожарных депо
+        `area`: pd.Series
+            маска доступности узлов
+        `**kwargs` - дополнительные аргументы
+        '''
+        # 1. Расчет состояния
+        times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
+
+        if not area is None:
+            appr_nodes_count = area.sum() * self.appr_val_in_area
+            if len(times) < appr_nodes_count:
+                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
+                return self.bad_val_in_area
+
+        # 2. Расчет стартовой метрики состояния и определение стартового размещения
+        best_metric = self.metric_function(times, **kwargs)
+
+        return best_metric
+
+    def _generate_state_candidate(self, state, g_nodes):
+        '''
+        Функция порождает новое состояние
+        '''
+        new_state = state.copy()
+
+        # Здесь вся магия
+        for _ in range(self.mutation_max_count):
+            # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+            node, unit = random.choice(list(new_state.items()))
+            del new_state[node]
+
+            # Поиск нового узла, которого при этом нет в new_dynamic_nodes
+            node = random.choice(g_nodes)
+            while node in new_state.keys():
+                node = random.choice(g_nodes)
+
+            new_state[node] = unit
+
+        # Возвращаем новое состояние
+        return new_state
+
+    def _is_transition(self, probability):
+        value = random.random()
+        return value <= probability
+
+    def __call__(self,
+                 env,
+                 dynamic_nodes: dict,
+                 static_nodes: dict = None,
+                 area=None,
+                 **kwargs):
+        '''
+        Запуск работы алгоритма имитации отжига
+
+        ## Аргументы
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `dynamic_nodes`: dict
+            Список стартовых узлов графа в которых размещены
+            подразделения оптимальные места которых следует определить.
+        `static_nodes`: dict = None
+            Список стартовых узлов графа в которых размещены
+            подразделения изменять размещение которых не следует.
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+        '''
+
+        # 0. Проверяем пришедшие данные
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
+        if not isinstance(dynamic_nodes, dict):
+            raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
+        if not static_nodes is None and not isinstance(static_nodes, dict):
+            raise TypeError("Тип аргумента `static_nodes` должен быть `dict`!")
+        if len(dynamic_nodes) < 2:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+        if len(dynamic_nodes)<1:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {len(dynamic_nodes)}')
+
+        if static_nodes is None:
+            static_nodes = {}
+        g_nodes = list(env.nodes())
+
+        # 1. Рассчитываем исходное состояние и энергию, устанавливаем начальную температуру
+        best_state = dynamic_nodes
+        current_state = dynamic_nodes
+
+        current_energy = self._calculate_energy(env=env,
+                                      nodes=list_dict_concat(current_state, static_nodes),
+                                      area=area,
+                                      **kwargs)
+        best_energy = current_energy
+        T = self.initial_temperature
+
+        # 2. Выполняем расчет
+        for i in range(self.turns):
+            state_candidate = self._generate_state_candidate(current_state, g_nodes)
+            candidate_energy = self._calculate_energy(env=env,
+                                nodes=list_dict_concat(state_candidate, static_nodes),
+                                area=area,
+                                **kwargs)
+
+            if current_energy != candidate_energy and \
+                    self.metric_function.compare(current_energy, candidate_energy) == candidate_energy:
+                current_energy = candidate_energy
+                current_state = state_candidate
+
+                if best_energy != current_energy and \
+                    self.metric_function.compare(best_energy, current_energy) == current_energy: # Здесь проверку на тип оптимизации (мин/макс)
+                    best_energy = current_energy
+                    best_state = state_candidate
+
+                    # Выполнение функции окончания расчета на эпохе
+                    if self.best_state_find_function:
+                        self.best_state_find_function(turn=i,
+                                                T = T,
+                                                best_metric=best_energy,
+                                                cur_metric=candidate_energy,
+                                                best_bot=best_state)
+            else:
+                p = self._get_transition_probability(candidate_energy-current_energy, T)
+                if self._is_transition(p):
+                    current_energy = candidate_energy
+                    current_state = state_candidate
+
+            T = self._decrease_temperature(self.initial_temperature, i)
+            if T < self.end_temperature:
+                return current_state, best_energy
+            
+            # Выполнение функции окончания расчета на эпохе
+            if self.turn_end_function:
+                self.turn_end_function(turn=i,
+                                        T = T,
+                                        best_metric=best_energy,
+                                        cur_metric=candidate_energy,
+                                        best_bot=best_state)
+
+        return best_state, best_energy

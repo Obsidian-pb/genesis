@@ -24,7 +24,7 @@
 '''
 
 import networkx as nx
-from matplotlib.colors import LinearSegmentedColormap 
+from matplotlib.colors import LinearSegmentedColormap
 
 
 # Функции используемые при проведении расчетов
@@ -33,6 +33,7 @@ MSF = nx.multi_source_dijkstra
 # ssfpl = nx.single_source_dijkstra_path_length
 # msfpl = nx.multi_source_dijkstra_path_length
 # sppl = nx.dijkstra_path_length
+
 
 
 # Цветовые схемы
