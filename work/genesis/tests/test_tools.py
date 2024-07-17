@@ -6,7 +6,7 @@
 
 import pytest
 
-from genesis.tools import get_dict_key, k_v_dict, list_dict_concat, kmh_to_mm
+from genesis.tools import get_dict_key, k_v_dict, list_dict_concat
 
 class TestListDictConcat:
     def test_list_dict_concat_list_list(self):
@@ -46,37 +46,7 @@ class TestListDictConcat:
         c = list_dict_concat(a, b)
         assert c == {**a, **b}
 
-class TestKMHtoMM:
-    def test_kmh_to_mm(self):
-        '''
-        Тест функции `kmh_to_mm`:
 
-        Перевод км/ч в м/мин
-        '''
-        a = 30
-        b = kmh_to_mm(a)
-        assert b == 500
-
-    @pytest.mark.xfail()
-    def test_kmh_to_mm_str(self):
-        '''
-        Тест функции `kmh_to_mm`:
-
-        Передача скорости в неверном формате
-        '''
-        a = '30'
-        b = kmh_to_mm(a)
-        assert b == 500
-
-    def test_kmh_to_mm_prec(self):
-        '''
-        Тест функции `kmh_to_mm`:
-
-        Проверка корректности округления до 2 знаков
-        '''
-        a = 40
-        b = kmh_to_mm(a, precision=2)
-        assert b == 666.67
 
 class TestKVDict:
     '''

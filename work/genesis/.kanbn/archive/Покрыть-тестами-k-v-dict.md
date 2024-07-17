@@ -6,6 +6,7 @@ progress: 0
 tags: []
 started: 2024-07-01T03:35:23.480Z
 completed: 2024-07-01T03:45:27.776Z
+column: Done
 ---
 
 # Покрыть тестами k_v_dict

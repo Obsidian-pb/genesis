@@ -6,6 +6,7 @@ progress: 0.25
 tags: []
 started: 2024-07-01T00:00:00.000Z
 completed: 2024-07-02T04:32:37.054Z
+column: Done
 ---
 
 # Покрыть тестами BestNodesKoptG

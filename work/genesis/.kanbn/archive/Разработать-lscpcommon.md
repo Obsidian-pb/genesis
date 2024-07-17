@@ -6,6 +6,7 @@ progress: 0.8
 tags: []
 started: 2024-07-12T00:00:00.000Z
 completed: 2024-07-17T04:52:40.464Z
+column: Done
 ---
 
 # Разработать LSCPCommon

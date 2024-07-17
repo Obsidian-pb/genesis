@@ -6,6 +6,7 @@ progress: 0
 tags:
   - Обзор
 completed: 2024-07-17T04:53:34.646Z
+column: Done
 ---
 
 # Рассмотреть статью про алгоритм (Bacterial Foraging Algorithm, BFA)

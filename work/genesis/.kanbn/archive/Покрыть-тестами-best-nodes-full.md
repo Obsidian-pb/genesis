@@ -6,6 +6,7 @@ progress: 0
 tags: []
 started: 2024-06-30T16:50:01.917Z
 completed: 2024-06-30T16:50:08.371Z
+column: Done
 ---
 
 # Покрыть тестами BestNodesFull
