@@ -94,11 +94,3 @@ class CoverIndex(MetricBase):
         ip_len = sum([1 for t in state_c if t<=self.ip_val])
         tot_len = len(state_c)
         return 100*ip_len/tot_len
-    
-    # def compare(self, a, b):
-    #     if a>b: return a
-    #     return b
-        # return max(a, b)
-
-
-
