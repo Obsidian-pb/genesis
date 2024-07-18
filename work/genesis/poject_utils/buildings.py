@@ -30,10 +30,10 @@ ax = poly.boundary.plot(color='r')
 buildings.plot(ax=ax)
 
 #%%
-buildings.to_file('../tests/data/buildings.gpkg')
+buildings.to_file('../tests/data/buildings.gpkg', layer='здания')
 
 #%% Загрузка сохраненных ранее зданий:
-buildings = gpd.read_file('../tests/data/buildings.gpkg')
+buildings = gpd.read_file('../tests/data/buildings.gpkg', layer='здания')
 ax = poly.boundary.plot(color='r')
 buildings.plot(ax=ax)
 
@@ -272,4 +272,14 @@ ox.project_gdf(landuses, to_latlong=True)[['landuse','name','amenity','geometry'
 
 # %% Таблица данных
 buildings.query('building == "неизвестно"')
+
+
+
+
+# ========================== Сопоставление с КФПО+ ==============================
+#%% Загрузка данных о классификации зданий и спросе для разных КФПО+
+# Только для проверки - потом можно удалить!
+buildings = gpd.read_file('../tests/data/buildings.gpkg', layer='здания')
+buildings.dtypes   #['building'].unique()
 # %%
+buildings['Спрос']

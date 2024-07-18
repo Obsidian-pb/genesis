@@ -1,0 +1,1 @@
+attribute(get_feature('______________16761fc5_fd38_4e3b_a3b7_59f5edfbb24f',  'Здание' , "building" ),  'Спрос' )

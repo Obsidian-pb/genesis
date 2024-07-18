@@ -17,7 +17,7 @@ from genesis.tools import get_duplicates_list
 class FireUnitsDemandSatisfyState(FirstArrivalUnitState):
     def __init__(self, state_algorithm=..., weight='travel_time', delay=..., **kwargs):
         super().__init__(state_algorithm, weight, delay, **kwargs)
-    
+
     def __call__(self,
                  env,
                  points,
