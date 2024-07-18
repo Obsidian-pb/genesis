@@ -40,7 +40,7 @@ class Progressbar(object):
         self.ok_char = ok_char
         self.est_char = est_char
 
-    def __call__(self):
+    def __call__(self, **kwargs):
         self.val+=1
         bins_ok = int(self.bins*(self.val/self.scope))
         bins_still = self.bins-bins_ok

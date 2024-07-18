@@ -103,6 +103,7 @@ class BestNodesFull(BestPointsBase):
                  state_function: StateBase,
                  metric_function: MetricBase,
                  appr_val: float = 0.95,
+                 node_calc_end_function:callable=None,
                  **kwargs) -> None:
         '''
         `state_function` : StateBase
@@ -115,12 +116,13 @@ class BestNodesFull(BestPointsBase):
             то такой узел не рассматривается.
         '''
         self.appr_val = appr_val
+        self.node_calc_end_function = node_calc_end_function
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self, env:nx.MultiDiGraph,
                  area:pd.Series=None,
                  nodes_list:set=None,
-                 node_calc_end_function:callable=None,
+                #  node_calc_end_function:callable=None,
                  **kwargs):
         '''
         ## Параметры
@@ -203,8 +205,8 @@ class BestNodesFull(BestPointsBase):
                         best_metric = node_metric
 
             # выполняем функцию завершения расчета для узла
-            if node_calc_end_function:
-                node_calc_end_function()
+            if self.node_calc_end_function:
+                self.node_calc_end_function()
 
         return list(best_nodes_list), best_metric
 

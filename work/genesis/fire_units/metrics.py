@@ -12,9 +12,16 @@ class Demand(MetricBase):
     '''
     Класс-функция расчета метрики удовлетворенности спроса на услуги пожарной охраны
     '''
-    def __init__(self, f=np.mean, comp_func:callable=max, zero_val=0) -> None:
+    def __init__(self,
+                 buildings,
+                 f:callable = np.mean,
+                 comp_func:callable = max,
+                 zero_val=0,
+                 buildings_node_id_field: str = 'node',
+                 buildings_demand_field: str = 'demand',
+                 ) -> None:
         '''
-        `f`: function
+        `f`: callable
             Функция расчета показателя. По-умолчанию = np.mean,
             т.е. вычисляется среднее время следования.
         `comp_func`: callable
@@ -23,14 +30,21 @@ class Demand(MetricBase):
         `zero_val`: float = 0
             Значение которое будет возвращено в случае передачи набора данных `route_times` без элементов.
         '''
+        self.buildings = buildings
         self.f = f
         self.zero_val = zero_val
+        self.buildings_node_id_field = buildings_node_id_field
+        self.buildings_demand_field = buildings_demand_field
         super().__init__(comp_func)
 
     def __call__(self, state, area=None):
+        '''
+        
+        '''
+
         if not isinstance(state, (list, pd.Series)):
             raise TypeError(
-                f"Аргумент times может быть только типа list или pd.Series"
+                f"Аргумент state может быть только типа list или pd.Series"
                 f" Имеется {type(state)}"
                 )
 
@@ -45,4 +59,14 @@ class Demand(MetricBase):
 
         if len(state_c)==0:
             return self.zero_val
-        return self.f(state_c)
+        
+        # Расчет метрики по спросу
+        merged_df = pd.merge(self.buildings,
+                             state_c,
+                             left_on=self.buildings_node_id_field,
+                             right_index=True)
+
+        # Расчет собственно состояния удовлетворенности спроса
+        return self.f(merged_df[self.buildings_demand_field] / merged_df['times'])  #, merged_df['nearest']   #, merged_df['times']
+
+        # return self.f(state_c)
