@@ -533,6 +533,27 @@ class BestNodesSA(MCLPBase):
         if appr_val_in_area < 0 or appr_val_in_area > 1:
             raise ValueError('Доля узлов графа в пределах area, должна лежать в диапазоне (0,1)')
 
+        if turn_end_function:
+            try:
+                turn_end_function(turn = None,
+                                        T = None,
+                                        best_metric = None,
+                                        cur_metric = None,
+                                        best_bot = None)
+            except TypeError:
+                print('Сигнатура функции `turn_end_function` должна быть:')
+                print('`turn_end_function(turn:int, T:float, best_metric:float, cur_metric:float, best_bot:dict)`')
+        
+        if best_state_find_function:
+            try:
+                best_state_find_function(turn = None,
+                                    T = None,
+                                    best_metric = None,
+                                    cur_metric = None,
+                                    best_bot = None)
+            except TypeError:
+                print('Сигнатура функции `best_state_find_function` должна быть:')
+                print('`best_state_find_function(turn:int, T:float, best_metric:float, cur_metric:float, best_bot:dict)`')
 
         self.initial_temperature = initial_temperature
         self.end_temperature = end_temperature
@@ -717,14 +738,14 @@ class BestNodesSA(MCLPBase):
 
             T = self._decrease_temperature(self.initial_temperature, i)
             if T < self.end_temperature:
-                return current_state, best_energy
-            
+                return best_state, best_energy
+
             # Выполнение функции окончания расчета на эпохе
             if self.turn_end_function:
-                self.turn_end_function(turn=i,
+                self.turn_end_function(turn = i,
                                         T = T,
-                                        best_metric=best_energy,
-                                        cur_metric=candidate_energy,
-                                        best_bot=best_state)
+                                        best_metric = best_energy,
+                                        cur_metric = candidate_energy,
+                                        best_bot = best_state)
 
         return best_state, best_energy
