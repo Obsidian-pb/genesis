@@ -12,7 +12,7 @@ class LessEqualStopCase(StopCaseBase):
     def __init__(self, value):
         self.value = value
 
-    def __call__(self, value):
+    def __call__(self, value, **kwargs):
        return value <= self.value
 
 
@@ -23,7 +23,7 @@ class MoreEqualStopCase(StopCaseBase):
     def  __init__(self, value):
         self.value = value
 
-    def __call__(self, value):
+    def __call__(self, value, **kwargs):
         return value >= self.value
 
 class NSameStopCase(StopCaseBase):
@@ -35,15 +35,14 @@ class NSameStopCase(StopCaseBase):
         self.history = []
         self.n = n
 
-    def __call__(self, value):
+    def __call__(self, value, **kwargs):
         self.history.append(value)
         last = self.history[-self.n:]
         return [value]*self.n == last
 
 class ItersStopCase(StopCaseBase):
     '''
-    Критерий остановки по условию, что на протяжении нескольких итераций
-    значения равны, т.е. не изменяются
+    Критерий остановки по условию, выполнения заданного количества итераций
     '''
     def __init__(self, max_iter_count=2):
         self.max_iter_count = max_iter_count

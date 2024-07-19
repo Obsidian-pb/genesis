@@ -456,7 +456,7 @@ class BestNodesGA(MCLPBase):
 
             # Выполнение функции окончания расчета на эпохе
             if self.epoch_end_function:
-                self.epoch_end_function(epoch=epoch,
+                self.epoch_end_function(epoch=epoch+1,
                                         best_metric=best_metric,
                                         cur_metric=cur_metric,
                                         best_bot=best_bot)

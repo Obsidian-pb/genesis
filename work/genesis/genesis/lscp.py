@@ -70,7 +70,7 @@ class LSCPCommon(LSCPBase):
 
         # Итерации
         best_dynamic_nodes = dynamic_nodes
-        iteration = 0
+        iteration = 1
         name_index = self.start_names_index
         while True:
             # 1. Расчет оптимального размещения подразделений
