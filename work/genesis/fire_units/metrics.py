@@ -21,6 +21,8 @@ class Demand(MetricBase):
                  buildings_demand_field: str = 'demand',
                  ) -> None:
         '''
+        `buildings`: pd.GeoDataFrame
+            Геодатафрейм со сведениями о зданиях.
         `f`: callable
             Функция расчета показателя. По-умолчанию = np.mean,
             т.е. вычисляется среднее время следования.
@@ -29,6 +31,10 @@ class Demand(MetricBase):
             По умолчанию - лучшей считается большая.
         `zero_val`: float = 0
             Значение которое будет возвращено в случае передачи набора данных `route_times` без элементов.
+        `buildings_node_id_field`: str = 'node'
+            Имя поля в `buildings` содержащего идентификаторы узлов.
+        buildings_demand_field: str = 'demand'
+            Имя поля в `buildings` содержащего значения спроса
         '''
         self.buildings = buildings
         self.f = f
@@ -39,7 +45,11 @@ class Demand(MetricBase):
 
     def __call__(self, state, area=None):
         '''
-        
+        `state` (`состояние`): pd.Series
+            Серия времен прибытия в разные точки окружения.
+
+        `area`: pd.Series
+            Серия данных содержащих маску точек которые должны быть учтены при расчете метрики.
         '''
 
         if not isinstance(state, (list, pd.Series)):

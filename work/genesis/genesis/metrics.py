@@ -32,6 +32,14 @@ class ArrivalTime(MetricBase):
         super().__init__()
 
     def __call__(self, state, area=None):
+        '''
+        `state` (`состояние`): pd.Series
+            Серия времен прибытия в разные точки окружения.
+
+        `area`: pd.Series
+            Серия данных содержащих маску точек которые должны быть учтены при расчете метрики.
+        '''
+
         if not isinstance(state, (list, pd.Series)):
             raise TypeError(
                 f"Аргумент times может быть только типа list или pd.Series"
@@ -73,6 +81,14 @@ class CoverIndex(MetricBase):
         super().__init__(comp_func)
 
     def __call__(self, state, area=None):
+        '''
+        `state` (`состояние`): pd.Series
+            Серия времен прибытия в разные точки окружения.
+
+        `area`: pd.Series
+            Серия данных содержащих маску точек которые должны быть учтены при расчете метрики.
+        '''
+        
         if not isinstance(state, (list, pd.Series)):
             raise TypeError(
                 f"Аргумент times может быть только типа list или pd.Series"
