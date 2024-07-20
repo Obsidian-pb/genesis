@@ -38,11 +38,15 @@ class NSameStopCase(StopCaseBase):
     def __call__(self, value, **kwargs):
         self.history.append(value)
         last = self.history[-self.n:]
-        return [value]*self.n == last
+        if [value]*self.n == last:
+            self.history = []
+            return True
+        else:
+            return False
 
 class ItersStopCase(StopCaseBase):
     '''
-    Критерий остановки по условию, выполнения заданного количества итераций
+    Критерий остановки по условию, что выполнено заданное количество итераций (эпох, шагов и т.д.)
     '''
     def __init__(self, max_iter_count=2):
         self.max_iter_count = max_iter_count

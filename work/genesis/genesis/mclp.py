@@ -33,6 +33,8 @@ class BestNodesKoptG(MCLPBase):
                  best_point_function: BestPointsBase,
                  iterations:int=5,
                  appr_val_in_area=0,
+                 before_iters_start_function: callable =None,
+                 iter_calc_end_function: callable =None,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -55,6 +57,8 @@ class BestNodesKoptG(MCLPBase):
         self.best_point_function = best_point_function
         self.iterations = iterations
         self.appr_val_in_area = appr_val_in_area
+        self.before_iters_start_function = before_iters_start_function
+        self.iter_calc_end_function = iter_calc_end_function
         super().__init__(state_function, metric_function, **kwargs)
 
 
@@ -62,8 +66,8 @@ class BestNodesKoptG(MCLPBase):
                  env:nx.MultiDiGraph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
-                 before_iters_start_function: callable =None,
-                 iter_calc_end_function: callable =None,
+                #  before_iters_start_function: callable =None,
+                #  iter_calc_end_function: callable =None,
                  area: pd.Series = None,
                  **kwargs):
         '''
@@ -144,8 +148,8 @@ class BestNodesKoptG(MCLPBase):
         best_dynamic_nodes = dynamic_nodes
 
         # 3. Выполняем функцию перед началом итераций
-        if before_iters_start_function:
-            before_iters_start_function(
+        if self.before_iters_start_function:
+            self.before_iters_start_function(
                                     best_metric=best_metric,
                                     dynamic_nodes=dynamic_nodes,
                                     static_nodes=static_nodes
@@ -215,8 +219,8 @@ class BestNodesKoptG(MCLPBase):
                 best_dynamic_nodes = dynamic_nodes
 
             # 7. Выполняем функцию завершения расчета для итерации
-            if iter_calc_end_function:
-                iter_calc_end_function(i=iteration,
+            if self.iter_calc_end_function:
+                self.iter_calc_end_function(i=iteration,
                                        best_metric=best_metric,
                                        dynamic_nodes=best_dynamic_nodes,
                                        static_nodes=static_nodes)
@@ -248,6 +252,7 @@ class BestNodesGA(MCLPBase):
                  mutation_max_count:int = 1,
                  bad_val_in_area:int = 1000,
                  epoch_end_function:callable = None,
+                 stop_case_function:callable = None,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -300,6 +305,7 @@ class BestNodesGA(MCLPBase):
         self.mutation_max_count = mutation_max_count
         self.bad_val_in_area = bad_val_in_area
         self.epoch_end_function = epoch_end_function
+        self.stop_case_function = stop_case_function
         super().__init__(state_function, metric_function, **kwargs)
 
     def _fit_function(self, env, nodes, area=None, **kwargs):
@@ -320,6 +326,24 @@ class BestNodesGA(MCLPBase):
 
         return best_metric
 
+    def _mutate(self, new_dynamic_nodes, g_nodes):
+        '''
+        Мутация особи
+        '''
+        for _ in range(self.mutation_max_count):
+            if random.random() < self.mutation_rate:
+                # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+                node, unit = random.choice(list(new_dynamic_nodes.items()))
+                del new_dynamic_nodes[node]
+
+                # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
+                node = random.choice(g_nodes)
+                while node in new_dynamic_nodes.keys():
+                    node = random.choice(g_nodes)
+
+                new_dynamic_nodes[node] = unit
+
+        return  new_dynamic_nodes
 
     def __call__(self,
                  env:nx.MultiDiGraph,
@@ -386,7 +410,7 @@ class BestNodesGA(MCLPBase):
         for epoch in range(self.epochs):
 
             new_population = []
-            # Генерация новой популяции
+            # 2.1 Генерация новой популяции
             for _ in range(self.population_size):
                 # Элитарность
                 if self.elite_size>0:
@@ -410,34 +434,21 @@ class BestNodesGA(MCLPBase):
                 new_dynamic_nodes = {**left_genome_part, **right_genome_part}
 
                 # Мутация (выбор произвольного узла)
-                for _ in range(self.mutation_max_count):
-                    if random.random() < self.mutation_rate:
-                        # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
-                        node, unit = random.choice(list(new_dynamic_nodes.items()))
-                        del new_dynamic_nodes[node]
-
-                        # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
-                        node = random.choice(g_nodes)
-                        while node in new_dynamic_nodes.keys():
-                            node = random.choice(g_nodes)
-
-                        new_dynamic_nodes[node] = unit
-
-                        # print(node, unit, new_dynamic_nodes)
+                new_dynamic_nodes = self._mutate(new_dynamic_nodes, g_nodes)
 
                 # Добавляем его в новую популяцию
                 new_population.append(new_dynamic_nodes)
 
-            # Заменяем предыдущую популяцию новой
+            # 2.2 Заменяем предыдущую популяцию новой
             population = new_population
 
-            # Оценка приспособленности всех особей
+            # 2.3 Оценка приспособленности всех особей
             bot_fit = [self._fit_function(env=env,
                                       nodes=list_dict_concat(dn, static_nodes),
                                       area=area,
                                       **kwargs) for dn in population]
 
-            # Определение лучшего на эпохе значения метрики
+            # 2.4 Определение лучшего на эпохе значения метрики
             # и весов в зависимости от приспособленности        
             if self.metric_function.compare(1,2)==1:    # Для минимизации:
                 max_val  = max(bot_fit)
@@ -446,21 +457,30 @@ class BestNodesGA(MCLPBase):
             else:                                       # Для максимизации
                 weights = bot_fit
                 cur_metric = max(bot_fit)
-            # Нормализация весов (для более выраженной точности расчета)
+            
+            # 2.5 Нормализация весов (для более выраженной точности расчета)
             weights = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
 
-            # Определяем лучше ли лучшее на эпохе решение чем имеющееся
+            # 2.6 Определяем лучше ли лучшее на эпохе решение чем имеющееся
             if self.metric_function.compare(best_metric, cur_metric) == cur_metric:
                 best_bot = population[bot_fit.index(cur_metric)]
                 best_metric  = cur_metric
 
-            # Выполнение функции окончания расчета на эпохе
+            # 2.7 Выполнение функции окончания расчета на эпохе
             if self.epoch_end_function:
-                self.epoch_end_function(epoch=epoch+1,
+                self.epoch_end_function(epoch=epoch,
                                         best_metric=best_metric,
                                         cur_metric=cur_metric,
                                         best_bot=best_bot)
 
+            # 2.8 Если достигнута цель расчета, выходим из цикла
+            if self.stop_case_function:
+                if self.stop_case_function(value=best_metric,
+                            iteration=epoch,
+                            best_metric=best_metric,
+                            dynamic_nodes=best_bot,
+                            static_nodes=static_nodes):
+                    break
 
         return best_bot, best_metric
 

@@ -11,7 +11,7 @@ import warnings
 
 import networkx as nx
 
-from graphs.settings import DEFAULT_SPEEDS
+# from fire_units.settings import DEFAULT_SPEEDS
 
 
 def kmh_to_mm(kmh: float, precision: int = 2) -> float:
