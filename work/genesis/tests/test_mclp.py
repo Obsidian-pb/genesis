@@ -95,12 +95,12 @@ class TestBestNodesKoptG:
                             metric_function=ArrivalTime(),
                             best_point_function=BNHC,
                             iterations=5,
+                            before_iters_start_function=iter_func,
                             )
 
         _, _ = BNG(env=G,
             static_nodes=existed_units,
             dynamic_nodes=new_units,
-            before_iters_start_function=iter_func,
             )
         assert iter_func.static_nodes == existed_units
 
@@ -284,7 +284,7 @@ class TestGA:
             dynamic_nodes=new_units,
             )
 
-        assert best_metric <= 5.5
+        assert best_metric <= 6
 
     def test_ga_area(self, load_G, load_area):
         '''

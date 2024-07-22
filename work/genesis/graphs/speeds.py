@@ -50,7 +50,7 @@ def set_graph_travel_times(G: nx.MultiDiGraph,
     ---------
     `G`: networkx.MultiDiGraph
         Граф улично-дорожной сети
-    `speeds`: dict
+    `speeds`: list
         Список скоростей для 5 классов дорог:
         ```
         1 - Магистральные городские дороги и улицы общегородского значения
