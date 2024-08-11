@@ -6,7 +6,7 @@ import pytest
 
 import osmnx as ox
 
-from graphs.settings import DEFAULT_SPEEDS
+from fire_units.settings import DEFAULT_SPEEDS
 from graphs.speeds import kmh_to_mm, set_graph_travel_times
 
 
