@@ -5,7 +5,7 @@
 import time
 
 
-def timing(f, msg='', acc=2):
+def timing(f, msg='', acc=2, return_time=False):
     '''
     Обертка счетчика затраченного времени
     '''
@@ -18,12 +18,15 @@ def timing(f, msg='', acc=2):
 
         # Печать времени работы функции
         ft = time.time()
+        td = round(ft-st,acc)
         if msg == '':
-            print(f'ВРЕМЯ: {round(ft-st,acc)} сек')
+            print(f'ВРЕМЯ: {td} сек')
         else:
-            print(f'{msg} {round(ft-st,acc)} сек')
+            print(f'{msg} {td} сек')
+        if return_time:
+            return *r, td
         return r
-
+    
     return _timing
 
 

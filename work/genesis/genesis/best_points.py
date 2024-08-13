@@ -642,7 +642,9 @@ class BestNodeMonkey(BestNodeHillClimbing):
 
             # 2 Локальные прыжки
             # 2.1 Определение узлов в округе
-            g_nodes = ox.project_gdf(ox.graph_to_gdfs(env, edges=False))
+            g_nodes = ox.graph_to_gdfs(env, edges=False)
+            if not ox.projection.is_projected(g_nodes.crs):
+                g_nodes = ox.project_gdf(g_nodes)
             buffer = g_nodes.loc[best_node_local:best_node_local].geometry.buffer(self.local_jump_max_distance)
             nodes_in_buffer = g_nodes[g_nodes.within(buffer.iloc[0])]
             nodes_in_buffer = list(nodes_in_buffer.index)
@@ -650,9 +652,10 @@ class BestNodeMonkey(BestNodeHillClimbing):
             # 2.2 Локальные прыжки
             global_number = 0
             jump_number = 0
-            while jump_number <= self.local_jumps_count:
-                global_number+=1
-                jump_number+=1
+            # while jump_number <= self.local_jumps_count:
+            while jump_number < self.local_jumps_count:
+                # global_number+=1
+                # jump_number+=1
                 jump_node = random.choice(nodes_in_buffer)
                 # Вычисление метрики для узла `jump_node`
                 try:
@@ -679,6 +682,8 @@ class BestNodeMonkey(BestNodeHillClimbing):
                         best_node_current = best_node_after_jump,
                         best_metric_current = best_metric_after_jump
                         )
+                global_number+=1
+                jump_number+=1
 
             # Глобальный прыжок (выбор нового случайного узла)
             start_node, node_metric = self._get_sample_node(env, area, **kwargs)
