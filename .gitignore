@@ -21,5 +21,3 @@ work/documentation/*
 # файлы данных для тестирования
 /work/genesis/tests/data
 
-# файлы для диссертации
-work/genesis/dis*

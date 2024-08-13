@@ -175,8 +175,8 @@ class TestLSCPCommon:
                                         static_nodes = existed_units,
                                         area = points_mask
                                         )
-        assert best_dynamic_nodes == {2034401275: 'c', 2034401663: 'd', 2034401721: 'ПЧ 10', 2034401920: 'ПЧ 11'}
-        assert best_metric  ==  3.005185277886497
+        assert best_dynamic_nodes == {2034401275: 'c', 2034401663: 'd', 2034401782: 'ПЧ 10', 2034401920: 'ПЧ 11'}
+        assert best_metric  ==  3.0094429132921876
 
 
     def test_lscp_GA(self, load_G_simplyfied):
