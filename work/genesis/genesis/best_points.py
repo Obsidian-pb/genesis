@@ -582,6 +582,7 @@ class BestNodeMonkey(BestNodeHillClimbing):
     def __call__(self,
                  env:nx.MultiDiGraph,
                  area=None,
+                 start_node:int=None,
                  **kwargs) -> tuple[int | None, float | None]:
         '''
         Реализация: при помощи BestNodesHillClimbing ищется лучшая точка, 
@@ -595,6 +596,8 @@ class BestNodeMonkey(BestNodeHillClimbing):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
+        `start_node`: int
+            Идентификатор стартового узла
 
         ## Возвращает
         `best_node`: int, `best_metric`: float
@@ -605,7 +608,16 @@ class BestNodeMonkey(BestNodeHillClimbing):
             raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
 
         # Первый глобальный прыжок - случайный выбор старта
-        start_node, node_metric = self._get_sample_node(env, area, **kwargs)
+        # ! Здесь потом заменить `_get_sample_node`` на передаваемую функцию
+        if start_node is None:
+            start_node, node_metric = self._get_sample_node(env, area, **kwargs)
+        else:
+            # Расчет метрики для узла `start_node`
+            node_metric = self.node_metric_func(env=env, node=start_node, area=area, **kwargs)
+            # Если указана расчетная область и метрика не была рассчитана
+            if (node_metric is None) and (not area is None):
+                node_metric = self.node_metric_func(env=env, node=start_node, **kwargs)
+
         best_node = start_node
         best_metric  = node_metric
 
@@ -671,6 +683,11 @@ class BestNodeMonkey(BestNodeHillClimbing):
                         self.metric_function.compare(best_metric, best_metric_after_jump) == best_metric_after_jump:
                     best_node = best_node_after_jump
                     best_metric = best_metric_after_jump
+                    jump_number = -1
+                    # Переход к новой вершине
+                    buffer = g_nodes.loc[best_node_after_jump:best_node_after_jump].geometry.buffer(self.local_jump_max_distance)
+                    nodes_in_buffer = g_nodes[g_nodes.within(buffer.iloc[0])]
+                    nodes_in_buffer = list(nodes_in_buffer.index)
 
                 # Событие после подъема на гору
                 if self.after_local_jump_function is not None:
@@ -687,5 +704,139 @@ class BestNodeMonkey(BestNodeHillClimbing):
 
             # Глобальный прыжок (выбор нового случайного узла)
             start_node, node_metric = self._get_sample_node(env, area, **kwargs)
+
+        return best_node, best_metric
+
+
+class BestNodeBee(BestNodeHillClimbing):
+    '''
+        Поиск лучших узлов графа с использованием алгоритма пчелиной колонии
+        (Artificial Bee Colony Optimization, ABC).
+        Могут быть возвращены только узлы из которых можно попасть в большую часть 
+        других узлов графа.
+        Если таковых узлов нет, возвращается ошибка некорректности графа.
+        (граф должен быть проверен на корректность прежде чем будет передан функции)
+
+        Узлы для которых метрика не может быть вычислена (например слабо связанные
+        с основным графом) не учитываются.
+
+        ## Область применения
+        Определение размещения одного узла с наилучшими показателями.
+        Дает достаточно точное решение. Хорошо подходит для больших графов.
+    '''
+    def __init__(self,
+                 state_function: StateBase,
+                 metric_function: MetricBase,
+                 appr_val: float = 0.95,
+                 all_neighbors: bool=True,
+                 scouts_count: int = 100,
+                 best_scouts_count: int = 5,
+                #  after_local_jump_function: callable = None,
+                 **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `appr_val`: = 0.95
+            Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+            то такой узел не рассматривается.
+        `all_neighbors`: bool=True
+            Если True рассматриваются все узлы смежные с рассчитываемым узлом.
+            Если False - только исходящие.
+        `scouts_count`: int=100
+            Количество пчел-разведчиков.
+        `best_scouts_count`: int=5
+            Количество лучших пчел-разведчиков.
+            Для них производится дальнейшая оптимизация.
+        
+        '''
+        self.node_metric_func = NodeMetric(state_function,
+                                           metric_function,
+                                           appr_val,
+                                           err_val=None,
+                                           **kwargs)
+        self.scouts_count = scouts_count
+        self.best_scouts_count = best_scouts_count
+        super().__init__(state_function,
+                         metric_function,
+                         appr_val=appr_val,
+                         all_neighbors=all_neighbors,
+                         **kwargs)
+
+
+    def __call__(self,
+                 env:nx.MultiDiGraph,
+                 area=None,
+                 nodes_list:set=None,
+                 **kwargs) -> tuple[int | None, float | None]:
+        '''
+        Реализация: `scouts_count` пчел-разведчиков случайным образом проверяют узлы
+        
+        при помощи BestNodesHillClimbing ищется лучшая точка, 
+        после чего обезьяна прыгает по ближайшим вершинам и вновь использует BestNodesHillClimbing.
+
+        Так, пока не будет найден глобальный оптимум или не будет достигнуто количество итераций.
+
+        ## Аргументы
+        `env`:nx.MultiDiGraph
+            Граф улично-дорожной сети
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+        `nodes_list`:set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
+
+        ## Возвращает
+        `best_node`: int, `best_metric`: float
+            Лучший узел, лучшая метрика
+        '''
+
+        if not isinstance(env, nx.MultiDiGraph):
+            raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+
+        # Если списка узлов изначально не передано, рассматриваются все узлы графа
+        if nodes_list is None:
+            nodes_list = env.nodes()
+
+        # 1. Разведка местности
+        t_list = []
+        t_metric = []
+        for start_node in random.choices(list(nodes_list), k=self.scouts_count):
+            start_metric = self.node_metric_func(env=env, area=area, node=start_node)
+            t_list.append(start_node)
+            t_metric.append(start_metric)
+        
+        # 2. Выбираем результаты лучших пчел-разведчиков
+        tdf = pd.DataFrame({'node':t_list, 'metric':t_metric})
+        if self.metric_function.compare(1,2)==2:
+            tdf = tdf.sort_values('metric', ascending=False)
+        else:
+            tdf = tdf.sort_values('metric', ascending=True)
+        # tdf.sort_values('metric', ascending=self.metric_function.compare(1,2)==1)
+        # print(tdf['metric'][:10])
+
+        # 3. Для каждого из лучших результатов пытаемся найти еще лучшие значения метрики в окрестности
+        best_node = None
+        best_metric  = None
+        for node in tdf['node'][:self.best_scouts_count]:
+            cur_node, cur_metric = super().__call__(
+                    env=env,
+                    start_node=node,
+                    area=area,
+                    **kwargs,
+                    )
+
+            if best_node is None:
+                best_node, best_metric = cur_node, cur_metric
+            else:
+                if best_node != cur_node and \
+                        self.metric_function.compare(best_metric, cur_metric) == cur_metric:
+                    best_node, best_metric = cur_node, cur_metric
 
         return best_node, best_metric

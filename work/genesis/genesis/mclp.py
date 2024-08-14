@@ -703,8 +703,8 @@ class BestNodesSA(MCLPBase):
             raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
         if not static_nodes is None and not isinstance(static_nodes, dict):
             raise TypeError("Тип аргумента `static_nodes` должен быть `dict`!")
-        if len(dynamic_nodes) < 2:
-            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
+        if len(dynamic_nodes) < 1:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 1. Сейчас {len(dynamic_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
         if len(dynamic_nodes)<1:

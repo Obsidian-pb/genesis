@@ -69,7 +69,7 @@ class Demand(MetricBase):
 
         if len(state_c)==0:
             return self.zero_val
-        
+
         # Расчет метрики по спросу
         merged_df = pd.merge(self.buildings,
                              state_c,
