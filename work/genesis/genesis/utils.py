@@ -51,3 +51,22 @@ class Progressbar(object):
         print(s, end='\r')
         if bins_ok==self.bins:
             print('')
+
+
+class TimeCheckPoint(object):
+    '''
+    Таймер
+
+    `acc`:int
+        Точность округления
+    '''
+    def __init__(self, acc:int=2):
+        self.acc = acc
+        self.prev = time.time()
+    
+    def __call__(self, switch=True):
+        now = time.time()
+        diff = round(now - self.prev, self.acc)
+        if switch:
+            self.prev = now
+        return diff
