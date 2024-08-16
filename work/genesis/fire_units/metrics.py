@@ -36,6 +36,11 @@ class Demand(MetricBase):
         buildings_demand_field: str = 'demand'
             Имя поля в `buildings` содержащего значения спроса
         '''
+        if not buildings_node_id_field in buildings.columns:
+            raise KeyError(f"Поле `{buildings_node_id_field}` отсутствует в 'buildings'")
+        if not buildings_demand_field in buildings.columns:
+            raise KeyError(f"Поле `{buildings_demand_field}` отсутствует в 'buildings'")
+
         self.buildings = buildings
         self.f = f
         self.zero_val = zero_val
@@ -111,6 +116,9 @@ class CoverIndexBuilding(MetricBase):
         buildings_demand_field: str = 'demand'
             Имя поля в `buildings` содержащего значения спроса
         '''
+        if not buildings_node_id_field in buildings.columns:
+            raise KeyError(f"Поле `{buildings_node_id_field}` отсутствует в 'buildings'")
+
         self.buildings = buildings
         # self.f = f
         self.zero_val = zero_val

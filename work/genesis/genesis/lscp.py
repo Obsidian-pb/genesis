@@ -32,6 +32,7 @@ class LSCPCommon(LSCPBase):
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
                  area: pd.Series = None,
+                 nodes_list:set=None,
                  **kwargs):
         '''
         Запуск работы алгоритма
@@ -48,6 +49,9 @@ class LSCPCommon(LSCPBase):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
+        `nodes_list`:set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
         '''
 
         # 0. Проверка корректности пришедших данных
@@ -96,13 +100,15 @@ class LSCPCommon(LSCPBase):
             # ============================================================================================
             # 2. Если нет - создаем новое подразделение
             # 2.1. Получение суммарного списка (или словаря) узлов для расчета состояния и метрик
-            start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
+            start_nodes = list_dict_concat(best_dynamic_nodes, static_nodes)
 
             # 2.2. Выбор нового узла в соответствии с переданной логикой
-            new_node = self.point_selector(env, start_nodes)
+            new_node = self.point_selector(env=env, points=start_nodes, area=area)
+            print(new_node)
 
             # 2.3. Добавление нового узла в словарь динамических узлов:
             best_dynamic_nodes[new_node] = self.names_pattern.format(name_index)
+            print(best_dynamic_nodes)
 
             # ============================================================================================
             iteration += 1

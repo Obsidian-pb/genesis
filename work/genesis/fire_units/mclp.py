@@ -43,7 +43,7 @@ class BestNodesGAKopt(MCLPBase):
                  elite_size:int = 0,
                  appr_val_in_area:float = 0,
                  mutation_max_count:int = 1,
-                 bad_val_in_area:int = 1000,
+                 bad_val_in_area:int = 1000, # &! Возможна ошибка при возрастающих метриках...
                  epoch_end_function:callable = None,
                  stop_case_function:callable = None,
                  **kwargs) -> None:

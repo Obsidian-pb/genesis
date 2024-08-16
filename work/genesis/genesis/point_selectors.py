@@ -18,15 +18,22 @@ class RandomNodesSelector(PointSelectorBase):
     '''
     Простой выбор случайного узла в графе
     '''
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, nodes_list:set=None, **kwargs) -> None:
         '''
         Простой выбор случайного узла в графе
+
+        `nodes_list`:set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
         '''
+        self.nodes_list = nodes_list
+        super().__init__(**kwargs)
 
     def __call__(self,
                 env:nx.MultiDiGraph,
                 points:dict,
                 area: pd.Series = None,
+                # nodes_list:set=None,
                 k:int = 1,
                 **kwargs):
         '''
@@ -65,10 +72,14 @@ class RandomNodesSelector(PointSelectorBase):
 
         # 1. Выбор случайных n узлов из числа не входящих в points
         points_set = set(points.keys())
-        if area is None:
+        # if area is None:
+        #     nodes_set = set(env.nodes()) - points_set
+        # else:
+        #     nodes_set = set(env.nodes()) & set(area[area].keys()) - points_set
+        if self.nodes_list is None:
             nodes_set = set(env.nodes()) - points_set
         else:
-            nodes_set = set(env.nodes()) & set(area[area].keys()) - points_set
+            nodes_set = set(env.nodes()) & self.nodes_list - points_set            
         new_nodes = random.choices(list(nodes_set), k=k)
 
         # Если нужно получить один узел, возвращаем вместо списка значение int
@@ -199,11 +210,16 @@ class FarNodeSelector(PointSelectorBase):
     '''
     Выбор наиболее удаленного от имеющихся размещений узла, 
     (?) из которого при этом можно попасть
-    в большую часть графа
+    в большую часть графа.
+
+    `nodes_list`:set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
     '''
     def __init__(self,
                  state_function: StateBase,
                 #  metric_function: MetricBase,
+                 nodes_list:set=None,
                  appr_val: float = 0.5,
                  weight='travel_time',
                  **kwargs) -> None:
@@ -220,17 +236,22 @@ class FarNodeSelector(PointSelectorBase):
         `weight`:str или callable  = "travel_time"
             Имя поля содержащего вес ребер, или функция позволяющая вычислять 
             вес динамически.
+        `nodes_list`:set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
         '''
         self.state_function = state_function
         # self.metric_function = metric_function
         self.appr_val = appr_val
         self.weight = weight
+        self.nodes_list = nodes_list
         super().__init__(**kwargs)
 
     def __call__(self,
                 env:nx.MultiDiGraph,
                 points:dict,
                 area: pd.Series = None,
+                # nodes_list:set=None,
                 **kwargs):
         '''
         Запуск работы алгоритма
@@ -264,6 +285,7 @@ class FarNodeSelector(PointSelectorBase):
         # 2. Сортировка узлов по времени прибытия
         times = times.sort_values(ascending=False)
 
+
         # 3. Последовательный перебор наихудших узлов и оценка достижимости из каждого из них
         # 3.1. Определение количества допустимых узлов
         # ... Тут нужно подумать ...
@@ -271,7 +293,11 @@ class FarNodeSelector(PointSelectorBase):
             appr_nodes_count = int(env.number_of_nodes()*self.appr_val)
         else:
             appr_nodes_count = int(area.sum()*self.appr_val)
-        # 3.2. Перебор узлов
+        # 3.2. Если передан список возможных узлов, то ограничиваемся им
+        # Иначе используем все times
+        if not self.nodes_list is None:
+            times = times[times.index.isin(self.nodes_list)]
+        # 3.3. Перебор узлов
         for node in times.index:
             node_times, _ = self.state_function(env = env,
                                                 points = [node],

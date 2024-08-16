@@ -351,7 +351,7 @@ class BestNodesGA(MCLPBase):
                 node, unit = random.choice(list(new_dynamic_nodes.items()))
                 del new_dynamic_nodes[node]
 
-                # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
+                # Поиск нового узла, которого при этом нет в new_dynamic_nodes
                 node = random.choice(g_nodes)
                 while node in new_dynamic_nodes.keys():
                     node = random.choice(g_nodes)
