@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import math
 
-from genesis.core import BestPointsBase, MetricBase, StateBase, MCLPBase
+from genesis.core import BestPointsBase, MetricBase, PointSelectorBase, StateBase, MCLPBase
 from genesis.best_points import NodeMetric
 from genesis.tools import list_dict_concat
 
@@ -195,7 +195,7 @@ class BestNodesKoptG(MCLPBase):
                     node_area_G = nx.subgraph(env, node_area_nodes)
 
                     # Определяем лучший узел
-                    best_nodes, _ = self.best_point_function(env=node_area_G, 
+                    best_nodes, _ = self.best_point_function(env=node_area_G,
                                                                     start_node=dynamic_node_id,
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
@@ -228,7 +228,7 @@ class BestNodesKoptG(MCLPBase):
                                        best_metric=best_metric,
                                        dynamic_nodes=best_dynamic_nodes,
                                        static_nodes=static_nodes)
-                
+
             # 8 Если достигнута цель расчета, выходим из цикла
             if self.stop_case_function:
                 if self.stop_case_function(value=best_metric,
@@ -257,6 +257,7 @@ class BestNodesGA(MCLPBase):
     def __init__(self,
                  state_function: StateBase,
                  metric_function: MetricBase,
+                 node_selector:PointSelectorBase,
                  population_size:int = 25,
                  epochs:int = 50,
                  mutation_rate:float = 0.5,
@@ -273,6 +274,8 @@ class BestNodesGA(MCLPBase):
             функция расчета состояния окружения
         `metric_function`: MetricBase
             Функция расчета метрики
+        `node_selector`: PointSelectorBase
+            Функция выбора узла.
         `population_size`:int = 25
             Размер популяции
         `epochs`: int = 50
@@ -321,6 +324,7 @@ class BestNodesGA(MCLPBase):
         self.bad_val_in_area = bad_val_in_area
         self.epoch_end_function = epoch_end_function
         self.stop_case_function = stop_case_function
+        self.node_selector = node_selector
         super().__init__(state_function, metric_function, **kwargs)
 
     def _fit_function(self, env, nodes, area=None, **kwargs):
@@ -341,7 +345,7 @@ class BestNodesGA(MCLPBase):
 
         return best_metric
 
-    def _mutate(self, new_dynamic_nodes, g_nodes):
+    def _mutate(self, env, new_dynamic_nodes, area):
         '''
         Мутация особи
         '''
@@ -352,9 +356,10 @@ class BestNodesGA(MCLPBase):
                 del new_dynamic_nodes[node]
 
                 # Поиск нового узла, которого при этом нет в new_dynamic_nodes
-                node = random.choice(g_nodes)
-                while node in new_dynamic_nodes.keys():
-                    node = random.choice(g_nodes)
+                node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
+                # node = random.choice(g_nodes)
+                # while node in new_dynamic_nodes.keys():
+                #     node = random.choice(g_nodes)
 
                 new_dynamic_nodes[node] = unit
 
@@ -424,17 +429,54 @@ class BestNodesGA(MCLPBase):
         # 2. На каждой эпохе
         for epoch in range(self.epochs):
 
-            new_population = []
+            # new_population = []
             # 2.1 Генерация новой популяции
-            for _ in range(self.population_size):
-                # Элитарность
-                if self.elite_size>0:
-                    # Определение весов
-                    pop_weight = pd.DataFrame({'w': weights, 'p': population})
-                    pop_weight = pop_weight.sort_values('w', ascending=False)
-                    pop_weight = pop_weight.iloc[:self.elite_size]
-                    population = pop_weight['p'].to_list()
-                    weights = pop_weight['w'].to_list()
+            # for _ in range(self.population_size):
+            #     # Элитарность
+            #     if self.elite_size>0:
+            #         # Определение весов
+            #         pop_weight = pd.DataFrame({'w': weights, 'p': population})
+            #         pop_weight = pop_weight.sort_values('w', ascending=False)
+            #         pop_weight = pop_weight.iloc[:self.elite_size]
+            #         population = pop_weight['p'].to_list()
+            #         weights = pop_weight['w'].to_list()
+
+            #     # Отбор по правилу рулетки
+            #     parent_bot_1 = random.choices(population, weights=weights)[0]
+            #     parent_bot_2 = random.choices(population, weights=weights)[0]
+
+            #     # Скрещивание (одноточечное)
+            #     split_point = int(len(parent_bot_1)/2)
+            #     left_gen_vals = list(parent_bot_1.values())[:split_point]
+            #     right_gen_vals  = list(parent_bot_1.values())[split_point:]
+            #     left_genome_part = {k:v for k, v in parent_bot_1.items() if v in left_gen_vals}
+            #     right_genome_part = {k:v for k, v in parent_bot_2.items() if v in right_gen_vals}
+            #     new_dynamic_nodes = {**left_genome_part, **right_genome_part}
+
+            #     # Мутация (выбор произвольного узла)
+            #     new_dynamic_nodes = self._mutate(env=env,
+            #                                      new_dynamic_nodes=new_dynamic_nodes,
+            #                                      area=area)
+
+            #     # Добавляем его в новую популяцию
+            #     new_population.append(new_dynamic_nodes)
+
+            # 2.0 Элитарность
+            if self.elite_size>0:
+                # Определение весов
+                pop_weight = pd.DataFrame({'w': weights, 'p': population})
+                pop_weight = pop_weight.sort_values('w', ascending=False)
+                pop_weight = pop_weight.iloc[:self.elite_size]
+                population = pop_weight['p'].to_list()
+                weights = pop_weight['w'].to_list()
+                
+                new_population = population.copy()
+            else:
+                new_population = []
+
+            # 2.1 Генерация новой популяции
+            for _ in range(self.population_size - self.elite_size):
+                # print(len(population), len(weights))
 
                 # Отбор по правилу рулетки
                 parent_bot_1 = random.choices(population, weights=weights)[0]
@@ -449,7 +491,9 @@ class BestNodesGA(MCLPBase):
                 new_dynamic_nodes = {**left_genome_part, **right_genome_part}
 
                 # Мутация (выбор произвольного узла)
-                new_dynamic_nodes = self._mutate(new_dynamic_nodes, g_nodes)
+                new_dynamic_nodes = self._mutate(env=env,
+                                                 new_dynamic_nodes=new_dynamic_nodes,
+                                                 area=area)
 
                 # Добавляем его в новую популяцию
                 new_population.append(new_dynamic_nodes)
@@ -519,6 +563,7 @@ class BestNodesSA(MCLPBase):
     '''
     def __init__(self, state_function: StateBase,
                  metric_function: MetricBase,
+                 node_selector:PointSelectorBase,
                  initial_temperature: float = 1,
                  end_temperature: float = 0.0001,
                  turns: int = 1000000,
@@ -593,6 +638,7 @@ class BestNodesSA(MCLPBase):
 
         self.initial_temperature = initial_temperature
         self.end_temperature = end_temperature
+        self.node_selector = node_selector
         self.turns = turns
         self.appr_val_in_area = appr_val_in_area
         self.mutation_max_count = mutation_max_count
@@ -664,7 +710,8 @@ class BestNodesSA(MCLPBase):
 
         return best_metric
 
-    def _generate_state_candidate(self, state, g_nodes):
+    def _generate_state_candidate(self, env, state, area):
+                              #  (self, env, new_dynamic_nodes, g_nodes, area):
         '''
         Функция порождает новое состояние
         '''
@@ -672,14 +719,15 @@ class BestNodesSA(MCLPBase):
 
         # Здесь вся магия
         for _ in range(self.mutation_max_count):
-            # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+            # Выбор случайного элемента в словаре и удаление его из new_state
             node, unit = random.choice(list(new_state.items()))
             del new_state[node]
 
-            # Поиск нового узла, которого при этом нет в new_dynamic_nodes
-            node = random.choice(g_nodes)
-            while node in new_state.keys():
-                node = random.choice(g_nodes)
+            # Поиск нового узла, которого при этом нет в new_state
+            node = self.node_selector(env=env, points=new_state, area=area)
+            # node = random.choice(g_nodes)
+            # while node in new_state.keys():
+            #     node = random.choice(g_nodes)
 
             new_state[node] = unit
 
@@ -744,7 +792,9 @@ class BestNodesSA(MCLPBase):
 
         # 2. Выполняем расчет
         for i in range(self.turns):
-            state_candidate = self._generate_state_candidate(current_state, g_nodes)
+            state_candidate  = self._generate_state_candidate(env=env,
+                                                             state=current_state,
+                                                             area=area)
             candidate_energy = self._calculate_energy(env=env,
                                 nodes=list_dict_concat(state_candidate, static_nodes),
                                 area=area,

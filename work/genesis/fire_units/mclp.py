@@ -11,7 +11,7 @@ import numpy as np
 import networkx as nx
 import pandas as pd
 
-from genesis.core import MCLPBase, StateBase, MetricBase
+from genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
 from genesis.mclp import BestNodesKoptG
 from genesis.tools import list_dict_concat
 
@@ -37,6 +37,7 @@ class BestNodesGAKopt(MCLPBase):
                  state_function: StateBase,
                  metric_function: MetricBase,
                  kopt_function: BestNodesKoptG,
+                 node_selector:PointSelectorBase,
                  population_size:int = 25,
                  epochs:int = 50,
                  mutation_rate:float = 0.5,
@@ -92,6 +93,7 @@ class BestNodesGAKopt(MCLPBase):
 
         self.kopt_function = kopt_function
         self.population_size = population_size
+        self.node_selector = node_selector
         self.epochs = epochs
         self.mutation_rate = mutation_rate
         self.elite_size = elite_size
@@ -120,7 +122,8 @@ class BestNodesGAKopt(MCLPBase):
 
         return best_metric
 
-    def _mutate(self, new_dynamic_nodes, g_nodes):
+    # def _mutate(self, new_dynamic_nodes, g_nodes):
+    def _mutate(self, env, new_dynamic_nodes, area):
         # for _ in range(self.mutation_max_count):
         if self.mutation_max_count>0:
             mutation_count = self.mutation_max_count
@@ -133,9 +136,10 @@ class BestNodesGAKopt(MCLPBase):
                 del new_dynamic_nodes[node]
 
                 # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
-                node = random.choice(g_nodes)
-                while node in new_dynamic_nodes.keys():
-                    node = random.choice(g_nodes)
+                node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
+                # node = random.choice(g_nodes)
+                # while node in new_dynamic_nodes.keys():
+                #     node = random.choice(g_nodes)
 
                 new_dynamic_nodes[node] = unit
 
@@ -240,7 +244,10 @@ class BestNodesGAKopt(MCLPBase):
                 new_dynamic_nodes = {**left_genome_part, **right_genome_part}
 
                 # Мутация (выбор произвольного узла)
-                new_dynamic_nodes = self._mutate(new_dynamic_nodes, g_nodes)
+                # new_dynamic_nodes = self._mutate(new_dynamic_nodes, g_nodes)
+                new_dynamic_nodes = self._mutate(env=env,
+                                                 new_dynamic_nodes=new_dynamic_nodes,
+                                                 area=area)
 
                 # Добавляем его в новую популяцию
                 new_population.append(new_dynamic_nodes)
