@@ -11,7 +11,7 @@ from genesis.best_points import NodeMetric
 from genesis.tools import list_dict_concat
 
 
-class BestNodesGA(MCLPBase):
+class BestNodesGADiss(MCLPBase):
     '''
     Поиск лучших узлов для размещения n объектов.
 
@@ -27,7 +27,7 @@ class BestNodesGA(MCLPBase):
     def __init__(self,
                  state_function: StateBase,
                  metric_function: MetricBase,
-                 stop_case_function: StopCaseBase,
+                 node_selector:PointSelectorBase,
                  population_size:int = 25,
                  epochs:int = 50,
                  mutation_rate:float = 0.5,
@@ -36,11 +36,9 @@ class BestNodesGA(MCLPBase):
                  mutation_max_count:int = 1,
                  bad_val_in_area:int = 1000,
                  epoch_end_function:callable = None,
-                #  stop_case_function:callable = None,
-                 add_gen_rate=0.05,
-                 del_gen_rate=0.05,
-                 names_pattern: str = '{}',
-                 start_names_index: int = 1,
+                 stop_case_function:callable = None,
+                 rise_rate:float = 0.1,
+                 decrease_rate:float = 0.1,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -48,6 +46,8 @@ class BestNodesGA(MCLPBase):
             функция расчета состояния окружения
         `metric_function`: MetricBase
             Функция расчета метрики
+        `node_selector`: PointSelectorBase
+            Функция выбора узла.
         `population_size`:int = 25
             Размер популяции
         `epochs`: int = 50
@@ -96,12 +96,9 @@ class BestNodesGA(MCLPBase):
         self.bad_val_in_area = bad_val_in_area
         self.epoch_end_function = epoch_end_function
         self.stop_case_function = stop_case_function
-        self.add_gen_rate = add_gen_rate
-        self.del_gen_rate = del_gen_rate
-        self.names_pattern = names_pattern
-        self.start_names_index = start_names_index
-        # self.point_selector = point_selector
-        self.stop_case_function = stop_case_function
+        self.node_selector = node_selector
+        self.rise_rate = rise_rate
+        self.decrease_rate = decrease_rate
         super().__init__(state_function, metric_function, **kwargs)
 
     def _fit_function(self, env, nodes, area=None, **kwargs):
@@ -122,7 +119,7 @@ class BestNodesGA(MCLPBase):
 
         return best_metric
 
-    def _mutate(self, new_dynamic_nodes, g_nodes, static_nodes, env):
+    def _mutate(self, env, new_dynamic_nodes, area):
         '''
         Мутация особи
         '''
@@ -132,24 +129,16 @@ class BestNodesGA(MCLPBase):
                 node, unit = random.choice(list(new_dynamic_nodes.items()))
                 del new_dynamic_nodes[node]
 
-                # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
-                node = random.choice(g_nodes)
-                while node in new_dynamic_nodes.keys():
-                    node = random.choice(g_nodes)
+                # Поиск нового узла, которого при этом нет в new_dynamic_nodes
+                node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
 
                 new_dynamic_nodes[node] = unit
-            
-            # Добавление нового гена
-            if random.random() < self.add_gen_rate:
-                # 2.1. Получение суммарного списка (или словаря) узлов для расчета состояния и метрик
-                start_nodes = list_dict_concat(new_dynamic_nodes, static_nodes)
-                # 2.2. Выбор нового узла в соответствии с переданной логикой
-                new_node = self.point_selector(env, start_nodes)
-                # 2.3. Добавление нового узла в словарь динамических узлов:
-                new_dynamic_nodes[new_node] = self.names_pattern.format(self.start_names_index)
-                self.start_names_index+=1
-            # Удаление узла
-            if  random.random() < self.del_gen_rate:
+
+            # Добавление или удаление новых узлов (расширение или сужение генома)
+            if random.random() < self.rise_rate:
+                node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
+                new_dynamic_nodes[node] = unit
+            if random.random() < self.decrease_rate and len(new_dynamic_nodes)>1:
                 node, unit = random.choice(list(new_dynamic_nodes.items()))
                 del new_dynamic_nodes[node]
 
@@ -219,17 +208,22 @@ class BestNodesGA(MCLPBase):
         # 2. На каждой эпохе
         for epoch in range(self.epochs):
 
-            new_population = []
+            # 2.0 Элитарность
+            if self.elite_size>0:
+                # Определение весов
+                pop_weight = pd.DataFrame({'w': weights, 'p': population})
+                pop_weight = pop_weight.sort_values('w', ascending=False)
+                pop_weight = pop_weight.iloc[:self.elite_size]
+                population = pop_weight['p'].to_list()
+                weights = pop_weight['w'].to_list()
+                
+                new_population = population.copy()
+            else:
+                new_population = []
+
             # 2.1 Генерация новой популяции
-            for _ in range(self.population_size):
-                # Элитарность
-                if self.elite_size>0:
-                    # Определение весов
-                    pop_weight = pd.DataFrame({'w': weights, 'p': population})
-                    pop_weight = pop_weight.sort_values('w', ascending=False)
-                    pop_weight = pop_weight.iloc[:self.elite_size]
-                    population = pop_weight['p'].to_list()
-                    weights = pop_weight['w'].to_list()
+            for _ in range(self.population_size - self.elite_size):
+                # print(len(population), len(weights))
 
                 # Отбор по правилу рулетки
                 parent_bot_1 = random.choices(population, weights=weights)[0]
@@ -244,7 +238,9 @@ class BestNodesGA(MCLPBase):
                 new_dynamic_nodes = {**left_genome_part, **right_genome_part}
 
                 # Мутация (выбор произвольного узла)
-                new_dynamic_nodes = self._mutate(new_dynamic_nodes, g_nodes, static_nodes, env)
+                new_dynamic_nodes = self._mutate(env=env,
+                                                 new_dynamic_nodes=new_dynamic_nodes,
+                                                 area=area)
 
                 # Добавляем его в новую популяцию
                 new_population.append(new_dynamic_nodes)
@@ -314,6 +310,7 @@ class BestNodesSA(MCLPBase):
     '''
     def __init__(self, state_function: StateBase,
                  metric_function: MetricBase,
+                 node_selector:PointSelectorBase,
                  initial_temperature: float = 1,
                  end_temperature: float = 0.0001,
                  turns: int = 1000000,
@@ -323,8 +320,8 @@ class BestNodesSA(MCLPBase):
                  turn_end_function: callable = None,
                  best_state_find_function: callable = None,
                  stop_case_function: callable = None,
-                 add_gen_rate=0.05,
-                 del_gen_rate=0.05,
+                 rise_rate:float = 0.1,
+                 decrease_rate: float = 0.1,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -390,6 +387,7 @@ class BestNodesSA(MCLPBase):
 
         self.initial_temperature = initial_temperature
         self.end_temperature = end_temperature
+        self.node_selector = node_selector
         self.turns = turns
         self.appr_val_in_area = appr_val_in_area
         self.mutation_max_count = mutation_max_count
@@ -397,6 +395,8 @@ class BestNodesSA(MCLPBase):
         self.turn_end_function = turn_end_function
         self.best_state_find_function = best_state_find_function
         self.stop_case_function = stop_case_function
+        self.rise_rate = rise_rate
+        self.decrease_rate = decrease_rate
         super().__init__(state_function, metric_function, **kwargs)
 
 
@@ -461,7 +461,8 @@ class BestNodesSA(MCLPBase):
 
         return best_metric
 
-    def _generate_state_candidate(self, state, g_nodes):
+    def _generate_state_candidate(self, env, state, area):
+                              #  (self, env, new_dynamic_nodes, g_nodes, area):
         '''
         Функция порождает новое состояние
         '''
@@ -469,14 +470,20 @@ class BestNodesSA(MCLPBase):
 
         # Здесь вся магия
         for _ in range(self.mutation_max_count):
-            # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+            # Выбор случайного элемента в словаре и удаление его из new_state
             node, unit = random.choice(list(new_state.items()))
             del new_state[node]
 
-            # Поиск нового узла, которого при этом нет в new_dynamic_nodes
-            node = random.choice(g_nodes)
-            while node in new_state.keys():
-                node = random.choice(g_nodes)
+            # Поиск нового узла, которого при этом нет в new_state
+            node = self.node_selector(env=env, points=new_state, area=area)
+
+        # Добавление или удаление новых узлов (расширение или сужение генома)
+        if random.random() < self.rise_rate:
+            node = self.node_selector(env=env, points=new_state, area=area)
+            new_state[node] = unit
+        if random.random() < self.decrease_rate and len(new_state)>1:
+            node, unit = random.choice(list(new_state.items()))
+            del new_state[node]
 
             new_state[node] = unit
 
@@ -541,7 +548,9 @@ class BestNodesSA(MCLPBase):
 
         # 2. Выполняем расчет
         for i in range(self.turns):
-            state_candidate = self._generate_state_candidate(current_state, g_nodes)
+            state_candidate  = self._generate_state_candidate(env=env,
+                                                             state=current_state,
+                                                             area=area)
             candidate_energy = self._calculate_energy(env=env,
                                 nodes=list_dict_concat(state_candidate, static_nodes),
                                 area=area,

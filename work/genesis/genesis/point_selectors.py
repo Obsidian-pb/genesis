@@ -58,10 +58,10 @@ class RandomNodesSelector(PointSelectorBase):
         if not isinstance(points,dict):
             raise TypeError(f'Аргумент `points` должен иметь тип: dict'
                             f'Имеет: {type(points)}')
-        if len(points) < 1:
-            raise ValueError('Аргумент `points` должен содержать хотя бы 1 элемент! ' + \
-                             'В случае если в `env` отсутствуют известные размещения `points`, ' + \
-                             'используйте методы класса `BestPointsBase`')
+        # if len(points) < 1:
+        #     raise ValueError('Аргумент `points` должен содержать хотя бы 1 элемент! ' + \
+        #                      'В случае если в `env` отсутствуют известные размещения `points`, ' + \
+        #                      'используйте методы класса `BestPointsBase`')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
         if k < 1:
