@@ -6,6 +6,7 @@
 
 
 import random
+import warnings
 
 import numpy as np
 import networkx as nx
@@ -296,6 +297,7 @@ class BestNodesGAKopt(MCLPBase):
                     break
             
         # Применение чистовой обработки с использованием локального поиска
+        warnings.warn('Здесь нужно пересмотреть расчет метрики - сейчас рассчитывается по метрике вложенной функции, что не правильно!')
         best_bot, best_metric = self.kopt_function(
             env = env,
             dynamic_nodes = best_bot,
