@@ -39,6 +39,8 @@ class BestNodesGADiss(MCLPBase):
                  stop_case_function:callable = None,
                  rise_rate:float = 0.1,
                  decrease_rate:float = 0.1,
+                 names_pattern: str = '{}',
+                 start_names_index: int = 1,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -99,6 +101,8 @@ class BestNodesGADiss(MCLPBase):
         self.node_selector = node_selector
         self.rise_rate = rise_rate
         self.decrease_rate = decrease_rate
+        self.names_pattern = names_pattern
+        self.names_index = start_names_index
         super().__init__(state_function, metric_function, **kwargs)
 
     def _fit_function(self, env, nodes, area=None, **kwargs):
@@ -117,6 +121,8 @@ class BestNodesGADiss(MCLPBase):
         # 2.2. Расчет стартовой метрики состояния и определение стартового размещения
         best_metric = self.metric_function(times, **kwargs)
 
+        # return best_metric / len(nodes)
+        # return best_metric / 0.5*len(nodes)
         return best_metric
 
     def _mutate(self, env, new_dynamic_nodes, area):
@@ -135,12 +141,13 @@ class BestNodesGADiss(MCLPBase):
                 new_dynamic_nodes[node] = unit
 
             # Добавление или удаление новых узлов (расширение или сужение генома)
-            if random.random() < self.rise_rate:
-                node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
-                new_dynamic_nodes[node] = unit
-            if random.random() < self.decrease_rate and len(new_dynamic_nodes)>1:
+            if random.random() < self.decrease_rate and len(new_dynamic_nodes)>2:
                 node, unit = random.choice(list(new_dynamic_nodes.items()))
                 del new_dynamic_nodes[node]
+            if random.random() < self.rise_rate:
+                node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
+                new_dynamic_nodes[node] = self.names_pattern.format(self.names_index)
+                self.names_index += 1
 
         return  new_dynamic_nodes
 
@@ -292,7 +299,7 @@ class BestNodesGADiss(MCLPBase):
 
 
 
-class BestNodesSA(MCLPBase):
+class BestNodesSADiss(MCLPBase):
     '''
     Поиск лучших узлов для размещения n объектов.
 
@@ -322,6 +329,8 @@ class BestNodesSA(MCLPBase):
                  stop_case_function: callable = None,
                  rise_rate:float = 0.1,
                  decrease_rate: float = 0.1,
+                 names_pattern: str = '{}',
+                 start_names_index: int = 1,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -397,6 +406,8 @@ class BestNodesSA(MCLPBase):
         self.stop_case_function = stop_case_function
         self.rise_rate = rise_rate
         self.decrease_rate = decrease_rate
+        self.names_pattern = names_pattern
+        self.names_index = start_names_index
         super().__init__(state_function, metric_function, **kwargs)
 
 
@@ -459,6 +470,8 @@ class BestNodesSA(MCLPBase):
         # 2. Расчет стартовой метрики состояния и определение стартового размещения
         best_metric = self.metric_function(times, **kwargs)
 
+        # return best_metric / 0.5*len(nodes)
+        # return best_metric / len(nodes)
         return best_metric
 
     def _generate_state_candidate(self, env, state, area):
@@ -478,12 +491,13 @@ class BestNodesSA(MCLPBase):
             node = self.node_selector(env=env, points=new_state, area=area)
 
         # Добавление или удаление новых узлов (расширение или сужение генома)
-        if random.random() < self.rise_rate:
-            node = self.node_selector(env=env, points=new_state, area=area)
-            new_state[node] = unit
         if random.random() < self.decrease_rate and len(new_state)>1:
             node, unit = random.choice(list(new_state.items()))
             del new_state[node]
+        if random.random() < self.rise_rate:
+            node = self.node_selector(env=env, points=new_state, area=area)
+            new_state[node] = self.names_pattern.format(self.names_index)
+            self.names_index+=1
 
             new_state[node] = unit
 
