@@ -13,6 +13,66 @@ from genesis.best_points import NodeMetric
 from genesis.tools import list_dict_concat
 
 
+
+class NodesMetric(BestPointsBase):
+    '''
+    Расчет метрики для набора узлов графа.
+    
+    ## Важно
+    Применяется строго к графам!
+    '''
+    def __init__(self, state_function: StateBase,
+                 metric_function: MetricBase,
+                 appr_val = 0.95,
+                 err_val=None,
+                 **kwargs) -> None:
+        '''
+            `state_function`: StateBase
+                функция расчета состояния окружения
+            `metric_function`: MetricBase
+                Функция расчета метрики
+            `appr_val`: = 0.95
+                Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
+                Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+                то такой узел не рассматривается.
+            `err_val`: any = None
+                Значение которое будет возвращено в случае если из точки `node`
+                невозможно будет достичь требуемой доли узлов графа.
+        '''
+        self.appr_val = appr_val
+        self.err_val = err_val
+        super().__init__(state_function, metric_function, **kwargs)
+
+    def __call__(self, env:nx.MultiDiGraph, nodes:list, area=None, **kwargs):
+        '''
+            ## Параметры
+            `env` : MultiDiGraph (G)
+                Граф дорожной сети
+            `node`: list
+                Список идентификаторов узлов графа для которого происходит расчет
+            `area`: pd.Series = None
+                Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+                Если не указана, расчет производится для всех узлов графа.
+        '''
+
+        # Если маска приемлемых узлов графа не передана,
+        # то приемлемое количество узлов считается от количества узлов в графе
+        # Иначе - от количества True в маске
+        if area is None:
+            appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
+        else:
+            appr_nodes_count = int(sum(area) * self.appr_val)
+        # # Приемлемое количество узлов считается от количества узлов в графе
+
+        # Собственно расчет
+        times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
+        if len(times)>=appr_nodes_count:
+            cur_val = self.metric_function(times, **kwargs)
+        else:
+            cur_val = self.err_val
+        return cur_val
+
+
 class BestNodesKoptG(MCLPBase):
     '''
     Поиск лучших узлов для размещения n объектов.

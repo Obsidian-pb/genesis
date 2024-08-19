@@ -7,7 +7,8 @@
 import networkx as nx
 import pandas as pd
 
-from genesis.core import LSCPBase, BestPointsBase, PointSelectorBase, StopCaseBase
+from genesis.core import LSCPBase, BestPointsBase, MetricBase, PointSelectorBase, StateBase, StopCaseBase
+from genesis.mclp import NodesMetric
 from genesis.tools import list_dict_concat
 
 
@@ -104,14 +105,48 @@ class LSCPCommon(LSCPBase):
 
             # 2.2. Выбор нового узла в соответствии с переданной логикой
             new_node = self.point_selector(env=env, points=start_nodes, area=area)
-            print(new_node)
+            # print(new_node)
 
             # 2.3. Добавление нового узла в словарь динамических узлов:
             best_dynamic_nodes[new_node] = self.names_pattern.format(name_index)
-            print(best_dynamic_nodes)
+            # print(best_dynamic_nodes)
 
             # ============================================================================================
             iteration += 1
             name_index += 1
 
         return best_dynamic_nodes, best_metric
+    
+
+
+def drop_trash_points(env,
+                    state_function: StateBase,
+                    metric_function: MetricBase,
+                    stop_case_function: StopCaseBase,
+                    dynamic_nodes,
+                    static_nodes=None,
+                    area=None,
+                    ):
+    '''
+    ПЕРЕРАБОТАТЬ С УЧЕТОМ static_nodes
+    '''
+    
+    if static_nodes is None:
+        start_nodes = dynamic_nodes
+    else:
+        start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
+
+    for node in start_nodes:
+        tmp = start_nodes.copy()
+        tmp.pop(node)
+        metric = NodesMetric(state_function, metric_function)(env, list(tmp.keys()), area=area)
+        if stop_case_function(value=metric,
+                            iteration=0,
+                            best_metric=metric,
+                            dynamic_nodes=dynamic_nodes,
+                            static_nodes=static_nodes):
+            start_nodes = tmp
+    
+    metric = NodesMetric(state_function, metric_function)(env, list(start_nodes.keys()), area=area)
+    
+    return start_nodes, metric

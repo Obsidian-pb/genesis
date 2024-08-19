@@ -464,10 +464,15 @@ class BestNodesHalfDiameter(BestPointsBase):
         # 2.2 Находим самую отдаленную от нее (входящую) -- периферия №2
         lngs = nx.shortest_path_length(env, target=corner_1, weight=self.weight)
         corner_2 = max(lngs, key=lngs.get)
+        # # 2.3 Находим самую отдаленную от нее (входящую) -- периферия №3 (уточняющая)
+        # lngs = nx.shortest_path_length(env, target=corner_2, weight=self.weight)
+        # corner_3 = max(lngs, key=lngs.get)
 
         # Рассчитываем длину диаметра и маршрут следования по нему
-        diameter = nx.shortest_path_length(env, corner_1, corner_2, weight=self.weight)
-        short_path = nx.shortest_path(env, corner_1, corner_2, weight=self.weight)
+        diameter = nx.shortest_path_length(env, corner_2, corner_1, weight=self.weight)
+        short_path = nx.shortest_path(env, corner_2, corner_1, weight=self.weight)
+        # diameter = nx.shortest_path_length(env, corner_1, corner_2, weight=self.weight)
+        # short_path = nx.shortest_path(env, corner_1, corner_2, weight=self.weight)
 
         if len(short_path) < 2:
             return short_path[0]
