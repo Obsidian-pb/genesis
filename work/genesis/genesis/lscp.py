@@ -128,25 +128,35 @@ def drop_trash_points(env,
                     area=None,
                     ):
     '''
-    ПЕРЕРАБОТАТЬ С УЧЕТОМ static_nodes
+    Функция отброса мусорных размещений.
+    В данном случае используется жадное удаление
+
+    
     '''
     
-    if static_nodes is None:
-        start_nodes = dynamic_nodes
-    else:
-        start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
 
-    for node in start_nodes:
-        tmp = start_nodes.copy()
+
+    for node in dynamic_nodes:
+        tmp = dynamic_nodes.copy()
         tmp.pop(node)
-        metric = NodesMetric(state_function, metric_function)(env, list(tmp.keys()), area=area)
+
+        if static_nodes is None:
+            all_nodes = dynamic_nodes
+        else:
+            all_nodes = list_dict_concat(tmp, static_nodes)
+
+        metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
         if stop_case_function(value=metric,
                             iteration=0,
                             best_metric=metric,
                             dynamic_nodes=dynamic_nodes,
                             static_nodes=static_nodes):
-            start_nodes = tmp
+            dynamic_nodes = tmp
     
-    metric = NodesMetric(state_function, metric_function)(env, list(start_nodes.keys()), area=area)
+    if static_nodes is None:
+        all_nodes = dynamic_nodes
+    else:
+        all_nodes = list_dict_concat(tmp, static_nodes)
+    metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
     
-    return start_nodes, metric
+    return dynamic_nodes, metric
