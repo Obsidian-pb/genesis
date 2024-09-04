@@ -7,7 +7,7 @@
 import networkx as nx
 import pandas as pd
 
-from genesis.core import LSCPBase, BestPointsBase, MetricBase, PointSelectorBase, StateBase, StopCaseBase
+from genesis.core import LSCPBase, BestPointsBase, MCLPBase, MetricBase, PointSelectorBase, StateBase, StopCaseBase
 from genesis.mclp import NodesMetric
 from genesis.tools import list_dict_concat
 
@@ -18,7 +18,7 @@ class LSCPCommon(LSCPBase):
     размещения узлов для достижения целевой метрики.
     '''
     def __init__(self,
-                 mclp_function: BestPointsBase,
+                 mclp_function: MCLPBase,
                  point_selector: PointSelectorBase,
                  stop_case_function: StopCaseBase,
                  names_pattern: str = '{}',

@@ -93,9 +93,9 @@ class BestNodesKoptG(MCLPBase):
                  best_point_function: BestPointsBase,
                  iterations:int=5,
                  appr_val_in_area=0,
-                 before_iters_start_function: callable =None,
-                 iter_calc_end_function: callable =None,
-                 stop_case_function: callable =None,
+                 before_iters_start_function: callable = None,
+                 iter_calc_end_function: callable = None,
+                 stop_case_function: callable = None,
                  **kwargs) -> None:
         '''
         ## Аргументы
