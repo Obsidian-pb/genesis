@@ -75,7 +75,7 @@ class TimeCheckPoint(object):
     
 
 
-class TGMessage:
+class TGMessenger:
     '''
     Класс отправки уведомлений в телеграм-чат
 
@@ -87,8 +87,10 @@ class TGMessage:
         после чего вызвать метод check_chat(). Получится id чата.
         В случае ошибки, будет возвращен текст ответа от сервера.
     '''
-    def __init__(self, token, chat_id):
+    def __init__(self, token, chat_id=None):
         self.token = token
+        if chat_id is None:
+            chat_id = self.check_chat()
         self.chat_id = chat_id
 
     def send_message(self, message):
