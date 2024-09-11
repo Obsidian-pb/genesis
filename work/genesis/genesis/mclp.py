@@ -472,6 +472,9 @@ class BestNodesGA(MCLPBase):
         # ===================================== Генетический алгоритм ==============
         # 1. Создание стартовой популяции
         population = [dynamic_nodes for _ in range(self.population_size)]
+        # # Обязательно сохраняется один экземпляр исходного бота!
+        # population = [self._mutate(env, dynamic_nodes, area) for _ in range(self.population_size - 1)] + [dynamic_nodes]
+
         # Оценка приспособленности всех особей
         bot_fit = [self._fit_function(env=env,
                                       nodes=list_dict_concat(dn, static_nodes),

@@ -12,7 +12,7 @@
     1 - КФПО
 '''
 
-buildings = {
+BUILDINGS = {
     'allotments': ('Дача', 'Ф1.5'),
     'apartments': ('Многоквартирный жилой дом', 'Ф1.3'),
     'arts_centre': ('Музей', 'Ф2.2'),
