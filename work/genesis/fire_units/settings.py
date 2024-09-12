@@ -27,4 +27,27 @@ DEFAULT_SPEEDS = [49, 37, 26, 16, 5]
 DEFAULT_MEAN_SPEED = 30.28
 
 
+BUILDING_FIELDS = [
+  'name',
+  'amenity',
+  'building',
+  'addr:street',
+  'addr:housenumber',
+  'building:levels',
+  'building:flats',
+#   'rooms',
+  'geometry',
+]
 
+LANDUSE_TAGS = {'landuse':['residential',
+                   'commercial',
+                   'construction',
+                   'education',
+                   'industrial',
+                   'residential',
+                   'retail',
+                   'institutional',
+                   'allotments',
+                   'brownfield'
+                   ],
+                'amenity':['prison']}

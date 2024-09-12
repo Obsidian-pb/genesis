@@ -105,4 +105,5 @@ class TGMessenger:
             return jsn['result'][0]['message']['from']['id']
         except IndexError:
             print('Разобрать ответ не удалось. Тело ответа:', jsn)
+            print('Рекомендуется предварительно написать боту сообщение.')
             return None
