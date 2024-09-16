@@ -834,7 +834,7 @@ class BestNodeBee(BestNodeHillClimbing):
                     env=env,
                     start_node=node,
                     area=area,
-                    **kwargs,
+                    # **kwargs,
                     )
 
             if best_node is None:
