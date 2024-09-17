@@ -48,6 +48,9 @@ LANDUSE_TAGS = {'landuse':['residential',
                    'retail',
                    'institutional',
                    'allotments',
-                   'brownfield'
+                   'brownfield',
+                   'military',
                    ],
-                'amenity':['prison']}
+                'amenity':['prison'],
+                'power':['plant'],
+                'leisure':['resort']}
