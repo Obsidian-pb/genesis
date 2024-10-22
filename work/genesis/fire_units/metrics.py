@@ -248,3 +248,92 @@ class ArrivalTimeBuilding(MetricBase):
             return self.zero_val
 
         return self.f(state_c)
+
+
+class CoverIndexValue(MetricBase):
+    '''
+    Класс-функция расчета взвешенного индекса прикрытия.
+    Подходит для расчета индекса прикрытия населенных пунктов 
+    в зависимости от численности их населения
+    '''
+    def __init__(self,
+                 data: gpd.GeoDataFrame,
+                #  f:callable = np.mean,
+                 value_field: str,
+                 comp_func:callable = max,
+                 zero_val = 0,
+                 ip_val = 10,
+                 data_node_id_field: str = 'node',
+                 ) -> None:
+        '''
+        `data`: pd.GeoDataFrame
+            Геодатафрейм со сведениями о зданиях.
+        `f`: callable
+            Функция расчета показателя. По-умолчанию = np.mean,
+            т.е. вычисляется среднее время следования.
+        `comp_func`: callable
+            Функция сравнения значений метрики.
+            По умолчанию - лучшей считается большая.
+        `zero_val`: float = 0
+            Значение которое будет возвращено в случае передачи набора данных `route_times` без элементов.
+        `value_field`: str = None
+            Имя поля в `data` содержащего вес (например численность населения).
+        `data_node_id_field`: str = 'node'
+            Имя поля в `data` содержащего идентификаторы узлов.
+        '''
+        if not value_field in data.columns:
+            raise KeyError(f"Поле `{value_field}` отсутствует в 'buildings'")
+
+        self.data = data
+        self.value_field = value_field
+        self.zero_val = zero_val
+        self.ip_val = ip_val
+        self.data_node_id_field = data_node_id_field
+        super().__init__(comp_func)
+
+    def __call__(self, state, area=None):
+        '''
+        `state` (`состояние`): pd.Series
+            Серия времен прибытия в разные точки окружения.
+
+        `area`: pd.Series
+            Серия данных содержащих маску точек которые должны быть учтены при расчете метрики.
+        '''
+
+        if not isinstance(state, (list, pd.Series)):
+            raise TypeError(
+                f"Аргумент state может быть только типа list или pd.Series"
+                f" Имеется {type(state)}"
+                )
+        
+        # Расчет полного веса по всему набору данных
+        total_value = self.data[self.value_field].sum()
+
+        # Отбор узлов по area (списку узлов которые следует учесть в расчете)
+        if not area is None:
+            if isinstance(state, pd.Series):
+                state_c = state.loc[area]
+            else:
+                state_c = [x for x in state if x in area]
+        else:
+            state_c = state
+
+        if len(state_c) == 0:
+            return self.zero_val
+
+        # Объединение данных об узлах и временах прибытия в каждый из них
+        merged_df = pd.merge(self.data,
+                             state_c,
+                             left_on = self.data_node_id_field,
+                             right_index = True)
+        # Оставляем только строки для узлов в которые время прибытия меньше или равно 10 минут
+        merged_df = merged_df[merged_df['times'] <= self.ip_val]
+        # print(len(merged_df))
+
+        # Если таких узлов нет - возвращаем значение для ноля
+        if len(merged_df) == 0:
+            return self.zero_val
+        
+        # print(merged_df[self.value_field].sum(), total_value)
+
+        return 100 * merged_df[self.value_field].sum() / total_value

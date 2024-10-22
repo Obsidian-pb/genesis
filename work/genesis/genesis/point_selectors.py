@@ -167,41 +167,53 @@ class GenesisNodeSelector(PointSelectorBase):
                                              area = area,
                                              **kwargs)
 
-        # 2. Группировка по деревьям Вороного
-        # и вычисление наихудшего из них
-        worst_unit_id = None
-        worst_unit_metric = None
-        for unit_id in nearest.unique():
-            unit_area_nodes = nearest[nearest == unit_id].index.tolist()
-            unit_times = times[unit_area_nodes]
-            unit_metric = self.metric_function(unit_times)
+        worst_node = None
+        units_ids = list(nearest.unique())
+        # print(units_ids)
+        while worst_node is None:
+            # 2. Группировка по деревьям Вороного
+            # и вычисление наихудшего из них
+            worst_unit_id = None
+            worst_unit_metric = None
+            for unit_id in units_ids:
+                unit_area_nodes = nearest[nearest == unit_id].index.tolist()
+                unit_times = times[unit_area_nodes]
+                unit_metric = self.metric_function(unit_times)
 
-            if worst_unit_id is None:
-                worst_unit_id = unit_id
-                worst_unit_metric = unit_metric
-            else:
-                if self.metric_function.compare(worst_unit_metric, unit_metric) == worst_unit_metric:
+                if worst_unit_id is None:
                     worst_unit_id = unit_id
                     worst_unit_metric = unit_metric
+                else:
+                    if self.metric_function.compare(worst_unit_metric, unit_metric) == worst_unit_metric:
+                        worst_unit_id = unit_id
+                        worst_unit_metric = unit_metric
 
-        # 3. Поиск наихудшего узла соседнего с наихудшим подразделением
-        worst_unit_node = get_dict_key(points_scope, worst_unit_id)
-        worst_node = None
-        worst_node_metric = None
-        for node in env[worst_unit_node]:
-            times, nearest = self.state_function(env = env,
-                                             points = [worst_unit_node, node],
-                                             area = area,
-                                             **kwargs)
-            node_metric = self.metric_function(times)
+            # 3. Поиск наихудшего узла соседнего с наихудшим подразделением
+            worst_unit_node = get_dict_key(points_scope, worst_unit_id)
+            worst_node = None
+            worst_node_metric = None
+            # print(len(env[worst_unit_node]))  # Следует предусмотреть возможность того,
+            # что рядом не окажется узлов кроме тех в которых уже есть подразделения
+            for node in env[worst_unit_node]:
+                # В узле не должно располагаться другое подразделение!
+                if not node in points_scope.keys():
+                    times, nearest = self.state_function(env = env,
+                                                    points = [worst_unit_node, node],
+                                                    area = area,
+                                                    **kwargs)
+                    node_metric = self.metric_function(times)
 
+                    if worst_node is None:
+                        worst_node = node
+                        worst_node_metric = node_metric
+                    else:
+                        if self.metric_function.compare(worst_node_metric, node_metric) == node_metric:
+                            worst_node = node
+                            worst_node_metric = node_metric
             if worst_node is None:
-                worst_node = node
-                worst_node_metric = node_metric
-            else:
-                if self.metric_function.compare(worst_node_metric, node_metric) == node_metric:
-                    worst_node = node
-                    worst_node_metric = node_metric
+                units_ids.remove(worst_unit_id)
+                # raise LookupError('Для худшего из подразделений нет соседних узлов в которых при этом не было бы подразделений')
+                # print(f'Для худшего из подразделений ({worst_unit_id}) нет соседних узлов в которых при этом не было бы подразделений')
 
         return worst_node
 

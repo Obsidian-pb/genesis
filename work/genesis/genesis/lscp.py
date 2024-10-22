@@ -21,12 +21,13 @@ class LSCPCommon(LSCPBase):
                  mclp_function: MCLPBase,
                  point_selector: PointSelectorBase,
                  stop_case_function: StopCaseBase,
+                 metric_function: MetricBase,
                  names_pattern: str = '{}',
                  start_names_index: int = 1,
                  after_mclp_function: callable = None,
                  **kwargs):
         self.after_mclp_function = after_mclp_function
-        super().__init__(mclp_function, point_selector, stop_case_function, names_pattern, start_names_index, **kwargs)
+        super().__init__(mclp_function, point_selector, stop_case_function, metric_function, names_pattern, start_names_index, **kwargs)
 
     def __call__(self,
                  env:nx.MultiDiGraph,
@@ -84,19 +85,32 @@ class LSCPCommon(LSCPBase):
                                             static_nodes=static_nodes,
                                             area=area,
                                             **kwargs)
+            # 2. Расчет текущей метрики
+            if static_nodes is None:
+                all_nodes = best_dynamic_nodes
+            else:
+                all_nodes = list_dict_concat(best_dynamic_nodes, static_nodes)
+            current_metric = NodesMetric(self.mclp_function.state_function,
+                                         self.metric_function
+                                         )(env,
+                                           list(all_nodes.keys()),
+                                           area=area)
+            # 3. Печать отчета расчета
             if not self.after_mclp_function is None:
                 self.after_mclp_function(iteration=iteration,
                             best_metric=best_metric,
+                            current_metric=current_metric,
                             dynamic_nodes=best_dynamic_nodes,
                             static_nodes=static_nodes)
 
-            # 2. Если достигнута цель расчета, выходим из цикла
-            if self.stop_case_function(value=best_metric,
+            # 4. Если достигнута цель расчета, выходим из цикла
+            if self.stop_case_function(value=current_metric,
                             iteration=iteration,
                             best_metric=best_metric,
+                            current_metric=current_metric,
                             dynamic_nodes=best_dynamic_nodes,
                             static_nodes=static_nodes):
-                return best_dynamic_nodes, best_metric
+                return best_dynamic_nodes, current_metric
 
             # ============================================================================================
             # 2. Если нет - создаем новое подразделение
