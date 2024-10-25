@@ -151,6 +151,8 @@ def drop_trash_points(env,
 
 
     for node in dynamic_nodes:
+        if len(dynamic_nodes) == 1:
+            break
         tmp = dynamic_nodes.copy()
         tmp.pop(node)
 
