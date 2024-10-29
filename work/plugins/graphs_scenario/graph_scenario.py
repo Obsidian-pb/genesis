@@ -30,16 +30,7 @@ from qgis import processing
 
 class ExampleProcessingAlgorithm(QgsProcessingAlgorithm):
     """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
+    Примерный алгоритм
     """
 
     # Constants used to refer to parameters and outputs. They will be
@@ -60,50 +51,38 @@ class ExampleProcessingAlgorithm(QgsProcessingAlgorithm):
 
     def name(self):
         """
-        Returns the algorithm name, used for identifying the algorithm. This
-        string should be fixed for the algorithm, and must not be localised.
-        The name should be unique within each provider. Names should contain
-        lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
+        Название алгоритма
         """
         return 'test_script_1'
 
     def displayName(self):
         """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
+        Отображаемое в списке имя алгоритма
         """
         return self.tr('Тестовый скрипт')
 
     def group(self):
         """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
+        Отображаемое в списке имя группы
         """
         return self.tr('Тестовые скрипты')
 
     def groupId(self):
         """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
+        ID группы алгоритмов
         """
         return 'testscripts'
 
     def shortHelpString(self):
         """
-        Returns a localised short helper string for the algorithm. This string
-        should provide a basic description about what the algorithm does and the
-        parameters and outputs associated with it..
+        Строка подсказки
         """
         return self.tr("Тест запуска основного функционала с учетом необходимых библиотек")
 
     def initAlgorithm(self, config=None):
         """
-        Here we define the inputs and output of the algorithm, along
-        with some other properties.
+        Здесь указываются настройки алгоритма - входы и выходы.
+        Все это будет указываться в окне интерфейса алгоритма.
         """
 
         # We add the input vector features source. It can have any kind of
@@ -182,25 +161,9 @@ class ExampleProcessingAlgorithm(QgsProcessingAlgorithm):
             # Add a feature in the sink
             sink.addFeature(feature, QgsFeatureSink.FastInsert)
 
-            # Update the progress bar
+            # Обновление прогрессбара
             feedback.setProgress(int(current * total))
 
-        # To run another Processing algorithm as part of this algorithm, you can use
-        # processing.run(...). Make sure you pass the current context and feedback
-        # to processing.run to ensure that all temporary layer outputs are available
-        # to the executed algorithm, and that the executed algorithm can send feedback
-        # reports to the user (and correctly handle cancellation and progress reports!)
-        if False:
-            buffered_layer = processing.run("native:buffer", {
-                'INPUT': dest_id,
-                'DISTANCE': 1.5,
-                'SEGMENTS': 5,
-                'END_CAP_STYLE': 0,
-                'JOIN_STYLE': 0,
-                'MITER_LIMIT': 2,
-                'DISSOLVE': False,
-                'OUTPUT': 'memory:'
-            }, context=context, feedback=feedback)['OUTPUT']
 
         # Return the results of the algorithm. In this case our only result is
         # the feature sink which contains the processed features, but some
