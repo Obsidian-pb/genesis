@@ -36,6 +36,10 @@ class MetricBase:
             Абстрактный объект состояния среды.
             Например, словарь времен прибытия в разные точки.
 
+        `area` (`область`): abstract
+            Абстрактный объект конкретизирующий часть среды,
+            состояние которой должно быть учтено при расчете метрики. 
+
         `**kwargs`:
             Прочие данные которые используются для вычислений.
             Например, частные настройки алгоритма, дополнительные данные и т.д.
@@ -221,6 +225,7 @@ class LSCPBase:
                  mclp_function: MCLPBase,
                  point_selector: PointSelectorBase,
                  stop_case_function: StopCaseBase,
+                 metric_function: MetricBase,
                  names_pattern: str = '{}',
                  start_names_index: int = 1,
                  **kwargs) -> None:
@@ -241,6 +246,7 @@ class LSCPBase:
         self.mclp_function = mclp_function
         self.point_selector = point_selector
         self.stop_case_function = stop_case_function
+        self.metric_function = metric_function
         self.names_pattern = names_pattern
         self.start_names_index = start_names_index
 

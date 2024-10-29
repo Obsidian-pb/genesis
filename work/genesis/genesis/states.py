@@ -3,9 +3,9 @@
 '''
 
 import pandas as pd
-import geopandas as gpd
+# import geopandas as gpd
 import networkx as nx
-import osmnx as ox
+# import osmnx as ox
 
 from genesis.core import StateBase
 from genesis.swiss_knife import DELAY_TIME, MSF
@@ -14,26 +14,33 @@ from genesis.tools import get_duplicates_list
 
 class FirstArrivalUnitState(StateBase):
     def __init__(self,
-                 state_algorithm=MSF,
+                 state_algorithm = MSF,
+                 weight = 'travel_time',
+                 delay = DELAY_TIME,
                  **kwargs):
         '''
             `state_algorithm`: function
-            Функция расчета кратчайших путей от единственного источника. 
-            В качестве функции могут быть переданы реализации алгоритмов из пакета
-            `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
-            Пользователь может использовать собственные функции с
-            интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
-            weight: str = "weight") -> (dict, dict)`
+                Функция расчета кратчайших путей от единственного источника. 
+                В качестве функции могут быть переданы реализации алгоритмов из пакета
+                `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
+                Пользователь может использовать собственные функции с
+                интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
+                                    weight: str = "weight") -> (dict, dict)`
+            `weight`:str или callable  = "travel_time"
+                Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+                вес динамически.
+            `delay`: 
+                Задержка в расчете. Например на обслуживание вызова на пожар.
+                По умолчанию указана в swiss_knife.DELAY_TIME
         '''
-        # self.state_algorithm = state_algorithm
+        self.weight = weight
+        self.delay = delay
         super().__init__(state_algorithm, **kwargs)
 
     def __call__(self,
                  env,
                  points,
                  area=None,
-                 weight='travel_time',
-                 delay=DELAY_TIME,
                  **kwargs):
         '''
         # Аргументы
@@ -46,12 +53,7 @@ class FirstArrivalUnitState(StateBase):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
-        `weight`:str или function  = "travel_time"
-            Имя поля содержащего вес ребер, или функция позволяющая вычислять 
-            вес динамически.
-        `delay`: 
-            Задержка в расчете. Например на обслуживание вызова на пожар.
-            По умолчанию указана в swiss_knife.DELAY_TIME
+        
 
         # Возвращает
             times, nearest -> tuple[Series[float], Series[str] | Series]. 
@@ -83,8 +85,8 @@ class FirstArrivalUnitState(StateBase):
         # Либо переопределять в каждом отдельном случае именно State, а не state_algorithm.
         # т.е. вместо FirstArrivalUnitState будет FirstArrivalUnitStateForG или FirstArrivalUnitStateForGAndBuildings ...
         # times, routes = self.state_algorithm(env, points, weight, **kwargs)     # Так не надо
-        times, routes = self.state_algorithm(G=env, sources=points, weight=weight, **kwargs)
-        times = pd.Series(times, dtype=float, name='times') + delay
+        times, routes = self.state_algorithm(G=env, sources=points, weight = self.weight, **kwargs)
+        times = pd.Series(times, dtype=float, name='times') + self.delay
 
         # Определение стартового узла для каждого маршрута
         if isinstance(points, dict):

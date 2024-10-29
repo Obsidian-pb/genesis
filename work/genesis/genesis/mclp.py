@@ -8,9 +8,69 @@ import numpy as np
 import pandas as pd
 import math
 
-from genesis.core import BestPointsBase, MetricBase, StateBase, MCLPBase
+from genesis.core import BestPointsBase, MetricBase, PointSelectorBase, StateBase, MCLPBase
 from genesis.best_points import NodeMetric
 from genesis.tools import list_dict_concat
+
+
+
+class NodesMetric(BestPointsBase):
+    '''
+    Расчет метрики для набора узлов графа.
+    
+    ## Важно
+    Применяется строго к графам!
+    '''
+    def __init__(self, state_function: StateBase,
+                 metric_function: MetricBase,
+                 appr_val = 0.95,
+                 err_val=None,
+                 **kwargs) -> None:
+        '''
+            `state_function`: StateBase
+                функция расчета состояния окружения
+            `metric_function`: MetricBase
+                Функция расчета метрики
+            `appr_val`: = 0.95
+                Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
+                Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+                то такой узел не рассматривается.
+            `err_val`: any = None
+                Значение которое будет возвращено в случае если из точки `node`
+                невозможно будет достичь требуемой доли узлов графа.
+        '''
+        self.appr_val = appr_val
+        self.err_val = err_val
+        super().__init__(state_function, metric_function, **kwargs)
+
+    def __call__(self, env:nx.MultiDiGraph, nodes:list, area=None, **kwargs):
+        '''
+            ## Параметры
+            `env` : MultiDiGraph (G)
+                Граф дорожной сети
+            `node`: list
+                Список идентификаторов узлов графа для которого происходит расчет
+            `area`: pd.Series = None
+                Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+                Если не указана, расчет производится для всех узлов графа.
+        '''
+
+        # Если маска приемлемых узлов графа не передана,
+        # то приемлемое количество узлов считается от количества узлов в графе
+        # Иначе - от количества True в маске
+        if area is None:
+            appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
+        else:
+            appr_nodes_count = int(sum(area) * self.appr_val)
+        # # Приемлемое количество узлов считается от количества узлов в графе
+
+        # Собственно расчет
+        times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
+        if len(times)>=appr_nodes_count:
+            cur_val = self.metric_function(times, **kwargs)
+        else:
+            cur_val = self.err_val
+        return cur_val
 
 
 class BestNodesKoptG(MCLPBase):
@@ -33,6 +93,9 @@ class BestNodesKoptG(MCLPBase):
                  best_point_function: BestPointsBase,
                  iterations:int=5,
                  appr_val_in_area=0,
+                 before_iters_start_function: callable = None,
+                 iter_calc_end_function: callable = None,
+                 stop_case_function: callable = None,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -50,11 +113,16 @@ class BestNodesKoptG(MCLPBase):
             то такой узел не рассматривается.
             При расчет размещения нескольких узлов неминуемо возникает ситуация при которой
             часть территории area будет недостижима. Поэтому по умолчанию считается
+        `stop_case_function`: callable = None
+            Функция проверки достигнута ли цель расчета
         '''
         
         self.best_point_function = best_point_function
         self.iterations = iterations
         self.appr_val_in_area = appr_val_in_area
+        self.before_iters_start_function = before_iters_start_function
+        self.iter_calc_end_function = iter_calc_end_function
+        self.stop_case_function = stop_case_function
         super().__init__(state_function, metric_function, **kwargs)
 
 
@@ -62,8 +130,8 @@ class BestNodesKoptG(MCLPBase):
                  env:nx.MultiDiGraph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
-                 before_iters_start_function: callable =None,
-                 iter_calc_end_function: callable =None,
+                #  before_iters_start_function: callable =None,
+                #  iter_calc_end_function: callable =None,
                  area: pd.Series = None,
                  **kwargs):
         '''
@@ -118,8 +186,8 @@ class BestNodesKoptG(MCLPBase):
                                 f'Имеют: {type(dynamic_nodes)}, {type(static_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
-        if len(dynamic_nodes)<1:
-            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {len(dynamic_nodes)}')
+        if (len(dynamic_nodes) + len(static_nodes))<1:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {(len(dynamic_nodes) + len(static_nodes))}')
 
         # Если передана область которую следует учитывать в расчете
         # установить для нее приемлемый охват равный `self.appr_val_in_area`
@@ -144,8 +212,8 @@ class BestNodesKoptG(MCLPBase):
         best_dynamic_nodes = dynamic_nodes
 
         # 3. Выполняем функцию перед началом итераций
-        if before_iters_start_function:
-            before_iters_start_function(
+        if self.before_iters_start_function:
+            self.before_iters_start_function(
                                     best_metric=best_metric,
                                     dynamic_nodes=dynamic_nodes,
                                     static_nodes=static_nodes
@@ -187,7 +255,7 @@ class BestNodesKoptG(MCLPBase):
                     node_area_G = nx.subgraph(env, node_area_nodes)
 
                     # Определяем лучший узел
-                    best_nodes, _ = self.best_point_function(env=node_area_G, 
+                    best_nodes, _ = self.best_point_function(env=node_area_G,
                                                                     start_node=dynamic_node_id,
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
@@ -215,11 +283,20 @@ class BestNodesKoptG(MCLPBase):
                 best_dynamic_nodes = dynamic_nodes
 
             # 7. Выполняем функцию завершения расчета для итерации
-            if iter_calc_end_function:
-                iter_calc_end_function(i=iteration,
+            if self.iter_calc_end_function:
+                self.iter_calc_end_function(i=iteration,
                                        best_metric=best_metric,
                                        dynamic_nodes=best_dynamic_nodes,
                                        static_nodes=static_nodes)
+
+            # 8 Если достигнута цель расчета, выходим из цикла
+            if self.stop_case_function:
+                if self.stop_case_function(value=best_metric,
+                            iteration=iteration,
+                            best_metric=best_metric,
+                            dynamic_nodes=best_dynamic_nodes,
+                            static_nodes=static_nodes):
+                    break
 
         return best_dynamic_nodes, best_metric
 
@@ -240,6 +317,7 @@ class BestNodesGA(MCLPBase):
     def __init__(self,
                  state_function: StateBase,
                  metric_function: MetricBase,
+                 node_selector:PointSelectorBase,
                  population_size:int = 25,
                  epochs:int = 50,
                  mutation_rate:float = 0.5,
@@ -248,6 +326,7 @@ class BestNodesGA(MCLPBase):
                  mutation_max_count:int = 1,
                  bad_val_in_area:int = 1000,
                  epoch_end_function:callable = None,
+                 stop_case_function:callable = None,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -255,6 +334,8 @@ class BestNodesGA(MCLPBase):
             функция расчета состояния окружения
         `metric_function`: MetricBase
             Функция расчета метрики
+        `node_selector`: PointSelectorBase
+            Функция выбора узла.
         `population_size`:int = 25
             Размер популяции
         `epochs`: int = 50
@@ -278,6 +359,8 @@ class BestNodesGA(MCLPBase):
             `area`.
         `epoch_end_function`: callable = None
             Функция вызываемая после каждой эпохи расчета.
+        `stop_case_function`: callable = None
+            Функция проверки достигнута ли цель расчета
         '''
         if population_size <= 5:
             raise ValueError('Размер популяции должен быть > 0, так же не рекомендуется использовать размер популяции < 5')
@@ -300,6 +383,8 @@ class BestNodesGA(MCLPBase):
         self.mutation_max_count = mutation_max_count
         self.bad_val_in_area = bad_val_in_area
         self.epoch_end_function = epoch_end_function
+        self.stop_case_function = stop_case_function
+        self.node_selector = node_selector
         super().__init__(state_function, metric_function, **kwargs)
 
     def _fit_function(self, env, nodes, area=None, **kwargs):
@@ -320,6 +405,25 @@ class BestNodesGA(MCLPBase):
 
         return best_metric
 
+    def _mutate(self, env, new_dynamic_nodes, area):
+        '''
+        Мутация особи
+        '''
+        for _ in range(self.mutation_max_count):
+            if random.random() < self.mutation_rate:
+                # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+                node, unit = random.choice(list(new_dynamic_nodes.items()))
+                del new_dynamic_nodes[node]
+
+                # Поиск нового узла, которого при этом нет в new_dynamic_nodes
+                node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
+                # node = random.choice(g_nodes)
+                # while node in new_dynamic_nodes.keys():
+                #     node = random.choice(g_nodes)
+
+                new_dynamic_nodes[node] = unit
+
+        return  new_dynamic_nodes
 
     def __call__(self,
                  env:nx.MultiDiGraph,
@@ -368,6 +472,9 @@ class BestNodesGA(MCLPBase):
         # ===================================== Генетический алгоритм ==============
         # 1. Создание стартовой популяции
         population = [dynamic_nodes for _ in range(self.population_size)]
+        # # Обязательно сохраняется один экземпляр исходного бота!
+        # population = [self._mutate(env, dynamic_nodes, area) for _ in range(self.population_size - 1)] + [dynamic_nodes]
+
         # Оценка приспособленности всех особей
         bot_fit = [self._fit_function(env=env,
                                       nodes=list_dict_concat(dn, static_nodes),
@@ -385,17 +492,54 @@ class BestNodesGA(MCLPBase):
         # 2. На каждой эпохе
         for epoch in range(self.epochs):
 
-            new_population = []
-            # Генерация новой популяции
-            for _ in range(self.population_size):
-                # Элитарность
-                if self.elite_size>0:
-                    # Определение весов
-                    pop_weight = pd.DataFrame({'w': weights, 'p': population})
-                    pop_weight = pop_weight.sort_values('w', ascending=False)
-                    pop_weight = pop_weight.loc[:self.elite_size]
-                    population = pop_weight['p'].to_list()
-                    weights = pop_weight['w'].to_list()
+            # new_population = []
+            # 2.1 Генерация новой популяции
+            # for _ in range(self.population_size):
+            #     # Элитарность
+            #     if self.elite_size>0:
+            #         # Определение весов
+            #         pop_weight = pd.DataFrame({'w': weights, 'p': population})
+            #         pop_weight = pop_weight.sort_values('w', ascending=False)
+            #         pop_weight = pop_weight.iloc[:self.elite_size]
+            #         population = pop_weight['p'].to_list()
+            #         weights = pop_weight['w'].to_list()
+
+            #     # Отбор по правилу рулетки
+            #     parent_bot_1 = random.choices(population, weights=weights)[0]
+            #     parent_bot_2 = random.choices(population, weights=weights)[0]
+
+            #     # Скрещивание (одноточечное)
+            #     split_point = int(len(parent_bot_1)/2)
+            #     left_gen_vals = list(parent_bot_1.values())[:split_point]
+            #     right_gen_vals  = list(parent_bot_1.values())[split_point:]
+            #     left_genome_part = {k:v for k, v in parent_bot_1.items() if v in left_gen_vals}
+            #     right_genome_part = {k:v for k, v in parent_bot_2.items() if v in right_gen_vals}
+            #     new_dynamic_nodes = {**left_genome_part, **right_genome_part}
+
+            #     # Мутация (выбор произвольного узла)
+            #     new_dynamic_nodes = self._mutate(env=env,
+            #                                      new_dynamic_nodes=new_dynamic_nodes,
+            #                                      area=area)
+
+            #     # Добавляем его в новую популяцию
+            #     new_population.append(new_dynamic_nodes)
+
+            # 2.0 Элитарность
+            if self.elite_size>0:
+                # Определение весов
+                pop_weight = pd.DataFrame({'w': weights, 'p': population})
+                pop_weight = pop_weight.sort_values('w', ascending=False)
+                pop_weight = pop_weight.iloc[:self.elite_size]
+                population = pop_weight['p'].to_list()
+                weights = pop_weight['w'].to_list()
+                
+                new_population = population.copy()
+            else:
+                new_population = []
+
+            # 2.1 Генерация новой популяции
+            for _ in range(self.population_size - self.elite_size):
+                # print(len(population), len(weights))
 
                 # Отбор по правилу рулетки
                 parent_bot_1 = random.choices(population, weights=weights)[0]
@@ -410,34 +554,23 @@ class BestNodesGA(MCLPBase):
                 new_dynamic_nodes = {**left_genome_part, **right_genome_part}
 
                 # Мутация (выбор произвольного узла)
-                for _ in range(self.mutation_max_count):
-                    if random.random() < self.mutation_rate:
-                        # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
-                        node, unit = random.choice(list(new_dynamic_nodes.items()))
-                        del new_dynamic_nodes[node]
-
-                        # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
-                        node = random.choice(g_nodes)
-                        while node in new_dynamic_nodes.keys():
-                            node = random.choice(g_nodes)
-
-                        new_dynamic_nodes[node] = unit
-
-                        # print(node, unit, new_dynamic_nodes)
+                new_dynamic_nodes = self._mutate(env=env,
+                                                 new_dynamic_nodes=new_dynamic_nodes,
+                                                 area=area)
 
                 # Добавляем его в новую популяцию
                 new_population.append(new_dynamic_nodes)
 
-            # Заменяем предыдущую популяцию новой
+            # 2.2 Заменяем предыдущую популяцию новой
             population = new_population
 
-            # Оценка приспособленности всех особей
+            # 2.3 Оценка приспособленности всех особей
             bot_fit = [self._fit_function(env=env,
                                       nodes=list_dict_concat(dn, static_nodes),
                                       area=area,
                                       **kwargs) for dn in population]
 
-            # Определение лучшего на эпохе значения метрики
+            # 2.4 Определение лучшего на эпохе значения метрики
             # и весов в зависимости от приспособленности        
             if self.metric_function.compare(1,2)==1:    # Для минимизации:
                 max_val  = max(bot_fit)
@@ -446,21 +579,30 @@ class BestNodesGA(MCLPBase):
             else:                                       # Для максимизации
                 weights = bot_fit
                 cur_metric = max(bot_fit)
-            # Нормализация весов (для более выраженной точности расчета)
+            
+            # 2.5 Нормализация весов (для более выраженной точности расчета)
             weights = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
 
-            # Определяем лучше ли лучшее на эпохе решение чем имеющееся
+            # 2.6 Определяем лучше ли лучшее на эпохе решение чем имеющееся
             if self.metric_function.compare(best_metric, cur_metric) == cur_metric:
                 best_bot = population[bot_fit.index(cur_metric)]
                 best_metric  = cur_metric
 
-            # Выполнение функции окончания расчета на эпохе
+            # 2.7 Выполнение функции окончания расчета на эпохе
             if self.epoch_end_function:
                 self.epoch_end_function(epoch=epoch,
                                         best_metric=best_metric,
                                         cur_metric=cur_metric,
                                         best_bot=best_bot)
 
+            # 2.8 Если достигнута цель расчета, выходим из цикла
+            if self.stop_case_function:
+                if self.stop_case_function(value=best_metric,
+                            iteration=epoch,
+                            best_metric=best_metric,
+                            dynamic_nodes=best_bot,
+                            static_nodes=static_nodes):
+                    break
 
         return best_bot, best_metric
 
@@ -484,6 +626,7 @@ class BestNodesSA(MCLPBase):
     '''
     def __init__(self, state_function: StateBase,
                  metric_function: MetricBase,
+                 node_selector:PointSelectorBase,
                  initial_temperature: float = 1,
                  end_temperature: float = 0.0001,
                  turns: int = 1000000,
@@ -492,6 +635,7 @@ class BestNodesSA(MCLPBase):
                  bad_val_in_area: int|None = 1000,
                  turn_end_function: callable = None,
                  best_state_find_function: callable = None,
+                 stop_case_function: callable = None,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -533,15 +677,38 @@ class BestNodesSA(MCLPBase):
         if appr_val_in_area < 0 or appr_val_in_area > 1:
             raise ValueError('Доля узлов графа в пределах area, должна лежать в диапазоне (0,1)')
 
+        if turn_end_function:
+            try:
+                turn_end_function(turn = None,
+                                        T = None,
+                                        best_metric = None,
+                                        cur_metric = None,
+                                        best_bot = None)
+            except TypeError:
+                print('Сигнатура функции `turn_end_function` должна быть:')
+                print('`turn_end_function(turn:int, T:float, best_metric:float, cur_metric:float, best_bot:dict)`')
+        
+        if best_state_find_function:
+            try:
+                best_state_find_function(turn = None,
+                                    T = None,
+                                    best_metric = None,
+                                    cur_metric = None,
+                                    best_bot = None)
+            except TypeError:
+                print('Сигнатура функции `best_state_find_function` должна быть:')
+                print('`best_state_find_function(turn:int, T:float, best_metric:float, cur_metric:float, best_bot:dict)`')
 
         self.initial_temperature = initial_temperature
         self.end_temperature = end_temperature
+        self.node_selector = node_selector
         self.turns = turns
         self.appr_val_in_area = appr_val_in_area
         self.mutation_max_count = mutation_max_count
         self.bad_val_in_area = bad_val_in_area
         self.turn_end_function = turn_end_function
         self.best_state_find_function = best_state_find_function
+        self.stop_case_function = stop_case_function
         super().__init__(state_function, metric_function, **kwargs)
 
 
@@ -606,7 +773,8 @@ class BestNodesSA(MCLPBase):
 
         return best_metric
 
-    def _generate_state_candidate(self, state, g_nodes):
+    def _generate_state_candidate(self, env, state, area):
+                              #  (self, env, new_dynamic_nodes, g_nodes, area):
         '''
         Функция порождает новое состояние
         '''
@@ -614,14 +782,15 @@ class BestNodesSA(MCLPBase):
 
         # Здесь вся магия
         for _ in range(self.mutation_max_count):
-            # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
+            # Выбор случайного элемента в словаре и удаление его из new_state
             node, unit = random.choice(list(new_state.items()))
             del new_state[node]
 
-            # Поиск нового узла, которого при этом нет в new_dynamic_nodes
-            node = random.choice(g_nodes)
-            while node in new_state.keys():
-                node = random.choice(g_nodes)
+            # Поиск нового узла, которого при этом нет в new_state
+            node = self.node_selector(env=env, points=new_state, area=area)
+            # node = random.choice(g_nodes)
+            # while node in new_state.keys():
+            #     node = random.choice(g_nodes)
 
             new_state[node] = unit
 
@@ -662,8 +831,8 @@ class BestNodesSA(MCLPBase):
             raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
         if not static_nodes is None and not isinstance(static_nodes, dict):
             raise TypeError("Тип аргумента `static_nodes` должен быть `dict`!")
-        if len(dynamic_nodes) < 2:
-            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 2. Сейчас {len(dynamic_nodes)}')
+        if len(dynamic_nodes) < 1:
+            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 1. Сейчас {len(dynamic_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
         if len(dynamic_nodes)<1:
@@ -686,7 +855,9 @@ class BestNodesSA(MCLPBase):
 
         # 2. Выполняем расчет
         for i in range(self.turns):
-            state_candidate = self._generate_state_candidate(current_state, g_nodes)
+            state_candidate  = self._generate_state_candidate(env=env,
+                                                             state=current_state,
+                                                             area=area)
             candidate_energy = self._calculate_energy(env=env,
                                 nodes=list_dict_concat(state_candidate, static_nodes),
                                 area=area,
@@ -717,14 +888,23 @@ class BestNodesSA(MCLPBase):
 
             T = self._decrease_temperature(self.initial_temperature, i)
             if T < self.end_temperature:
-                return current_state, best_energy
-            
+                return best_state, best_energy
+
             # Выполнение функции окончания расчета на эпохе
             if self.turn_end_function:
-                self.turn_end_function(turn=i,
+                self.turn_end_function(turn = i,
                                         T = T,
-                                        best_metric=best_energy,
-                                        cur_metric=candidate_energy,
-                                        best_bot=best_state)
+                                        best_metric = best_energy,
+                                        cur_metric = candidate_energy,
+                                        best_bot = best_state)
+                
+            # 2.8 Если достигнута цель расчета, выходим из цикла
+            if self.stop_case_function:
+                if self.stop_case_function(value=best_energy,
+                            iteration=i,
+                            best_metric=best_energy,
+                            dynamic_nodes=best_state,
+                            static_nodes=static_nodes):
+                    break
 
         return best_state, best_energy

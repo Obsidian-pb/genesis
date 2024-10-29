@@ -7,7 +7,8 @@
 import networkx as nx
 import pandas as pd
 
-from genesis.core import LSCPBase, BestPointsBase, PointSelectorBase, StopCaseBase
+from genesis.core import LSCPBase, BestPointsBase, MCLPBase, MetricBase, PointSelectorBase, StateBase, StopCaseBase
+from genesis.mclp import NodesMetric
 from genesis.tools import list_dict_concat
 
 
@@ -17,21 +18,23 @@ class LSCPCommon(LSCPBase):
     размещения узлов для достижения целевой метрики.
     '''
     def __init__(self,
-                 mclp_function: BestPointsBase,
+                 mclp_function: MCLPBase,
                  point_selector: PointSelectorBase,
                  stop_case_function: StopCaseBase,
+                 metric_function: MetricBase,
                  names_pattern: str = '{}',
                  start_names_index: int = 1,
                  after_mclp_function: callable = None,
                  **kwargs):
         self.after_mclp_function = after_mclp_function
-        super().__init__(mclp_function, point_selector, stop_case_function, names_pattern, start_names_index, **kwargs)
+        super().__init__(mclp_function, point_selector, stop_case_function, metric_function, names_pattern, start_names_index, **kwargs)
 
     def __call__(self,
                  env:nx.MultiDiGraph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
                  area: pd.Series = None,
+                 nodes_list:set=None,
                  **kwargs):
         '''
         Запуск работы алгоритма
@@ -48,6 +51,9 @@ class LSCPCommon(LSCPBase):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
+        `nodes_list`:set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
         '''
 
         # 0. Проверка корректности пришедших данных
@@ -79,33 +85,94 @@ class LSCPCommon(LSCPBase):
                                             static_nodes=static_nodes,
                                             area=area,
                                             **kwargs)
+            # 2. Расчет текущей метрики
+            if static_nodes is None:
+                all_nodes = best_dynamic_nodes
+            else:
+                all_nodes = list_dict_concat(best_dynamic_nodes, static_nodes)
+            current_metric = NodesMetric(self.mclp_function.state_function,
+                                         self.metric_function
+                                         )(env,
+                                           list(all_nodes.keys()),
+                                           area=area)
+            # 3. Печать отчета расчета
             if not self.after_mclp_function is None:
                 self.after_mclp_function(iteration=iteration,
                             best_metric=best_metric,
+                            current_metric=current_metric,
                             dynamic_nodes=best_dynamic_nodes,
                             static_nodes=static_nodes)
 
-            # 2. Если достигнута цель расчета, выходим из цикла
-            if self.stop_case_function(value=best_metric,
+            # 4. Если достигнута цель расчета, выходим из цикла
+            if self.stop_case_function(value=current_metric,
                             iteration=iteration,
                             best_metric=best_metric,
+                            current_metric=current_metric,
                             dynamic_nodes=best_dynamic_nodes,
                             static_nodes=static_nodes):
-                return best_dynamic_nodes, best_metric
+                return best_dynamic_nodes, current_metric
 
             # ============================================================================================
             # 2. Если нет - создаем новое подразделение
             # 2.1. Получение суммарного списка (или словаря) узлов для расчета состояния и метрик
-            start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
+            start_nodes = list_dict_concat(best_dynamic_nodes, static_nodes)
 
             # 2.2. Выбор нового узла в соответствии с переданной логикой
-            new_node = self.point_selector(env, start_nodes)
+            new_node = self.point_selector(env=env, points=start_nodes, area=area)
+            # print(new_node)
 
             # 2.3. Добавление нового узла в словарь динамических узлов:
             best_dynamic_nodes[new_node] = self.names_pattern.format(name_index)
+            # print(best_dynamic_nodes)
 
             # ============================================================================================
             iteration += 1
             name_index += 1
 
         return best_dynamic_nodes, best_metric
+    
+
+
+def drop_trash_points(env,
+                    state_function: StateBase,
+                    metric_function: MetricBase,
+                    stop_case_function: StopCaseBase,
+                    dynamic_nodes,
+                    static_nodes=None,
+                    area=None,
+                    ):
+    '''
+    Функция отброса мусорных размещений.
+    В данном случае используется жадное удаление
+
+    
+    '''
+    
+
+
+    for node in dynamic_nodes:
+        if len(dynamic_nodes) == 1:
+            break
+        tmp = dynamic_nodes.copy()
+        tmp.pop(node)
+
+        if static_nodes is None:
+            all_nodes = tmp
+        else:
+            all_nodes = list_dict_concat(tmp, static_nodes)
+
+        metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
+        if stop_case_function(value=metric,
+                            iteration=0,
+                            best_metric=metric,
+                            dynamic_nodes=tmp,
+                            static_nodes=static_nodes):
+            dynamic_nodes = tmp
+    
+    if static_nodes is None:
+        all_nodes = dynamic_nodes
+    else:
+        all_nodes = list_dict_concat(tmp, static_nodes)
+    metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
+    
+    return dynamic_nodes, metric

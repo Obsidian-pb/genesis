@@ -12,27 +12,27 @@ import networkx as nx
 
 
 # Блок простых инструментальных функций общего назначения
-def kmh_to_mm(kmh: float, precision: int = 2) -> float:
-    '''
-    Перевод километров в час в метры в минуту
+# def kmh_to_mm(kmh: float, precision: int = 2) -> float:
+#     '''
+#     Перевод километров в час в метры в минуту
 
-    Аргументы
-    ---------
-    `kmh`: float
-        Скорость в километрах в час
+#     Аргументы
+#     ---------
+#     `kmh`: float
+#         Скорость в километрах в час
 
-    `precision`: int
-        Точность округления, знаков после запятой
+#     `precision`: int
+#         Точность округления, знаков после запятой
 
-    Возвращает
-    ----------
-    `mm`: float
-        Скорость в метрах в минуту
-    '''
-    if not isinstance(kmh, (int, float)):
-        raise TypeError("Аргумент kmh должен иметь тип данных int или float")
+#     Возвращает
+#     ----------
+#     `mm`: float
+#         Скорость в метрах в минуту
+#     '''
+#     if not isinstance(kmh, (int, float)):
+#         raise TypeError("Аргумент kmh должен иметь тип данных int или float")
 
-    return round(kmh*1000/60, precision)
+#     return round(kmh*1000/60, precision)
 
 
 # def data_frame_to_geo_data_frame(
