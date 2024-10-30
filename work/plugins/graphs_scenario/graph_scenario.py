@@ -126,6 +126,8 @@ class ExampleProcessingAlgorithm(QgsProcessingAlgorithm):
         if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
+        feedback.pushInfo(str(source.wkbType()))
+
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUTPUT,
