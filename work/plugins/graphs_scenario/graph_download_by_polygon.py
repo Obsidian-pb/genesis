@@ -1,6 +1,8 @@
 """
 Загрузка графа улично-дорожной сети из OSM при помощи osmnx.
 
+Выгружаются дороги в пределах указанного векторного слоя с полигонами границ.
+
 Сохранение напрямую в файл geopackage и загрузка слоя в проект.
 """
 
@@ -21,19 +23,22 @@ from qgis.core import (
                        QgsProcessingException,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFileDestination,
-                       QgsProcessingParameterExtent,
+                       QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterString,
                        QgsProcessingParameterBoolean,
                        QgsCoordinateReferenceSystem,
                        QgsCoordinateTransform,
+                       QgsProcessing,
                        )
 from qgis import processing
 
 
 
-class GDownloadAlgorithm(QgsProcessingAlgorithm):
+class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
     """
     Алгоритм загрузки графа улично-дорожной сети из OSM при помощи osmnx
+
+    Выгружаются дороги в пределах указанного векторного слоя с полигонами границ.
 
     Сохранение напрямую в файл geopackage и загрузка слоя в проект.
     """
@@ -48,19 +53,19 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return GDownloadAlgorithm()
+        return GDownloadAlgorithmPoly()
 
     def name(self):
         """
         Название алгоритма
         """
-        return 'g_download_by_osmnx'
+        return 'g_download_by_osmnx_by_poly'
 
     def displayName(self):
         """
         Отображаемое в списке имя алгоритма
         """
-        return self.tr('Загрузка графа УДС из OSMNX')
+        return self.tr('Загрузка графа УДС из OSMNX по полигону')
 
     def group(self):
         """
@@ -80,6 +85,9 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         """
         return self.tr(
             '''Загрузка графа улично-дорожной сети из OSM при помощи osmnx.
+
+            Загрузка выполняется в пределах векторного слоя с полигонами.
+
             Сохранение напрямую в файл geopackage и загрузка слоя в проект.'''
             )
 
@@ -91,9 +99,10 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
         # Охват карты
         self.addParameter(
-            QgsProcessingParameterExtent (
+            QgsProcessingParameterFeatureSource (
                 self.INPUT,
-                self.tr('Охват карты')
+                self.tr('Слой полигона границ'),
+                [QgsProcessing.TypeVectorAnyGeometry]
             )
         )
 
@@ -132,13 +141,13 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
         # Получение исходных параметров алгоритма
         ## Загрузка охвата
-        extent = self.parameterAsExtent(
+        source = self.parameterAsSource(
             parameters,
             self.INPUT,
             context
         )
         ### Проверяем корректность охвата
-        if extent is None:
+        if source is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
         ## Получем исходную crs:
@@ -179,6 +188,20 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         ### Если target_file не был получен
         if target_file is None:
             raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
+
+
+
+        features = source.getFeatures()
+        # feat = QgsFeature()
+        for current, feature in enumerate(features):
+            # print(current)
+            # print(str(feature.geometry()))
+            wkt = feature.geometry().asWkt()
+            print(wkt)
+            poly = loads(wkt)
+            print(poly)
+
+        return {self.OUTPUT: '0'}
 
 
         # Тело алгоритма
