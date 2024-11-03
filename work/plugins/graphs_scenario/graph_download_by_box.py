@@ -10,9 +10,7 @@ import geopandas as gpd
 from shapely.geometry import Polygon, box
 from shapely.wkt import loads
 
-# print(ox.__version__)
-# print(nx.__version__)
-# print(gpd.__version__)
+
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
@@ -106,6 +104,15 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+        # Необходимо ли получить все компоненты графа
+        self.addParameter(
+            QgsProcessingParameterBoolean (
+                'RETAIN',
+                self.tr('Получить несвязанные компоненты'),
+                False
+            )
+        )
+
         # Имя слоя дорожной сети
         self.addParameter(
             QgsProcessingParameterString (
@@ -129,6 +136,10 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         """
         Код алгоритма
         """
+        feedback.pushInfo('Версии библиотек:')
+        feedback.pushInfo(f'   osmnx: {ox.__version__}')
+        feedback.pushInfo(f'   networkx: {nx.__version__}')
+        feedback.pushInfo(f'   geopandas: {gpd.__version__}')
 
         # Получение исходных параметров алгоритма
         ## Загрузка охвата
@@ -159,6 +170,15 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
             context
         )
         if simplify is None:
+            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        
+        ## Получаем флаг необходимости получения изолированных компонентов
+        retain_all = self.parameterAsBoolean(
+            parameters,
+            'RETAIN',
+            context
+        )
+        if retain_all is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
         ## Получаем имя слоя дорожной сети
@@ -200,7 +220,9 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
 
         # Загрузка данных из osmnx
-        G = ox.graph_from_polygon(poly, network_type='drive_service', simplify=simplify)
+        G = ox.graph_from_polygon(poly, network_type='drive_service',
+                                  simplify=simplify,
+                                  retain_all=retain_all)
         ## Вывод отчета о количестве полученных узлов
         feedback.pushInfo('Получен граф дорог с количеством узлов:')
         feedback.pushInfo(str(G.number_of_nodes()))
@@ -210,8 +232,6 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
-        # feedback.pushInfo(str(edges.columns))
-        # edges = edges.drop(['u', 'v', 'key'])
         edges.to_file(target_file)
         feedback.pushInfo(f'Граф сохранен как {str(target_file)}')
 
