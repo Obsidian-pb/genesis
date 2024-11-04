@@ -6,6 +6,7 @@
 Сохранение напрямую в файл geopackage и загрузка слоя в проект.
 """
 
+import sys
 import networkx as nx
 import osmnx as ox
 import geopandas as gpd
@@ -33,7 +34,9 @@ from qgis.core import (
                        )
 from qgis import processing
 
-# from graph_tools import fix_highway_list
+
+sys.path.append(r'D:\Git\genesis\work\plugins\graphs_scenario')
+from .graph_tools import fix_highway_list
 
 
 
@@ -68,13 +71,13 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         """
         Отображаемое в списке имя алгоритма
         """
-        return self.tr('Загрузка графа УДС из OSMNX по полигону')
+        return self.tr('Загрузка ГДС из OSMNX по полигону')
 
     def group(self):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('Графы УДС')
+        return self.tr('ГДС')
 
     def groupId(self):
         """
@@ -87,7 +90,7 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         Строка подсказки
         """
         return self.tr(
-            '''Загрузка графа улично-дорожной сети из OSM при помощи osmnx.
+            '''Загрузка графа улично-дорожной сети (ГДС) из OSM при помощи osmnx.
 
             Загрузка выполняется в пределах векторного слоя с полигонами.
 
@@ -215,7 +218,7 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
 
 
-        
+
         # Тело алгоритма
         # Если необходимо производим перепроецирование СК полигона
         if crs.authid() != 'EPSG:4326':
@@ -251,9 +254,9 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         feedback.pushInfo('Получен граф дорог с количеством узлов:')
         feedback.pushInfo(str(G.number_of_nodes()))
 
-            
 
-        
+
+
 
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
@@ -273,10 +276,10 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         return {self.OUTPUT: target_file}
 
 
-def fix_highway_list(edge):
-    '''
-    Функция исправления типа улицы, для случая, когда тип указан как список
-    '''
-    if isinstance(edge, list):
-        return edge[0]
-    return edge
+# def fix_highway_list(edge):
+#     '''
+#     Функция исправления типа улицы, для случая, когда тип указан как список
+#     '''
+#     if isinstance(edge, list):
+#         return edge[0]
+#     return edge

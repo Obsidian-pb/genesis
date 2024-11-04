@@ -4,13 +4,13 @@
 Сохранение напрямую в файл geopackage и загрузка слоя в проект.
 """
 
+import sys
 import networkx as nx
 import osmnx as ox
 import geopandas as gpd
 from shapely.geometry import Polygon, box
 from shapely.wkt import loads
 
-# from graph_tools import fix_highway_list
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
@@ -27,6 +27,9 @@ from qgis.core import (
                        )
 from qgis import processing
 
+
+sys.path.append(r'D:\Git\genesis\work\plugins\graphs_scenario')
+from graph_tools import fix_highway_list
 
 
 
@@ -59,13 +62,13 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         """
         Отображаемое в списке имя алгоритма
         """
-        return self.tr('Загрузка графа УДС из OSMNX')
+        return self.tr('Загрузка ГДС из OSMNX по охвату')
 
     def group(self):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('Графы УДС')
+        return self.tr('ГДС')
 
     def groupId(self):
         """
@@ -228,8 +231,8 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo('Получен граф дорог с количеством узлов:')
         feedback.pushInfo(str(G.number_of_nodes()))
 
-        
-        
+
+
 
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
@@ -249,11 +252,10 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         return {self.OUTPUT: target_file}
 
 
-
-def fix_highway_list(edge):
-    '''
-    Функция исправления типа улицы, для случая, когда тип указан как список
-    '''
-    if isinstance(edge, list):
-        return edge[0]
-    return edge
+# def fix_highway_list(edge):
+#     '''
+#     Функция исправления типа улицы, для случая, когда тип указан как список
+#     '''
+#     if isinstance(edge, list):
+#         return edge[0]
+#     return edge

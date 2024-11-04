@@ -3,14 +3,14 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=GPKG Graph Builder
+name=Genesis
 qgisMinimumVersion=3.0
-description=Плагин для проверки алгоритмов восстановления графа
+description=Плагин для проведения расчетов параметров реагирования пожарных подразделений, численности и оптимальных мест их размещения
 version=0.1
 author=SIBPSA
 email=malyutin@sibpsa.ru
 
-about=Плагин предназначен для тестирования алгоритма восстанвления графа улично-дорожной сети из файла geopackage
+about=Плагин для проведения расчетов параметров реагирования пожарных подразделений, численности и оптимальных мест их размещения
 
 tracker=http://bugs
 repository=http://repo
