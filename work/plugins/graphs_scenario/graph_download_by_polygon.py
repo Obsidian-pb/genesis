@@ -33,6 +33,8 @@ from qgis.core import (
                        )
 from qgis import processing
 
+# from graph_tools import fix_highway_list
+
 
 
 class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
@@ -249,11 +251,16 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         feedback.pushInfo('Получен граф дорог с количеством узлов:')
         feedback.pushInfo(str(G.number_of_nodes()))
 
-        
+            
+
         
 
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
+        ## Если граф был упрощен, исправляем типы улиц list
+        if simplify:
+            edges['highway'] = edges['highway'].apply(fix_highway_list)
+        ## Сохранение
         edges.to_file(target_file)
         feedback.pushInfo(f'Граф сохранен как {str(target_file)}')
 
@@ -264,3 +271,12 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
 
         # dest_id = '0'
         return {self.OUTPUT: target_file}
+
+
+def fix_highway_list(edge):
+    '''
+    Функция исправления типа улицы, для случая, когда тип указан как список
+    '''
+    if isinstance(edge, list):
+        return edge[0]
+    return edge

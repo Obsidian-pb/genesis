@@ -10,7 +10,7 @@ import geopandas as gpd
 from shapely.geometry import Polygon, box
 from shapely.wkt import loads
 
-
+# from graph_tools import fix_highway_list
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
@@ -26,6 +26,7 @@ from qgis.core import (
                        QgsCoordinateTransform,
                        )
 from qgis import processing
+
 
 
 
@@ -232,6 +233,10 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
+        ## Если граф был упрощен, исправляем типы улиц list
+        if simplify:
+            edges['highway'] = edges['highway'].apply(fix_highway_list)
+        ## Сохранение
         edges.to_file(target_file)
         feedback.pushInfo(f'Граф сохранен как {str(target_file)}')
 
@@ -242,3 +247,13 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
         # dest_id = '0'
         return {self.OUTPUT: target_file}
+
+
+
+def fix_highway_list(edge):
+    '''
+    Функция исправления типа улицы, для случая, когда тип указан как список
+    '''
+    if isinstance(edge, list):
+        return edge[0]
+    return edge
