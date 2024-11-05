@@ -13,5 +13,5 @@ def classFactory(iface):  # pylint: disable=invalid-name
     :type iface: QgsInterface
     """
     #
-    from .genesis import GenesisPlugin
+    from .genesis_plugin import GenesisPlugin
     return GenesisPlugin()

@@ -14,8 +14,10 @@ __revision__ = '$Format:%H$'
 
 from qgis.core import QgsProcessingProvider
 
-from .graph_download_by_box import GDownloadAlgorithm
-from .graph_download_by_polygon import GDownloadAlgorithmPoly
+from .algs.g_download_by_extent import GDownloadAlgorithm
+from .algs.g_download_by_poly import GDownloadAlgorithmPoly
+
+
 
 
 class GenesisProvider(QgsProcessingProvider):

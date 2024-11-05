@@ -121,13 +121,13 @@ class GDSSpeedsAlgorithm(QgsProcessingAlgorithm):
 
         # Получение исходных параметров алгоритма
         ## Загрузка охвата
-        extent = self.parameterAsVectorLayer(
+        layer = self.parameterAsVectorLayer(
             parameters,
             self.INPUT,
             context
         )
         ### Проверяем корректность охвата
-        if extent is None:
+        if layer is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
         
