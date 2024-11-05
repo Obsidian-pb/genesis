@@ -4,15 +4,13 @@
 Сохранение напрямую в файл geopackage и загрузка слоя в проект.
 """
 
+import sys
 import networkx as nx
 import osmnx as ox
 import geopandas as gpd
 from shapely.geometry import Polygon, box
 from shapely.wkt import loads
 
-# print(ox.__version__)
-# print(nx.__version__)
-# print(gpd.__version__)
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
@@ -28,6 +26,10 @@ from qgis.core import (
                        QgsCoordinateTransform,
                        )
 from qgis import processing
+
+
+sys.path.append(r'D:\Git\genesis\work\plugins\graphs_scenario')
+from graph_tools import fix_highway_list
 
 
 
@@ -60,13 +62,13 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         """
         Отображаемое в списке имя алгоритма
         """
-        return self.tr('Загрузка графа УДС из OSMNX')
+        return self.tr('Загрузка ГДС из OSMNX по охвату')
 
     def group(self):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('Графы УДС')
+        return self.tr('ГДС')
 
     def groupId(self):
         """
@@ -106,6 +108,15 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
+        # Необходимо ли получить все компоненты графа
+        self.addParameter(
+            QgsProcessingParameterBoolean (
+                'RETAIN',
+                self.tr('Получить несвязанные компоненты'),
+                False
+            )
+        )
+
         # Имя слоя дорожной сети
         self.addParameter(
             QgsProcessingParameterString (
@@ -129,6 +140,10 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         """
         Код алгоритма
         """
+        feedback.pushInfo('Версии библиотек:')
+        feedback.pushInfo(f'   osmnx: {ox.__version__}')
+        feedback.pushInfo(f'   networkx: {nx.__version__}')
+        feedback.pushInfo(f'   geopandas: {gpd.__version__}')
 
         # Получение исходных параметров алгоритма
         ## Загрузка охвата
@@ -159,6 +174,15 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
             context
         )
         if simplify is None:
+            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        
+        ## Получаем флаг необходимости получения изолированных компонентов
+        retain_all = self.parameterAsBoolean(
+            parameters,
+            'RETAIN',
+            context
+        )
+        if retain_all is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
         ## Получаем имя слоя дорожной сети
@@ -200,18 +224,22 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
 
         # Загрузка данных из osmnx
-        G = ox.graph_from_polygon(poly, network_type='drive_service', simplify=simplify)
+        G = ox.graph_from_polygon(poly, network_type='drive_service',
+                                  simplify=simplify,
+                                  retain_all=retain_all)
         ## Вывод отчета о количестве полученных узлов
         feedback.pushInfo('Получен граф дорог с количеством узлов:')
         feedback.pushInfo(str(G.number_of_nodes()))
 
-        
-        
+
+
 
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
-        # feedback.pushInfo(str(edges.columns))
-        # edges = edges.drop(['u', 'v', 'key'])
+        ## Если граф был упрощен, исправляем типы улиц list
+        if simplify:
+            edges['highway'] = edges['highway'].apply(fix_highway_list)
+        ## Сохранение
         edges.to_file(target_file)
         feedback.pushInfo(f'Граф сохранен как {str(target_file)}')
 
@@ -222,3 +250,12 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
 
         # dest_id = '0'
         return {self.OUTPUT: target_file}
+
+
+# def fix_highway_list(edge):
+#     '''
+#     Функция исправления типа улицы, для случая, когда тип указан как список
+#     '''
+#     if isinstance(edge, list):
+#         return edge[0]
+#     return edge
