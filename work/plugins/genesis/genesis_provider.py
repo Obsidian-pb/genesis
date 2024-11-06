@@ -16,7 +16,8 @@ from qgis.core import QgsProcessingProvider
 
 from .algs.g_download_by_extent import GDownloadAlgorithm
 from .algs.g_download_by_poly import GDownloadAlgorithmPoly
-
+# from .algs.a_gds_set_speeds import GDSSpeedsAlgorithm
+from .algs.a_shotest_path_p2p import ShortestPathP2PAlgorithm
 
 
 
@@ -41,6 +42,8 @@ class GenesisProvider(QgsProcessingProvider):
         """
         self.addAlgorithm(GDownloadAlgorithm())
         self.addAlgorithm(GDownloadAlgorithmPoly())
+        # self.addAlgorithm(GDSSpeedsAlgorithm())
+        self.addAlgorithm(ShortestPathP2PAlgorithm())
 
     def id(self):
         return 'Genesis'

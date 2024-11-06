@@ -17,6 +17,7 @@ from shapely.ops import unary_union
 # print(nx.__version__)
 # print(gpd.__version__)
 
+from ..graphs.algorithms import fix_highway_list
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
                        QgsProject,
@@ -109,14 +110,14 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
             )
         )
 
-        # Необходимо ли произвести упрощение графа
-        self.addParameter(
-            QgsProcessingParameterBoolean (
-                'SIMPLIFY',
-                self.tr('Упростить граф'),
-                False
-            )
-        )
+        # # Необходимо ли произвести упрощение графа
+        # self.addParameter(
+        #     QgsProcessingParameterBoolean (
+        #         'SIMPLIFY',
+        #         self.tr('Упростить граф'),
+        #         False
+        #     )
+        # )
 
         # Необходимо ли получить все компоненты графа
         self.addParameter(
@@ -177,14 +178,14 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
         feedback.pushInfo(crs.authid())
 
-        ## Получаем флаг необходимости упрощения графа
-        simplify = self.parameterAsBoolean(
-            parameters,
-            'SIMPLIFY',
-            context
-        )
-        if simplify is None:
-            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        # ## Получаем флаг необходимости упрощения графа
+        # simplify = self.parameterAsBoolean(
+        #     parameters,
+        #     'SIMPLIFY',
+        #     context
+        # )
+        # if simplify is None:
+        #     raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
         ## Получаем флаг необходимости получения изолированных компонентов
         retain_all = self.parameterAsBoolean(
@@ -247,12 +248,11 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         G = ox.graph_from_polygon(poly, network_type='drive_service',
                                   simplify=False,
                                   retain_all=retain_all)
-        ## Если был передан флаг упрощения графа - упрощаем его
-        if simplify:
-            G = ox.simplify_graph(G, edge_attrs_differ=['highway'])
+        # ## Если был передан флаг упрощения графа - упрощаем его
+        # if simplify:
+        #     G = ox.simplify_graph(G, edge_attrs_differ=['highway', 'oneway', 'reversed'])
         ## Вывод отчета о количестве полученных узлов
-        feedback.pushInfo('Получен граф дорог с количеством узлов:')
-        feedback.pushInfo(str(G.number_of_nodes()))
+        feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}')
 
 
 
@@ -260,9 +260,10 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
 
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
-        ## Если граф был упрощен, исправляем типы улиц list
+        # ## Если граф был упрощен, исправляем типы улиц list
         # if simplify:
-        #     edges['highway'] = edges['highway'].apply(fix_highway_list)
+        #     for column in edges.columns:
+        #         edges[column] = edges[column].apply(fix_highway_list)
         ## Сохранение
         edges.to_file(target_file)
         feedback.pushInfo(f'Граф сохранен как {str(target_file)}')
