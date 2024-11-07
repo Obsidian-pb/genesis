@@ -8,6 +8,8 @@ import os
 import networkx as nx
 import osmnx as ox
 import geopandas as gpd
+from shapely import unary_union
+# from shapely.ops import unary_union
 
 from ..graphs.speeds import kmh_to_mm, set_graph_travel_times
 # from shapely.geometry import Polygon, box
@@ -26,10 +28,12 @@ from qgis.core import (
                        QgsProcessingAlgorithm,
                        QgsProcessing,
                        QgsProcessingParameterFileDestination,
+                       QgsProcessingParameterMatrix,
                     #    QgsProcessingParameterExtent,
                        QgsProcessingParameterString,
                        QgsProcessingParameterPoint,
                        QgsProcessingParameterField,
+                       QgsProcessingParameterEnum,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition,
@@ -49,11 +53,13 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
     """
 
     INPUT = 'INPUT'
+    SPEEDS = 'SPEEDS'
     START_POINT = 'START_POINT'
     END_POINT = 'END_POINT'
     TRAVEL_TIME_FIELD = 'TRAVEL_TIME_FIELD'
     RESULT_FIELD = 'RESULT_FIELD'
     SIMPLIFY = 'SIMPLIFY'
+    RESULT_TYPE = 'RESULT_TYPE'
     OUTPUT = 'OUTPUT'
 
     def icon(self):
@@ -109,6 +115,9 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         Все это будет указываться в окне интерфейса алгоритма.
         """
 
+        self.RESULT_TYPE_LIST = [self.tr('Дискретный маршрут (отдельные линии для каждого участка)'),
+                            self.tr('Сплошной маршрут (единая линия для всего маршрута)')]
+
         # Слой дорожной сети
         self.addParameter(
             QgsProcessingParameterFeatureSource (
@@ -117,12 +126,28 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
                 [QgsProcessing.TypeVectorLine]
             )
         )
-
         # Точки старта и финиша
         self.addParameter(QgsProcessingParameterPoint(self.START_POINT,
                                                       self.tr('Стартовая точка')))
         self.addParameter(QgsProcessingParameterPoint(self.END_POINT,
                                                       self.tr('Конечная точка')))
+        # Расчетные скорости следования
+        self.addParameter(
+            QgsProcessingParameterMatrix (
+                self.SPEEDS,
+                self.tr('Расчетные скорости следования'),
+                numberRows = 5,
+                hasFixedNumberRows=True,
+                headers = [self.tr('Дорога'), self.tr('Скорость')],
+                defaultValue = [
+                'Магистральные городские дороги и улицы общегородского значения', 49,
+                'Магистральные улицы районного значения', 37,
+                'Улицы и дороги местного значения', 26,
+                'Служебные проезды: внутриквартальные, въездные, парковочные и т.д.', 16,
+                'Пешеходные зоны и территории пригодные для передвижения пожарных автомобилей', 5
+                ]
+            )
+        )
         # Работаем с упрощенным графом или нет
         self.addParameter(QgsProcessingParameterBoolean(self.SIMPLIFY, self.tr('Упростить граф'), True))
 
@@ -134,7 +159,11 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
                 'Маршрут'
             )
         )
-
+        # Тип результата (список)
+        self.addParameter(QgsProcessingParameterEnum(self.RESULT_TYPE,
+                                                     self.tr('Представление результата'),
+                                                     self.RESULT_TYPE_LIST,
+                                                     defaultValue=0))
         # Выходной слой
         self.addParameter(
             QgsProcessingParameterFileDestination(
@@ -172,13 +201,23 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         start_point = self.parameterAsPoint(parameters, self.START_POINT, context, network.sourceCrs()) #QgsPointXY
         end_point = self.parameterAsPoint(parameters, self.END_POINT, context, network.sourceCrs()) #QgsPointXY
         # travel_time_field = self.parameterAsString(parameters, self.TRAVEL_TIME_FIELD, context) #str
-        target_file = self.parameterAsFile(parameters, self.OUTPUT, context)
-        layer_name = self.parameterAsString(parameters, self.RESULT_FIELD, context)
         simplify = self.parameterAsBoolean(parameters, self.SIMPLIFY, context)
+        speeds = self.parameterAsMatrix(parameters, self.SPEEDS, context)[1::2]
+        speeds = [float(s) for s in speeds]
+        result_types = self.parameterAsEnum(parameters, self.RESULT_TYPE, context) #int
 
+        # В дальнейшем нужно передавать эти поля явно!
+        # highway_field = self.parameterAsString(parameters, self.HIGHWAY_FIELD, context)
+        # oneway_field = self.parameterAsString(parameters, self.ONEWAY_FIELD, context)
+        # lanes_field = self.parameterAsString(parameters, self.LANES_FIELD, context)
+        # reversed_field = self.parameterAsString(parameters, self.REVERSED_FIELD, context)
+        
+        
+        layer_name = self.parameterAsString(parameters, self.RESULT_FIELD, context)
+        target_file = self.parameterAsFile(parameters, self.OUTPUT, context)
 
         # Тело алгоритма
-        feedback.setProgress(0)
+        feedback.setProgress(5)
         # Подготавливаем геодатасет с геометрией дорог
         roads = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=crs.authid())
         try:
@@ -187,9 +226,15 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
             feedback.pushInfo('Перепроецирование слоя улично-дорожной сети не требуется')
         feedback.setProgress(30)
 
+        columns_list = ['name', 'highway', 'oneway', 'lanes', 'reversed']
+        for col in columns_list:
+            if not col in roads.columns:
+                raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')
+
+
         # Формируем граф
         G = graph_rise_from_gpkg(roads,
-                                 columns_list = ['name', 'highway', 'oneway', 'lanes', 'reversed'])
+                                 columns_list = columns_list)
         if simplify:
             G = ox.simplify_graph(G)
         g_crs = G.graph['crs']
@@ -197,7 +242,6 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgress(70)
 
         # Устанавливаем скорости следования
-        speeds = [50, 40, 30, 15, 5]
         set_graph_travel_times(G, speeds, morph_function=kmh_to_mm, travel_time_field=travel_time_field)
         feedback.setProgress(80)
 
@@ -217,21 +261,28 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
 
 
         # Ищем кратчайший маршрут
-        # route = nx.shortest_path(G, source=start_node, target=end_node, weight=travel_time_field)
-        # route = ox.routing.shortest_path(G, start_node, end_node)
         route = nx.dijkstra_path(G, source=start_node, target=end_node, weight=travel_time_field)
         feedback.setProgress(95)
 
         
-
-        # Сохраняем в итоговый слой
+        # Получаем геодатафрейм пути
         route_gdf = ox.routing.route_to_gdf(G, route)
-        ## Сохранение
-        route_gdf.to_file(target_file)
-        
         # Вывод сведения о протяженности имаршрута
         total_len = route_gdf[travel_time_field].sum()
         feedback.pushInfo(f'Время следования по маршруту: {total_len} мин.')
+
+        # Перепроецируем датасет маршрутов в СК дорожной сети
+        route_gdf = ox.project_gdf(route_gdf, to_crs=crs.authid())
+
+        # Сохраняем в итоговый слой
+        if result_types == 0:
+            route_gdf.to_file(target_file)
+        elif result_types == 1:
+            full_route_geometry = unary_union(route_gdf.geometry)
+
+            d = {travel_time_field: [total_len], 'geometry': [full_route_geometry]}
+            new_gdf = gpd.GeoDataFrame(d, crs=route_gdf.crs)
+            new_gdf.to_file(target_file)
 
         # Добавляем полученный слой на карту
         vlayer = QgsVectorLayer(target_file, layer_name, 'ogr')

@@ -42,6 +42,8 @@ def set_graph_travel_times(G: nx.MultiDiGraph,
                      morph_function: callable = None,
                      travel_time_field: str = 'travel_time',
                      speed_field: str = 'maxspeed',
+                     highway_speed = 'highway',
+                     length_field = 'length',
                      ):
     """
     Добавление скоростей в граф
@@ -133,13 +135,14 @@ def set_graph_travel_times(G: nx.MultiDiGraph,
             "cycleway":       s5,           # Велодорожка, обозначенная соответствующим дорожным знаком. 
             "bridleway":      s5,           # Дорожки для верховой езды.
             "corridor":       s5,           # Коридоры внутри крупных зданий
+            "other":          s5,           # Все прочие - неопознанные
         }
 
     # 3. расчет и установка времени следования и скоростей
     attributes = {}
     for edge in G.edges:
-        road = G.get_edge_data(*edge).get('highway', 'other')
-        length = G.get_edge_data(*edge).get('length')
+        road = G.get_edge_data(*edge).get(highway_speed, 'other')
+        length = G.get_edge_data(*edge).get(length_field)
         if isinstance(road, list):
             road_speeds = [sp.get(rf, s5) for rf in road]
             speed       = sum(road_speeds) / len(road_speeds)
