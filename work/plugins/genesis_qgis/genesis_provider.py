@@ -17,6 +17,8 @@ from qgis.core import QgsProcessingProvider
 from .algs.g_download_by_extent import GDownloadAlgorithm
 from .algs.g_download_by_poly import GDownloadAlgorithmPoly
 from .algs.a_shotest_path_p2p import ShortestPathP2PAlgorithm
+from .algs.a_first_unit_arrive import FirstArrivalUnitAlgorithm
+from .algs.a_blp import BLPAlgorithm
 
 
 
@@ -41,7 +43,11 @@ class GenesisProvider(QgsProcessingProvider):
         """
         self.addAlgorithm(GDownloadAlgorithm())
         self.addAlgorithm(GDownloadAlgorithmPoly())
+
         self.addAlgorithm(ShortestPathP2PAlgorithm())
+        self.addAlgorithm(FirstArrivalUnitAlgorithm())
+
+        self.addAlgorithm(BLPAlgorithm())
 
     def id(self):
         return 'Genesis'

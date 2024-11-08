@@ -2,7 +2,7 @@
 Реализация основных класс-функций оценки достижения критерия остановки.
 '''
 
-from genesis.core import StopCaseBase
+from .core import StopCaseBase
 
 
 class LessEqualStopCase(StopCaseBase):

@@ -8,9 +8,9 @@ import numpy as np
 import pandas as pd
 import math
 
-from genesis.core import BestPointsBase, MetricBase, PointSelectorBase, StateBase, MCLPBase
-from genesis.best_points import NodeMetric
-from genesis.tools import list_dict_concat
+from .core import BestPointsBase, MetricBase, PointSelectorBase, StateBase, MCLPBase
+from .best_points import NodeMetric
+from .tools import list_dict_concat
 
 
 

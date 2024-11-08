@@ -11,12 +11,10 @@ import geopandas as gpd
 from shapely import unary_union
 # from shapely.ops import unary_union
 
-from ..graphs.speeds import kmh_to_mm, set_graph_travel_times
 # from shapely.geometry import Polygon, box
 # from shapely.wkt import loads
 
 
-from ..graphs.algorithms import graph_rise_from_gpkg
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 
@@ -40,6 +38,10 @@ from qgis.core import (
                        QgsCoordinateReferenceSystem,
                        QgsCoordinateTransform,
                        )
+
+
+from ..graphs.speeds import kmh_to_mm, set_graph_travel_times
+from ..graphs.algorithms import graph_rise_from_gpkg
 
 
 
@@ -219,11 +221,14 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         # Тело алгоритма
         feedback.setProgress(5)
         # Подготавливаем геодатасет с геометрией дорог
-        roads = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=crs.authid())
-        try:
-            roads = ox.project_gdf(roads)
-        except:
-            feedback.pushInfo('Перепроецирование слоя улично-дорожной сети не требуется')
+        # roads = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=crs.authid())
+        # try:
+        #     roads = ox.project_gdf(roads)
+        # except:
+        #     feedback.pushInfo('Перепроецирование слоя улично-дорожной сети не требуется')
+        roads = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=network.sourceCrs().authid())        
+        estimated_utm_crs = roads.estimate_utm_crs()
+        if roads.crs != estimated_utm_crs: roads = ox.project_gdf(roads, to_crs=estimated_utm_crs)
         feedback.setProgress(30)
 
         columns_list = ['name', 'highway', 'oneway', 'lanes', 'reversed']
@@ -233,6 +238,7 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
 
 
         # Формируем граф
+        # print(roads.crs)
         G = graph_rise_from_gpkg(roads,
                                  columns_list = columns_list)
         if simplify:
@@ -258,24 +264,30 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         # Сопоставляем точкам начала и конца маршрута ближайшие узлы
         start_node = ox.distance.nearest_nodes(G, start_point.x(), start_point.y(), return_dist=False)
         end_node = ox.distance.nearest_nodes(G, end_point.x(), end_point.y(), return_dist=False)
-
+        # print(start_point.x(), start_point.y(), start_node)
 
         # Ищем кратчайший маршрут
-        route = nx.dijkstra_path(G, source=start_node, target=end_node, weight=travel_time_field)
+        # route = nx.dijkstra_path(G, source=start_node, target=end_node, weight=travel_time_field)
+        # (length, route) = nx.single_source_dijkstra(G, source=start_node, target=end_node, weight=travel_time_field)
+        # feedback.pushWarning(f'Дейкстра: {length} мин.')
+        (total_len, route) = nx.multi_source_dijkstra(G, sources=[start_node], target=end_node, weight=travel_time_field)
+        # print(total_len, route)
         feedback.setProgress(95)
 
         
         # Получаем геодатафрейм пути
         route_gdf = ox.routing.route_to_gdf(G, route)
         # Вывод сведения о протяженности имаршрута
-        total_len = route_gdf[travel_time_field].sum()
-        feedback.pushInfo(f'Время следования по маршруту: {total_len} мин.')
+        # total_len = route_gdf[travel_time_field].sum()
+        feedback.pushWarning(f'Время следования по маршруту: {total_len} мин.')
+
 
         # Перепроецируем датасет маршрутов в СК дорожной сети
         route_gdf = ox.project_gdf(route_gdf, to_crs=crs.authid())
 
         # Сохраняем в итоговый слой
         if result_types == 0:
+            route_gdf[travel_time_field+'_cum'] = route_gdf[travel_time_field].cumsum()
             route_gdf.to_file(target_file)
         elif result_types == 1:
             full_route_geometry = unary_union(route_gdf.geometry)

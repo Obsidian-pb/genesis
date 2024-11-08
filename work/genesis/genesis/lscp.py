@@ -7,9 +7,9 @@
 import networkx as nx
 import pandas as pd
 
-from genesis.core import LSCPBase, BestPointsBase, MCLPBase, MetricBase, PointSelectorBase, StateBase, StopCaseBase
-from genesis.mclp import NodesMetric
-from genesis.tools import list_dict_concat
+from .core import LSCPBase, BestPointsBase, MCLPBase, MetricBase, PointSelectorBase, StateBase, StopCaseBase
+from .mclp import NodesMetric
+from .tools import list_dict_concat
 
 
 class LSCPCommon(LSCPBase):

@@ -9,8 +9,8 @@ import warnings
 import pandas as pd
 import networkx as nx
 
-from genesis.core import MetricBase, PointSelectorBase, StateBase
-from genesis.tools import get_dict_key
+from .core import MetricBase, PointSelectorBase, StateBase
+from .tools import get_dict_key
 
 
 

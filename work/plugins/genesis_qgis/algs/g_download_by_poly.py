@@ -17,7 +17,6 @@ from shapely.ops import unary_union
 # print(nx.__version__)
 # print(gpd.__version__)
 
-from ..graphs.algorithms import fix_highway_list
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
                        QgsProject,
@@ -34,6 +33,7 @@ from qgis.core import (
                        )
 from qgis import processing
 
+from ..graphs.algorithms import fix_highway_list
 
 
 
