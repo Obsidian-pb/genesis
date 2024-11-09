@@ -12,9 +12,9 @@ import numpy as np
 import networkx as nx
 import pandas as pd
 
-from genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
-from genesis.mclp import BestNodesKoptG
-from genesis.tools import list_dict_concat
+from ..genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
+from ..genesis.mclp import BestNodesKoptG
+from ..genesis.tools import list_dict_concat
 
 
 

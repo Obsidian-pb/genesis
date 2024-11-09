@@ -186,7 +186,8 @@ class BestNodesKoptG(MCLPBase):
                                 f'Имеют: {type(dynamic_nodes)}, {type(static_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
-        if (len(dynamic_nodes) + len(static_nodes))<1:
+        # if (len(dynamic_nodes) + len(static_nodes))<1:
+        if len(dynamic_nodes) <1:
             raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {(len(dynamic_nodes) + len(static_nodes))}')
 
         # Если передана область которую следует учитывать в расчете

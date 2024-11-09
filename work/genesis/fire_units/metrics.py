@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
-from genesis.core import MetricBase
+from ..genesis.core import MetricBase
 
 
 class Demand(MetricBase):
