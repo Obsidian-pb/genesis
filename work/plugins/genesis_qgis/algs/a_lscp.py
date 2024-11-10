@@ -1,7 +1,7 @@
 """
-Определение оптимального размещения множества подразделений (MCLP)
+Определение оптимального размещения неизвестного количества подразделений (LSCP)
 
-Используется алгоритмы ГА и Генезис+ГА
+Используются алгоритмы ГА и Генезис+ГА
 """
 
 import os
@@ -13,6 +13,8 @@ import osmnx as ox
 import geopandas as gpd
 import pandas as pd
 from shapely import unary_union
+
+
 
 
 from qgis.PyQt.QtCore import QCoreApplication
@@ -43,9 +45,12 @@ from ..fire_units.metrics import ArrivalTimeBuilding, CoverIndexBuilding
 from ..fire_units.mclp import BestNodesGAKopt
 from ..genesis.mclp import BestNodesKoptG
 from ..fire_units.best_points import BestNodeHillClimbingHD
-from ..genesis.point_selectors import GenesisNodeSelector, RandomNodesSelector
+from ..genesis.point_selectors import GenesisNodeSelector, RandomNodesSelector, FarNodeSelector
 
 from ..graph_tools import check_file_exists
+from ..genesis.lscp import LSCPCommon
+from ..genesis.stop_cases import LessEqualStopCase, MoreEqualStopCase
+
 
 
 # На будущее - добавление иконок
@@ -53,7 +58,7 @@ pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 
 
-class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
+class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
     """
     Определение оптимального размещения множества подразделений (MCLP)
 
@@ -74,7 +79,9 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
     MUTATION_RATE      = 'MUTATION_RATE'
     ELITE_SIZE         = 'ELITE_SIZE'
     MUTATION_MAX_COUNT = 'MUTATION_MAX_COUNT'
+    NAME_PATTERN       = 'NAME_PATTERN'
 
+    TARGET             = 'TARGET'
 
     RESULT_LAYER_NAME  = 'RESULT_LAYER_NAME'
     SIMPLIFY           = 'SIMPLIFY'
@@ -95,31 +102,31 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return MCLPCommonAlgorithm()
+        return LSCPCommonAlgorithm()
 
     def name(self):
         """
         Название алгоритма
         """
-        return 'a_mclp'
+        return 'a_lscp'
 
     def displayName(self):
         """
         Отображаемое в списке имя алгоритма
         """
-        return self.tr('Генетический алгоритм + Генезис')
+        return self.tr('Расчет по метрике. Генетический алгоритм + Генезис')
 
     def group(self):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('Оптимальное размещение нескольких подразделений')
+        return self.tr('Требуемая численность подразделений')
 
     def groupId(self):
         """
         ID группы алгоритмов
         """
-        return 'MCLP'
+        return 'LSCP'
 
     def shortHelpString(self):
         """
@@ -127,7 +134,11 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         """
         return self.tr(
             '''
-            Расчет оптимального размещения пожарных подразделений.
+            Определение оптимального размещения неизвестного количества подразделений (LSCP)
+
+            Расчет количества подразделений производится до того момента пока 
+            не будет достигнуто целевое значение оптимизируемой метрики.
+            Например, пока индекс прикрытия не будет больше 95% (<i>ИП-10 >= 95%</i>).
 
             Для одного подразделения используется только алгоритм Генезис.
 
@@ -158,16 +169,17 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
 
         # Целевой слой прибытия
         self.addParameter(QgsProcessingParameterFeatureSource (
-            self.TARGET_POINTS, self.tr('Целевой слой прибытия (если не указан, рассчитывается для узлов графа)'),
+            self.TARGET_POINTS, self.tr('Целевой слой прибытия (здания). Если не указан, рассчитывается для узлов графа.'),
             [QgsProcessing.TypeVectorPoint, QgsProcessing.TypeVectorPolygon],
             optional=True,
             ))
         # Слой границ расчетной области
         self.addParameter(QgsProcessingParameterFeatureSource (
-            self.AREA_POLYGON_LAYER, self.tr('Границы расчетной области (если указан, будут рассмотрены все объекты в слое)'),
+            self.AREA_POLYGON_LAYER, self.tr('Границы расчетной области. Если указан, будут рассмотрены все объекты в слое'),
             [QgsProcessing.TypeVectorPoint, QgsProcessing.TypeVectorPolygon],
             optional=True,
             ))
+        
         # Целевая метрика для оптимизации
         self.addParameter(QgsProcessingParameterEnum(
             self.OPTIMIZED_METRIC,
@@ -179,6 +191,14 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
             ],
             defaultValue=0
             ))
+        # Целевое значение метрики
+        self.addParameter(QgsProcessingParameterNumber(
+            self.TARGET,
+            self.tr('Целевое значение метрики'),
+            QgsProcessingParameterNumber.Double,
+            10, False, 0, 100))
+
+
         # Расчетные скорости следования
         self.addParameter(
             QgsProcessingParameterMatrix (
@@ -221,16 +241,19 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
                                                 self.tr('Максимальное количество мутаций'),
                                                 QgsProcessingParameterNumber.Integer,
                                                 3, False, 1, 100))
+        params.append(QgsProcessingParameterString(self.NAME_PATTERN,
+                                                self.tr('Шаблон имен подразделений'),
+                                                'псч-{}'
+                                                ))
 
-        
-        
+
         for p in params:
             p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
             self.addParameter(p)
 
         # Поле названия итогового слоя
         self.addParameter(QgsProcessingParameterString (
-            self.RESULT_LAYER_NAME, self.tr('Имя итогового слоя'), 'MCLP'
+            self.RESULT_LAYER_NAME, self.tr('Имя итогового слоя'), 'LSCP'
             ))
         # Выходной слой
         self.addParameter(QgsProcessingParameterFileDestination(
@@ -247,6 +270,8 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
             feedback.pushDebugInfo(f'# ЭПОХА {epoch}) значение целевой метрики: {best_metric}.')
         def after_iter(i, best_metric, **kwargs):
             feedback.pushDebugInfo(f'## ИТЕРАЦИЯ УТОЧНЕНИЯ {i}) значение целевой метрики: {best_metric}.')
+        def after_mclp(iteration, dynamic_nodes, **kwargs):
+            feedback.pushDebugInfo(f'{iteration} ИТЕРАЦИЯ LSCP: {len(dynamic_nodes)} подразделений')
 
         travel_time_field = 'travel_time'
 
@@ -281,11 +306,18 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         mutation_rate       = self.parameterAsDouble(parameters, self.MUTATION_RATE, context)
         elite_size          = self.parameterAsInt(parameters, self.ELITE_SIZE, context)
         mutation_max_count  = self.parameterAsInt(parameters, self.MUTATION_MAX_COUNT, context)
+        name_pattern        = self.parameterAsString(parameters, self.NAME_PATTERN, context)
+
+        target              = self.parameterAsDouble(parameters, self.TARGET, context)
 
         # Параметры для результата
         result_layer_name   = self.parameterAsString(parameters, self.RESULT_LAYER_NAME, context)
         target_file         = self.parameterAsFile(parameters, self.OUTPUT, context)
         
+        # ================================================================================================
+        # Тесты
+        if not '{}' in name_pattern:
+            raise QgsProcessingException('Неверный формат шаблона имени подразделений. не забудьте добавить {}')
 
         # ================================================================================================
         # Тело алгоритма
@@ -322,7 +354,7 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         ## Вывод
         g_crs = G.graph['crs']
         feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}. СК: {g_crs}')
-        feedback.setProgress(40)
+        feedback.setProgress(15)
 
 
 
@@ -345,7 +377,7 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
             area_gdf = gpd.GeoDataFrame.from_features(list(area_layer.getFeatures()), crs=area_layer.sourceCrs().authid())
         else:
             area_gdf = None
-        feedback.setProgress(45)
+        feedback.setProgress(20)
 
         # Проверка данных
         if len(optimized_units_gdf) == 0:
@@ -367,9 +399,9 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         if area_layer:
             if area_gdf.crs != estimated_utm_crs:
                 area_gdf = ox.project_gdf(area_gdf, to_crs=estimated_utm_crs)
-        feedback.setProgress(50)
+        feedback.setProgress(25)
 
-
+        
 
         # ===========================================================================================
         # Расчет
@@ -389,23 +421,30 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
             nodes_list = set(ox.graph_to_gdfs(G, edges=False).index)
 
         ## Определяем объекты алгоритма
-        metric_func = None
+        metric_func    = None
+        stop_case_func = None
         if target_points_gdf is None:
             if optimized_metric   == 0:
-                metric_func  =  ArrivalTime()
+                metric_func    =  ArrivalTime()
+                stop_case_func = LessEqualStopCase(target)
             elif optimized_metric == 1:
-                metric_func  =   CoverIndex()
+                metric_func    =   CoverIndex()
+                stop_case_func = MoreEqualStopCase(target)
             elif optimized_metric == 2:
                 metric_func  = CoverIndex(20)
+                stop_case_func = MoreEqualStopCase(target)
         else:
             centroids                 = target_points_gdf.geometry.centroid
             target_points_gdf['node'] = ox.nearest_nodes(G, centroids.x, centroids.y)
             if optimized_metric   == 0:
-                metric_func = ArrivalTimeBuilding(target_points_gdf)
+                metric_func    = ArrivalTimeBuilding(target_points_gdf)
+                stop_case_func = LessEqualStopCase(target)
             elif optimized_metric == 1:
-                metric_func =  CoverIndexBuilding(target_points_gdf)
+                metric_func    =  CoverIndexBuilding(target_points_gdf)
+                stop_case_func = MoreEqualStopCase(target)
             elif optimized_metric == 2:
-                metric_func  = CoverIndexBuilding(target_points_gdf, ip_val=20)
+                metric_func    = CoverIndexBuilding(target_points_gdf, ip_val=20)
+                stop_case_func = MoreEqualStopCase(target)
 
 
         ###  Структура алгоритма
@@ -429,6 +468,21 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
                                 epoch_end_function = after_local_epoch,
                                 )
         
+        lscp_a = LSCPCommon(mclp_function       = mclp,
+                            point_selector      = FarNodeSelector(FirstArrivalUnitState(), nodes_list=nodes_list),
+                            stop_case_function  = stop_case_func,
+                            metric_function     = metric_func,
+                            names_pattern       = name_pattern,
+                            after_mclp_function = after_mclp
+                            )
+        lscp_b = LSCPCommon(mclp_function       = kopt,
+                            point_selector      = FarNodeSelector(FirstArrivalUnitState(), nodes_list=nodes_list),
+                            stop_case_function  = stop_case_func,
+                            metric_function     = metric_func,
+                            names_pattern       = name_pattern,
+                            after_mclp_function = after_mclp
+                            )
+        
 
         ## Словари подразделений
         optimized_units_gdf['node'] = ox.nearest_nodes(G, optimized_units_gdf.geometry.x, optimized_units_gdf.geometry.y)
@@ -443,16 +497,16 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         ## Проводим расчет
         feedback.setProgressText('Расчет оптимального размещения')
         if len(optimized_units_dict) == 1:
-            best_nodes, best_metric = kopt(env        = G,
-                                        dynamic_nodes = optimized_units_dict,
-                                        static_nodes  = existed_units_dict,
-                                        area          = area,
+            best_nodes, best_metric   = lscp_b(env      = G,
+                                        dynamic_nodes   = optimized_units_dict,
+                                        static_nodes    = existed_units_dict,
+                                        area            = area,
                                         )
         else:
-            best_nodes, best_metric = mclp(env        = G,
-                                        dynamic_nodes = optimized_units_dict,
-                                        static_nodes  = existed_units_dict,
-                                        area          = area,
+            best_nodes, best_metric   = lscp_a(env      = G,
+                                        dynamic_nodes   = optimized_units_dict,
+                                        static_nodes    = existed_units_dict,
+                                        area            = area,
                                         )
         feedback.pushWarning(f'Лучшая метрика: {round(best_metric,1)}')
         feedback.setProgress(90)

@@ -48,6 +48,7 @@ from ..graphs.algorithms import graph_rise_from_gpkg
 from ..genesis.best_points import BestNodeMonkey, BestNodesHalfDiameter
 from ..fire_units.metrics import ArrivalTimeBuilding, CoverIndexBuilding
 
+from ..graph_tools import check_file_exists
 
 # На будущее - добавление иконок
 pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
@@ -74,8 +75,11 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
     SIMPLIFY           = 'SIMPLIFY'
     OUTPUT             = 'OUTPUT'
 
-    def icon(self):
-        return QIcon(os.path.join(pluginPath, 'QNEAT3', 'icons', 'flag.svg'))
+    PRE_GDS_PATH       = '{}.ml'
+
+    # Сделать иконку
+    # def icon(self):
+    #     return QIcon(os.path.join(pluginPath, 'genesis_qgis', 'icons', 'flag.svg'))
 
 
     def tr(self, string):
@@ -212,6 +216,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         def after_local_jump(local_jump_number, best_metric, best_metric_current, **kwargs):
             feedback.pushDebugInfo(f'# {local_jump_number}) значение целевой метрики: {best_metric}. Текущая {best_metric_current}')
 
+
         travel_time_field = 'travel_time'
 
 
@@ -222,7 +227,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
 
         # Получение исходных параметров алгоритма
         ## Дорожная сеть
-        network = self.parameterAsSource(parameters, self.INPUT, context)
+        network = self.parameterAsVectorLayer(parameters, self.INPUT, context)
         if network is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
         crs = self.parameterAsExtentCrs(parameters, self.INPUT, context)
@@ -244,12 +249,51 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         jump_distance     = self.parameterAsInt(parameters, self.JUMP_DISTANCE, context)
 
 
+        # ================================================================================================
         # Тело алгоритма
         feedback.setProgress(5)
 
+        # Подготовка графа дорожной сети
+        pre_gds_file = self.PRE_GDS_PATH.format(network.id())
+        if check_file_exists(pre_gds_file):
+            # Загружаем граф
+            feedback.pushDebugInfo('Используем предварительно скомпилированный ГДС')
+            feedback.setProgressText('Загружаем граф дорожной сети')
+            G = ox.load_graphml(pre_gds_file)
+            roads_gdf = ox.graph_to_gdfs(G, nodes=False)
+        else:
+            # Формируем граф дорожной сети
+            feedback.setProgressText('Формируем граф дорожной сети')
+            # Загружаем данные из слоя дорог
+            roads_gdf        = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=network.sourceCrs().authid())
+            ## Проверяем наличие нужных полей
+            columns_list = ['highway', 'oneway', 'lanes', 'reversed']
+            for col in columns_list:
+                if not col in roads_gdf.columns:
+                    raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')
+            ## Реконструкция графа
+            G = graph_rise_from_gpkg(roads_gdf,
+                                    columns_list = columns_list)
+            if simplify:
+                feedback.setProgress(40)
+                feedback.setProgressText('Упрощаем граф дорожной сети')
+                G = ox.simplify_graph(G)
+
+        ## Установка скоростей следования
+        set_graph_travel_times(G, speeds, morph_function=kmh_to_mm, travel_time_field=travel_time_field)
+        ## Вывод
+        g_crs = G.graph['crs']
+        feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}. СК: {g_crs}')
+        feedback.setProgress(40)
+
+
+
+
+
+
+
         # Подготавливаем геодатасеты
         feedback.setProgressText('Подготавливаем данные')
-        roads_gdf        = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=network.sourceCrs().authid())
         if target_points_layer:
             target_points_gdf = gpd.GeoDataFrame.from_features(list(target_points_layer.getFeatures()), crs=target_points_layer.sourceCrs().authid())
         else:
@@ -258,38 +302,19 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             area_gdf = gpd.GeoDataFrame.from_features(list(area_layer.getFeatures()), crs=area_layer.sourceCrs().authid())
         else:
             area_gdf = None
-        feedback.setProgress(15)
+        feedback.setProgress(50)
 
         # Приводим все GeoDataFrame к единой СК
         feedback.setProgressText('Приводим все данные к единой СК')
         estimated_utm_crs = roads_gdf.estimate_utm_crs()
-        if roads_gdf.crs != estimated_utm_crs: roads_gdf = ox.project_gdf(roads_gdf, to_crs=estimated_utm_crs)
+        # if roads_gdf.crs != estimated_utm_crs: roads_gdf = ox.project_gdf(roads_gdf, to_crs=estimated_utm_crs)
         if target_points_layer:
             if target_points_gdf.crs != estimated_utm_crs: target_points_gdf = ox.project_gdf(target_points_gdf, to_crs=estimated_utm_crs)
         if area_layer:
             if area_gdf.crs != estimated_utm_crs: area_gdf = ox.project_gdf(area_gdf, to_crs=estimated_utm_crs)
-        feedback.setProgress(20)
+        feedback.setProgress(55)
 
-        # Формируем граф дорожной сети
-        feedback.setProgressText('Формируем граф дорожной сети')
-        ## Проверяем наличие нужных полей
-        columns_list = ['highway', 'oneway', 'lanes', 'reversed']
-        for col in columns_list:
-            if not col in roads_gdf.columns:
-                raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')
-        ## Реконструкция графа
-        G = graph_rise_from_gpkg(roads_gdf,
-                                 columns_list = columns_list)
-        if simplify:
-            feedback.setProgress(40)
-            feedback.setProgressText('Упрощаем граф дорожной сети')
-            G = ox.simplify_graph(G)
-        ## Установка скоростей следования
-        set_graph_travel_times(G, speeds, morph_function=kmh_to_mm, travel_time_field=travel_time_field)
-        ## Вывод
-        g_crs = G.graph['crs']
-        feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}. СК: {g_crs}')
-        feedback.setProgress(60)
+        
 
 
         # Расчет

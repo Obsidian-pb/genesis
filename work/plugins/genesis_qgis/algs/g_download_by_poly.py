@@ -75,7 +75,7 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('ГДС')
+        return self.tr('Графы улично-дорожной сети')
 
     def groupId(self):
         """

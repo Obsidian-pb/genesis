@@ -43,6 +43,8 @@ from qgis.core import (
 from ..graphs.speeds import kmh_to_mm, set_graph_travel_times
 from ..graphs.algorithms import graph_rise_from_gpkg
 
+from ..graph_tools import check_file_exists
+
 
 
 pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
@@ -54,18 +56,22 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
     Расчет кратчайшего маршрута между двумя точками.
     """
 
-    INPUT = 'INPUT'
-    SPEEDS = 'SPEEDS'
-    START_POINT = 'START_POINT'
-    END_POINT = 'END_POINT'
+    INPUT             = 'INPUT'
+    SPEEDS            = 'SPEEDS'
+    START_POINT       = 'START_POINT'
+    END_POINT         = 'END_POINT'
     TRAVEL_TIME_FIELD = 'TRAVEL_TIME_FIELD'
-    RESULT_FIELD = 'RESULT_FIELD'
-    SIMPLIFY = 'SIMPLIFY'
-    RESULT_TYPE = 'RESULT_TYPE'
-    OUTPUT = 'OUTPUT'
+    RESULT_FIELD      = 'RESULT_FIELD'
+    SIMPLIFY          = 'SIMPLIFY'
+    RESULT_TYPE       = 'RESULT_TYPE'
+    OUTPUT            = 'OUTPUT'
 
-    def icon(self):
-        return QIcon(os.path.join(pluginPath, 'QNEAT3', 'icons', 'icon_dijkstra_onetoone.svg'))
+    PRE_GDS_PATH      = '{}.ml'
+
+
+
+    # def icon(self):
+    #     return QIcon(os.path.join(pluginPath, 'genesis_qgis', 'icons', 'icon_dijkstra_onetoone.svg'))
 
 
     def tr(self, string):
@@ -185,14 +191,14 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         travel_time_field = 'travel_time'
 
 
-        feedback.pushInfo('Версии библиотек:')
-        feedback.pushInfo(f'   osmnx: {ox.__version__}')
-        feedback.pushInfo(f'   networkx: {nx.__version__}')
-        feedback.pushInfo(f'   geopandas: {gpd.__version__}')
+        feedback.pushDebugInfo('Версии библиотек:')
+        feedback.pushDebugInfo(f'   osmnx: {ox.__version__}')
+        feedback.pushDebugInfo(f'   networkx: {nx.__version__}')
+        feedback.pushDebugInfo(f'   geopandas: {gpd.__version__}')
 
         # Получение исходных параметров алгоритма
         ## Загрузка охвата
-        network = self.parameterAsSource(parameters, self.INPUT, context)
+        network = self.parameterAsVectorLayer(parameters, self.INPUT, context)
         ### Проверяем корректность охвата
         if network is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
@@ -202,6 +208,7 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
 
         start_point = self.parameterAsPoint(parameters, self.START_POINT, context, network.sourceCrs()) #QgsPointXY
         end_point = self.parameterAsPoint(parameters, self.END_POINT, context, network.sourceCrs()) #QgsPointXY
+        # crs = self.parameterAsExtentCrs(parameters, self.START_POINT, context)
         # travel_time_field = self.parameterAsString(parameters, self.TRAVEL_TIME_FIELD, context) #str
         simplify = self.parameterAsBoolean(parameters, self.SIMPLIFY, context)
         speeds = self.parameterAsMatrix(parameters, self.SPEEDS, context)[1::2]
@@ -213,72 +220,86 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         # oneway_field = self.parameterAsString(parameters, self.ONEWAY_FIELD, context)
         # lanes_field = self.parameterAsString(parameters, self.LANES_FIELD, context)
         # reversed_field = self.parameterAsString(parameters, self.REVERSED_FIELD, context)
-        
-        
+
+
         layer_name = self.parameterAsString(parameters, self.RESULT_FIELD, context)
         target_file = self.parameterAsFile(parameters, self.OUTPUT, context)
 
         # Тело алгоритма
         feedback.setProgress(5)
-        # Подготавливаем геодатасет с геометрией дорог
-        # roads = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=crs.authid())
-        # try:
-        #     roads = ox.project_gdf(roads)
-        # except:
-        #     feedback.pushInfo('Перепроецирование слоя улично-дорожной сети не требуется')
-        roads = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=network.sourceCrs().authid())        
-        estimated_utm_crs = roads.estimate_utm_crs()
-        if roads.crs != estimated_utm_crs: roads = ox.project_gdf(roads, to_crs=estimated_utm_crs)
-        feedback.setProgress(30)
 
-        columns_list = ['name', 'highway', 'oneway', 'lanes', 'reversed']
-        for col in columns_list:
-            if not col in roads.columns:
-                raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')
+        # Подготовка графа дорожной сети
+        pre_gds_file = self.PRE_GDS_PATH.format(network.id())
+        if check_file_exists(pre_gds_file):
+            # Загружаем граф
+            feedback.pushDebugInfo('Используем предварительно скомпилированный ГДС')
+            feedback.setProgressText('Загружаем граф дорожной сети')
+            G = ox.load_graphml(pre_gds_file)
+            roads_gdf = ox.graph_to_gdfs(G, nodes=False)
+        else:
+            # Формируем граф дорожной сети
+            feedback.setProgressText('Формируем граф дорожной сети')
+            # Загружаем данные из слоя дорог
+            roads_gdf        = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=network.sourceCrs().authid())
+            ## Проверяем наличие нужных полей
+            columns_list = ['highway', 'oneway', 'lanes', 'reversed']
+            for col in columns_list:
+                if not col in roads_gdf.columns:
+                    raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')
+            ## Реконструкция графа
+            if not 'Доро' in network.name():
+                feedback.pushWarning(f'Проверьте, правильность указания слоя дорожной сети. Сейчас `{network.name()}`')
+            G = graph_rise_from_gpkg(roads_gdf,
+                                    columns_list = columns_list)
+            if simplify:
+                feedback.setProgress(40)
+                feedback.setProgressText('Упрощаем граф дорожной сети')
+                G = ox.simplify_graph(G)
 
-
-        # Формируем граф
-        # print(roads.crs)
-        G = graph_rise_from_gpkg(roads,
-                                 columns_list = columns_list)
-        if simplify:
-            G = ox.simplify_graph(G)
+        ## Установка скоростей следования
+        set_graph_travel_times(G, speeds, morph_function=kmh_to_mm, travel_time_field=travel_time_field)
+        ## Вывод
         g_crs = G.graph['crs']
         feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}. СК: {g_crs}')
-        feedback.setProgress(70)
+        feedback.setProgress(40)
 
-        # Устанавливаем скорости следования
-        set_graph_travel_times(G, speeds, morph_function=kmh_to_mm, travel_time_field=travel_time_field)
-        feedback.setProgress(80)
+
+
+        ## Проецируем граф
+        G = ox.project_graph(G)
+        g_crs = G.graph['crs']
+        feedback.setProgress(45)
 
         # Перепроецируем точки начала и конца маршрута в СК полученного графа
         if crs.authid() != g_crs:
-            feedback.pushInfo(f'Текущая СК ({crs.authid()}) для охвата будет приведена к локальной метрической СК {g_crs}')
+            feedback.pushInfo(f'Текущая СК ({crs.authid()}) для точек будет приведена к локальной метрической СК {g_crs}')
             crs_source = crs
             crs_dest = QgsCoordinateReferenceSystem(str(g_crs))
             transformContext = QgsProject.instance().transformContext()  # Возможно здеь нужен слой
             tf = QgsCoordinateTransform(crs_source, crs_dest, transformContext)
             start_point = tf.transform(start_point)
             end_point = tf.transform(end_point)
+            feedback.pushDebugInfo(f'{start_point.x()}, {start_point.y()} || {end_point.x()}, {end_point.y()}')
+            feedback.setProgress(50)
+
 
         # Сопоставляем точкам начала и конца маршрута ближайшие узлы
         start_node = ox.distance.nearest_nodes(G, start_point.x(), start_point.y(), return_dist=False)
         end_node = ox.distance.nearest_nodes(G, end_point.x(), end_point.y(), return_dist=False)
-        # print(start_point.x(), start_point.y(), start_node)
+        feedback.pushInfo(f' {start_node}, {end_node}')
+
 
         # Ищем кратчайший маршрут
-        # route = nx.dijkstra_path(G, source=start_node, target=end_node, weight=travel_time_field)
-        # (length, route) = nx.single_source_dijkstra(G, source=start_node, target=end_node, weight=travel_time_field)
-        # feedback.pushWarning(f'Дейкстра: {length} мин.')
-        (total_len, route) = nx.multi_source_dijkstra(G, sources=[start_node], target=end_node, weight=travel_time_field)
-        # print(total_len, route)
+        try:
+            (total_len, route) = nx.multi_source_dijkstra(G, sources=[start_node], target=end_node, weight=travel_time_field)
+        except nx.exception.NetworkXNoPath as exc:
+            raise QgsProcessingException('Маршрут не найден!')
         feedback.setProgress(95)
 
-        
+
         # Получаем геодатафрейм пути
         route_gdf = ox.routing.route_to_gdf(G, route)
         # Вывод сведения о протяженности имаршрута
-        # total_len = route_gdf[travel_time_field].sum()
         feedback.pushWarning(f'Время следования по маршруту: {total_len} мин.')
 
 
@@ -300,7 +321,7 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         vlayer = QgsVectorLayer(target_file, layer_name, 'ogr')
         QgsProject.instance().addMapLayer(vlayer)
 
-        
+
         feedback.setProgress(100)
         return {self.OUTPUT: target_file}
 
