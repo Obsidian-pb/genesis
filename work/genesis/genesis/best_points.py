@@ -9,9 +9,9 @@ import osmnx as ox
 import numpy as np
 import pandas as pd
 
-from genesis.core import BestPointsBase, MetricBase, StateBase
-from genesis.metrics import ArrivalTime
-from genesis.tools import get_all_neighbor_nodes
+from .core import BestPointsBase, MetricBase, StateBase
+from .metrics import ArrivalTime
+from .tools import get_all_neighbor_nodes
 
 
 

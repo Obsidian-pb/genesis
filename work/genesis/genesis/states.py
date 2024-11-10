@@ -7,9 +7,9 @@ import pandas as pd
 import networkx as nx
 # import osmnx as ox
 
-from genesis.core import StateBase
-from genesis.swiss_knife import DELAY_TIME, MSF
-from genesis.tools import get_duplicates_list
+from .core import StateBase
+from .swiss_knife import DELAY_TIME, MSF
+from .tools import get_duplicates_list
 
 
 class FirstArrivalUnitState(StateBase):

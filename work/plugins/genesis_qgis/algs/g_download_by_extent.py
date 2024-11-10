@@ -1,21 +1,16 @@
 """
 Загрузка графа улично-дорожной сети из OSM при помощи osmnx.
 
-Выгружаются дороги в пределах указанного векторного слоя с полигонами границ.
-
 Сохранение напрямую в файл geopackage и загрузка слоя в проект.
 """
 
 import networkx as nx
 import osmnx as ox
 import geopandas as gpd
-# from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon, box
 from shapely.wkt import loads
-from shapely.ops import unary_union
 
-# print(ox.__version__)
-# print(nx.__version__)
-# print(gpd.__version__)
+
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
@@ -24,24 +19,21 @@ from qgis.core import (
                        QgsProcessingException,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterFileDestination,
-                       QgsProcessingParameterFeatureSource,
+                       QgsProcessingParameterExtent,
                        QgsProcessingParameterString,
                        QgsProcessingParameterBoolean,
                        QgsCoordinateReferenceSystem,
                        QgsCoordinateTransform,
-                       QgsProcessing,
                        )
 from qgis import processing
 
-from .graph_tools import fix_highway_list
+from ..graphs.algorithms import fix_highway_list
 
 
 
-class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
+class GDownloadAlgorithm(QgsProcessingAlgorithm):
     """
     Алгоритм загрузки графа улично-дорожной сети из OSM при помощи osmnx
-
-    Выгружаются дороги в пределах указанного векторного слоя с полигонами границ.
 
     Сохранение напрямую в файл geopackage и загрузка слоя в проект.
     """
@@ -56,25 +48,25 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return GDownloadAlgorithmPoly()
+        return GDownloadAlgorithm()
 
     def name(self):
         """
         Название алгоритма
         """
-        return 'g_download_by_osmnx_by_poly'
+        return 'g_download_by_osmnx'
 
     def displayName(self):
         """
         Отображаемое в списке имя алгоритма
         """
-        return self.tr('Загрузка ГДС из OSMNX по полигону')
+        return self.tr('Загрузка ГДС из OSMNX по охвату')
 
     def group(self):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('ГДС')
+        return self.tr('Графы улично-дорожной сети')
 
     def groupId(self):
         """
@@ -87,10 +79,7 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         Строка подсказки
         """
         return self.tr(
-            '''Загрузка графа улично-дорожной сети (ГДС) из OSM при помощи osmnx.
-
-            Загрузка выполняется в пределах векторного слоя с полигонами.
-
+            '''Загрузка графа улично-дорожной сети из OSM при помощи osmnx.
             Сохранение напрямую в файл geopackage и загрузка слоя в проект.'''
             )
 
@@ -100,23 +89,22 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         Все это будет указываться в окне интерфейса алгоритма.
         """
 
-        # Слой границ
+        # Охват карты
         self.addParameter(
-            QgsProcessingParameterFeatureSource (
+            QgsProcessingParameterExtent (
                 self.INPUT,
-                self.tr('Слой границ'),
-                [QgsProcessing.TypeVectorPolygon]
+                self.tr('Охват карты')
             )
         )
 
         # Необходимо ли произвести упрощение графа
-        self.addParameter(
-            QgsProcessingParameterBoolean (
-                'SIMPLIFY',
-                self.tr('Упростить граф'),
-                False
-            )
-        )
+        # self.addParameter(
+        #     QgsProcessingParameterBoolean (
+        #         'SIMPLIFY',
+        #         self.tr('Упростить граф'),
+        #         False
+        #     )
+        # )
 
         # Необходимо ли получить все компоненты графа
         self.addParameter(
@@ -157,13 +145,13 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
 
         # Получение исходных параметров алгоритма
         ## Загрузка охвата
-        source = self.parameterAsSource(
+        extent = self.parameterAsExtent(
             parameters,
             self.INPUT,
             context
         )
         ### Проверяем корректность охвата
-        if source is None:
+        if extent is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
 
         ## Получем исходную crs:
@@ -177,15 +165,15 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
         feedback.pushInfo(crs.authid())
 
-        ## Получаем флаг необходимости упрощения графа
-        simplify = self.parameterAsBoolean(
-            parameters,
-            'SIMPLIFY',
-            context
-        )
-        if simplify is None:
-            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
-
+        # ## Получаем флаг необходимости упрощения графа
+        # simplify = self.parameterAsBoolean(
+        #     parameters,
+        #     'SIMPLIFY',
+        #     context
+        # )
+        # if simplify is None:
+        #     raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
+        
         ## Получаем флаг необходимости получения изолированных компонентов
         retain_all = self.parameterAsBoolean(
             parameters,
@@ -215,7 +203,6 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSinkError(parameters, self.OUTPUT))
 
 
-
         # Тело алгоритма
         # Если необходимо производим перепроецирование СК полигона
         if crs.authid() != 'EPSG:4326':
@@ -224,33 +211,25 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
             crs_dest = QgsCoordinateReferenceSystem("EPSG:4326")
             transformContext = QgsProject.instance().transformContext()
             xform = QgsCoordinateTransform(crs_source, crs_dest, transformContext)
-            source  = xform.transform(source)
+            extent  = xform.transform(extent)
 
+        # Формируем полигон для выгрузки графа дорог
+        xmin = extent.xMinimum()
+        ymin = extent.yMinimum()
+        xmax = extent.xMaximum()
+        ymax = extent.yMaximum()
+        poly = Polygon().from_bounds(xmin, ymin, xmax, ymax)
 
-        # Формируем список wkt строк описаний всех полигонов
-        # исходного слоя
-        features = source.getFeatures()
-        ## Если слой пустой - вызываем ошибку
-        if source.featureCount() == 0:
-            raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
-
-        ## Формируем список wkt строк
-        wkt_strings = []
-        for _, feature in enumerate(features):
-            wkt_strings.append(feature.geometry().asWkt())
-
-        # Формируем итоговый мультиполигон
-        polygons = [loads(wkt) for wkt in wkt_strings]
-        poly = unary_union(polygons)
 
         # Загрузка данных из osmnx
         G = ox.graph_from_polygon(poly, network_type='drive_service',
-                                  simplify=simplify,
+                                  simplify=False,
                                   retain_all=retain_all)
+        ## Если был передан флаг упрощения графа - упрощаем его
+        # if simplify:
+        #     G = ox.simplify_graph(G, edge_attrs_differ=['highway', 'oneway', 'reversed'])
         ## Вывод отчета о количестве полученных узлов
-        feedback.pushInfo('Получен граф дорог с количеством узлов:')
-        feedback.pushInfo(str(G.number_of_nodes()))
-
+        feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}')
 
 
 
@@ -258,9 +237,10 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         # Сохраняем граф как файл Geopackage
         edges = ox.graph_to_gdfs(G, nodes=False)
         ## Если граф был упрощен, исправляем типы улиц list
-        if simplify:
-            edges['highway'] = edges['highway'].apply(fix_highway_list)
-        ## Сохранение
+        # if simplify:
+        #     for column in edges.columns:
+        #         edges[column] = edges[column].apply(fix_highway_list)
+        # Сохранение
         edges.to_file(target_file)
         feedback.pushInfo(f'Граф сохранен как {str(target_file)}')
 
@@ -269,14 +249,5 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         QgsProject.instance().addMapLayer(vlayer)
 
 
-        # dest_id = '0'
         return {self.OUTPUT: target_file}
 
-
-# def fix_highway_list(edge):
-#     '''
-#     Функция исправления типа улицы, для случая, когда тип указан как список
-#     '''
-#     if isinstance(edge, list):
-#         return edge[0]
-#     return edge

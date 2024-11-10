@@ -9,10 +9,16 @@ import pandas as pd
 import numpy as np
 
 
-from genesis.best_points import BestNodeHillClimbing, BestNodesHalfDiameter
-from genesis.core import MetricBase, StateBase
-from genesis.metrics import ArrivalTime
-from genesis.states import FirstArrivalUnitState
+try:
+    from ..genesis.best_points import BestNodeHillClimbing, BestNodesHalfDiameter
+    from ..genesis.core import MetricBase, StateBase
+    from ..genesis.metrics import ArrivalTime
+    from ..genesis.states import FirstArrivalUnitState
+except:
+    from genesis.best_points import BestNodeHillClimbing, BestNodesHalfDiameter
+    from genesis.core import MetricBase, StateBase
+    from genesis.metrics import ArrivalTime
+    from genesis.states import FirstArrivalUnitState    
 
 
 class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):

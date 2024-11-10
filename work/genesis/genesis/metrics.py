@@ -7,7 +7,7 @@ Estimated Arrival Parameters Problem - Задача определения ож�
 import numpy as np
 import pandas as pd
 
-from genesis.core import MetricBase
+from .core import MetricBase
 
 
 

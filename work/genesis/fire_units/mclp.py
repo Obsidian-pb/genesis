@@ -12,9 +12,14 @@ import numpy as np
 import networkx as nx
 import pandas as pd
 
-from genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
-from genesis.mclp import BestNodesKoptG
-from genesis.tools import list_dict_concat
+try:
+    from ..genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
+    from ..genesis.mclp import BestNodesKoptG
+    from ..genesis.tools import list_dict_concat
+except:
+    from genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
+    from genesis.mclp import BestNodesKoptG
+    from genesis.tools import list_dict_concat
 
 
 
@@ -236,8 +241,14 @@ class BestNodesGAKopt(MCLPBase):
                 # print(len(population), len(weights))
 
                 # Отбор по правилу рулетки
-                parent_bot_1 = random.choices(population, weights=weights)[0]
-                parent_bot_2 = random.choices(population, weights=weights)[0]
+                try:
+                    parent_bot_1 = random.choices(population, weights=weights)[0]
+                    parent_bot_2 = random.choices(population, weights=weights)[0]
+                except:
+                    print(weights)
+                    print(sum(weights))
+                    raise Warning('Здесь заменить на лакончиный код')
+                    raise Exception('***')
 
                 # Скрещивание (одноточечное)
                 split_point = int(len(parent_bot_1)/2)
