@@ -384,6 +384,9 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
             g_nodes_gdf = ox.graph_to_gdfs(G, edges=False)
             area        = g_nodes_gdf.within(area_poly)
             nodes_list  = set(g_nodes_gdf[area].index)
+            # Если также передан целевой слой, дополнительно обрезаем и его
+            if not target_points_gdf is None:
+                target_points_gdf = target_points_gdf[target_points_gdf.within(area_poly)]
         else:
             area = None
             nodes_list = set(ox.graph_to_gdfs(G, edges=False).index)

@@ -132,9 +132,9 @@ class GPrecompileAlgorithm(QgsProcessingAlgorithm):
         # Параметры графа дорожной сети
         simplify            = self.parameterAsBoolean(parameters, self.SIMPLIFY, context)
         # Путь к итоговому файлу
-        feedback.pushInfo(network.id())
+        # feedback.pushInfo(network.id())
         target_file = self.OUTPUT_PATH.format(network.id())
-        feedback.pushInfo(target_file)
+        
 
 
         # =======================================================================================
@@ -144,7 +144,8 @@ class GPrecompileAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgressText('Подготавливаем данные')
         roads_gdf                  = gpd.GeoDataFrame.from_features(list(network.getFeatures()),
                                                                     crs=network.sourceCrs().authid())
-        
+        feedback.setProgress(30)
+
         # Формируем граф дорожной сети
         feedback.setProgressText('Формируем граф дорожной сети')
 
@@ -158,7 +159,7 @@ class GPrecompileAlgorithm(QgsProcessingAlgorithm):
         G = graph_rise_from_gpkg(roads_gdf,
                                  columns_list = columns_list)
         if simplify:
-            feedback.setProgress(20)
+            feedback.setProgress(70)
             feedback.setProgressText('Упрощаем граф дорожной сети')
             G = ox.simplify_graph(G)
 
@@ -173,6 +174,7 @@ class GPrecompileAlgorithm(QgsProcessingAlgorithm):
         # =======================================================================================
         # Сохраняем граф как файл GraphML
         ox.save_graphml(G, target_file)
+        feedback.pushInfo(f'Граф сохранен по адресу: `{target_file}`')
 
         return {self.OUTPUT: target_file}
 

@@ -158,7 +158,7 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterBoolean(self.SIMPLIFY, self.tr('Упростить граф'), True))
         # Поле названия итогового слоя
         self.addParameter(QgsProcessingParameterString (
-            self.RESULT_LAYER_NAME, self.tr('Имя итогового слоя'), 'Время следования'
+            self.RESULT_LAYER_NAME, self.tr('Имя итогового слоя'), 'Время прибытия'
             ))
         # Выходной слой
         self.addParameter(QgsProcessingParameterFileDestination(
@@ -283,6 +283,9 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
             area_poly = unary_union(area_gdf.geometry)
             g_nodes_gdf = ox.graph_to_gdfs(G, edges=False)
             area = g_nodes_gdf.within(area_poly)
+            # Если также передан целевой слой, дополнительно обрезаем и его
+            if not target_points_gdf is None:
+                target_points_gdf = target_points_gdf[target_points_gdf.within(area_poly)]
         else:
             area = None
         ## Вычисляем времена прибытия
@@ -302,7 +305,13 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
                 left_on='node',
                 right_index=True
             )
-            result_gdf['first_unit'] = nearest
+            result_gdf = pd.merge(
+                result_gdf,
+                nearest,
+                left_on='node',
+                right_index=True
+            )
+            # result_gdf['first_unit'] = nearest
             result_gdf['first_unit_time'] = result_gdf['times']
             result_gdf = result_gdf.drop('times', axis=1)
 
