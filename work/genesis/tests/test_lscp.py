@@ -73,6 +73,7 @@ class TestLSCPCommon:
         genesis = LSCPCommon(mclp_function = BNG,
                             point_selector = point_selector,
                             stop_case_function = stop_case,
+                            metric_function = ArrivalTime(),
                             start_names_index = 5,
                             names_pattern='ПСЧ {}',
                             )
@@ -80,18 +81,17 @@ class TestLSCPCommon:
         # Расчет только динамические узлы
         best_dynamic_nodes, best_metric = genesis(env = G,
                                         dynamic_nodes = new_units,
-                                        # static_nodes = existed_units,
                                         )
-        assert best_dynamic_nodes == {290700367: 'd', 1577701962: 'c', 2034402108: 'ПСЧ 5', 2042076918: 'ПСЧ 6'}
-        assert best_metric  ==  4.5251939000000005
+        assert best_dynamic_nodes == {1577701962: 'c', 2042076918: 'd', 290700365: 'ПСЧ 5', 2034401723: 'ПСЧ 6'}
+        assert best_metric  ==  4.47569295393134
 
         # Расчет динамические и статические узлы
         best_dynamic_nodes, best_metric = genesis(env = G,
                                         dynamic_nodes = new_units,
                                         static_nodes = existed_units,
                                         )
-        assert best_dynamic_nodes == {2034401374: 'c', 290700367: 'd', 2034402108: 'ПСЧ 5', 2042076918: 'ПСЧ 6'}
-        assert best_metric  ==  4.3977074946843855
+        assert best_dynamic_nodes == {2034401275: 'c', 2042076918: 'd', 290700365: 'ПСЧ 5', 2034401894: 'ПСЧ 6'}
+        assert best_metric  ==  4.392374431672204
 
     def test_lscp_empty_dinamic_nodes(self, load_G_simplyfied):
         '''
@@ -119,6 +119,7 @@ class TestLSCPCommon:
         genesis = LSCPCommon(mclp_function = BNG,
                             point_selector = point_selector,
                             stop_case_function = stop_case,
+                            metric_function = ArrivalTime(),
                             start_names_index = 5,
                             names_pattern='ПСЧ {}',
                             )
@@ -165,6 +166,7 @@ class TestLSCPCommon:
         genesis = LSCPCommon(mclp_function = BNG,
                             point_selector = point_selector,
                             stop_case_function = stop_case,
+                            metric_function = ArrivalTime(),
                             start_names_index = 10,
                             names_pattern='ПЧ {}',
                             )
@@ -175,8 +177,8 @@ class TestLSCPCommon:
                                         static_nodes = existed_units,
                                         area = points_mask
                                         )
-        assert best_dynamic_nodes == {2034401275: 'c', 2034401663: 'd', 2034401782: 'ПЧ 10', 2034401920: 'ПЧ 11'}
-        assert best_metric  ==  3.0094429132921876
+        assert best_dynamic_nodes == {2034401275: 'c', 9774067520: 'd', 2034401650: 'ПЧ 10', 426923846: 'ПЧ 11'}
+        assert best_metric  ==  2.5924815766972755
 
 
     def test_lscp_GA(self, load_G_simplyfied):
@@ -195,6 +197,7 @@ class TestLSCPCommon:
         # Функция расчета лучшего размещения заданных узлов
         BNGA = BestNodesGA(state_function = FirstArrivalUnitState(),
                             metric_function = ArrivalTime(),
+                            node_selector = RandomNodesSelector(),
                             population_size=20,
                             epochs = 3,
                             )
@@ -208,6 +211,7 @@ class TestLSCPCommon:
         genesis = LSCPCommon(mclp_function = BNGA,
                             point_selector = point_selector,
                             stop_case_function = stop_case,
+                            metric_function = ArrivalTime(),
                             start_names_index = 5,
                             names_pattern='ПСЧ {}',
                             )
@@ -237,6 +241,7 @@ class TestLSCPCommon:
         # Функция расчета лучшего размещения заданных узлов
         BNSA = BestNodesSA(state_function = FirstArrivalUnitState(),
                             metric_function = ArrivalTime(),
+                            node_selector = RandomNodesSelector(),
                             end_temperature = 0.01
                             )
         # Критерий остановки
@@ -249,6 +254,7 @@ class TestLSCPCommon:
         genesis = LSCPCommon(mclp_function = BNSA,
                             point_selector = point_selector,
                             stop_case_function = stop_case,
+                            metric_function = ArrivalTime(),
                             start_names_index = 5,
                             names_pattern='ПСЧ {}',
                             )

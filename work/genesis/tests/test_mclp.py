@@ -17,6 +17,7 @@ from genesis.core import StateBase, MetricBase
 from genesis.mclp import BestNodesGA, BestNodesKoptG, BestNodesSA
 from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.states import FirstArrivalUnitState
+from genesis.point_selectors import RandomNodesSelector
 
 
 
@@ -249,10 +250,11 @@ class TestGA:
         new_units = {nodes[3000]: 'c',
                     nodes[4000]: 'd'}
 
-        BNGA = BestNodesGA(state_function=FirstArrivalUnitState(),
-                            metric_function=ArrivalTime(),
+        BNGA = BestNodesGA( state_function   = FirstArrivalUnitState(),
+                            metric_function = ArrivalTime(),
+                            node_selector   = RandomNodesSelector(),
                             epochs=5,
-                            )
+                           )
 
         _, best_metric = BNGA(env=G,
             static_nodes=existed_units,
@@ -273,8 +275,9 @@ class TestGA:
             nodes[3000]: 'b',
             nodes[4000]: 'c'}
 
-        BNGA = BestNodesGA(state_function=FirstArrivalUnitState(),
-                            metric_function=ArrivalTime(),
+        BNGA = BestNodesGA(state_function   = FirstArrivalUnitState(),
+                            metric_function = ArrivalTime(),
+                            node_selector   = RandomNodesSelector(),
                             population_size = 20,
                             elite_size = 10,
                             epochs=15,
@@ -302,8 +305,9 @@ class TestGA:
         new_units = {nodes[3000]: 'c',
                     nodes[4000]: 'd'}
 
-        BNGA = BestNodesGA(state_function=FirstArrivalUnitState(),
-                            metric_function=ArrivalTime(),
+        BNGA = BestNodesGA(state_function   = FirstArrivalUnitState(),
+                            metric_function = ArrivalTime(),
+                            node_selector   = RandomNodesSelector(),
                             epochs=5,
                             )
 
@@ -327,8 +331,9 @@ class TestGA:
         new_units = {nodes[3000]: 'c',
                     nodes[4000]: 'd'}
 
-        BNGA = BestNodesGA(state_function=FirstArrivalUnitState(),
-                            metric_function=CoverIndex(5),
+        BNGA = BestNodesGA(state_function   = FirstArrivalUnitState(),
+                            metric_function = CoverIndex(5),
+                            node_selector   = RandomNodesSelector(),
                             epochs=10,
                             )
 
@@ -355,6 +360,7 @@ class TestGA:
 
         BNGA = BestNodesGA(FirstArrivalUnitState(),
                         ArrivalTime(),
+                        RandomNodesSelector(),
                         population_size=20,
                         elite_size=10,
                         epochs=5,
@@ -385,6 +391,7 @@ class TestSA:
 
         BNSA = BestNodesSA(FirstArrivalUnitState(),
                     ArrivalTime(),
+                    node_selector   = RandomNodesSelector(),
                     end_temperature = 0.01,
                     )
 
@@ -415,6 +422,7 @@ class TestSA:
 
         BNSA = BestNodesSA(FirstArrivalUnitState(),
                     ArrivalTime(),
+                    node_selector   = RandomNodesSelector(),
                     end_temperature = 0.01,
                     )
 
@@ -438,9 +446,10 @@ class TestSA:
         new_units = {nodes[3000]: 'c',
                     nodes[4000]: 'd'}
 
-        BNSA = BestNodesSA(state_function=FirstArrivalUnitState(),
-                            metric_function=CoverIndex(5),
-                    end_temperature = 0.01,
+        BNSA = BestNodesSA(state_function   = FirstArrivalUnitState(),
+                            metric_function = CoverIndex(5),
+                            node_selector   = RandomNodesSelector(),
+                            end_temperature = 0.01,
                     )
 
         _, best_metric = BNSA(env=G,
@@ -449,9 +458,9 @@ class TestSA:
 
         assert best_metric > 18
 
-    def test_ga_many_units(self, load_G):
+    def test_sa_many_units(self, load_G):
         '''
-        Тест ГА для множества подразделений
+        Тест СО для множества подразделений
         '''
         G = load_G
         nodes = list(G.nodes())
@@ -463,8 +472,9 @@ class TestSA:
                     nodes[3500]:'f',
                     nodes[4000]:'g',}
 
-        BNSA = BestNodesSA(state_function=FirstArrivalUnitState(),
-                            metric_function=ArrivalTime(),
+        BNSA = BestNodesSA(state_function   = FirstArrivalUnitState(),
+                            metric_function = ArrivalTime(),
+                            node_selector   = RandomNodesSelector(),
                             mutation_max_count=3,
                             end_temperature = 0.01,
                             )

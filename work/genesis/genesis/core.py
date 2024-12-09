@@ -236,6 +236,8 @@ class LSCPBase:
             Функция выбора новой точки (кандидата).
         `stop_case_function`: MetricBase
             Функция оценки достижения критерия остановки
+        `metric_function`: MetricBase
+            Функция расчет метрики для оптимизации LSCP
         `names_pattern`: str
             Шаблон имен новых точек. По умолчанию names_pattern: `str = '{}'`.
             Применяется как `names_pattern.format(iteration)`, где 

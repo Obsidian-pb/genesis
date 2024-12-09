@@ -422,7 +422,7 @@ class TestBestNodeHalfDiameter:
         bnhd = BestNodesHalfDiameter()
         best_node = bnhd(env=G)
 
-        assert best_node == 4116048896
+        assert best_node == 4116035731
 
     def test_bnh_wrong_G(self):
         '''
