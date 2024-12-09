@@ -38,6 +38,7 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     try:
         roads_p = ox.project_gdf(roads)
     except:
+        roads_p = roads
         pass
 
     # Создаем пустой граф

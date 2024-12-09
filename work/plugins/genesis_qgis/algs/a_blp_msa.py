@@ -328,9 +328,12 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             area_poly   = unary_union(area_gdf.geometry)
             g_nodes_gdf = ox.graph_to_gdfs(G, edges=False)
             area        = g_nodes_gdf.within(area_poly)
+            # Если также передан целевой слой, дополнительно обрезаем и его
+            if not target_points_gdf is None:
+                target_points_gdf = target_points_gdf[target_points_gdf.within(area_poly)]
         else:
             area = None
-        
+
         ## Определение стартового узла
         Warning    ('Сейчас выбирается узел по середине диаметра')
         bnhd       = BestNodesHalfDiameter()
@@ -340,9 +343,9 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         metric_func = None
         if target_points_gdf is None:
             if optimized_metric   == 0:
-                metric_func  =  ArrivalTime()
+                metric_func  = ArrivalTime()
             elif optimized_metric == 1:
-                metric_func  =   CoverIndex()
+                metric_func  = CoverIndex()
             elif optimized_metric == 2:
                 metric_func  = CoverIndex(20)
         else:

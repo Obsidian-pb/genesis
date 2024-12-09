@@ -416,6 +416,9 @@ class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
             g_nodes_gdf = ox.graph_to_gdfs(G, edges=False)
             area        = g_nodes_gdf.within(area_poly)
             nodes_list  = set(g_nodes_gdf[area].index)
+            # Если также передан целевой слой, дополнительно обрезаем и его
+            if not target_points_gdf is None:
+                target_points_gdf = target_points_gdf[target_points_gdf.within(area_poly)]
         else:
             area = None
             nodes_list = set(ox.graph_to_gdfs(G, edges=False).index)
@@ -431,8 +434,9 @@ class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
                 metric_func    =   CoverIndex()
                 stop_case_func = MoreEqualStopCase(target)
             elif optimized_metric == 2:
-                metric_func  = CoverIndex(20)
+                metric_func    = CoverIndex(20)
                 stop_case_func = MoreEqualStopCase(target)
+            best_place_time_func =  ArrivalTime()
         else:
             centroids                 = target_points_gdf.geometry.centroid
             target_points_gdf['node'] = ox.nearest_nodes(G, centroids.x, centroids.y)
@@ -445,11 +449,12 @@ class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
             elif optimized_metric == 2:
                 metric_func    = CoverIndexBuilding(target_points_gdf, ip_val=20)
                 stop_case_func = MoreEqualStopCase(target)
+            best_place_time_func =  ArrivalTimeBuilding(target_points_gdf)
 
 
         ###  Структура алгоритма
         bpf = BestNodeHillClimbingHD(FirstArrivalUnitState(),
-                                    metric_function=metric_func)
+                                    metric_function=best_place_time_func)
         kopt = BestNodesKoptG(FirstArrivalUnitState(),
                             metric_function        = metric_func,
                             best_point_function    = bpf,
@@ -475,39 +480,38 @@ class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
                             names_pattern       = name_pattern,
                             after_mclp_function = after_mclp
                             )
-        lscp_b = LSCPCommon(mclp_function       = kopt,
-                            point_selector      = FarNodeSelector(FirstArrivalUnitState(), nodes_list=nodes_list),
-                            stop_case_function  = stop_case_func,
-                            metric_function     = metric_func,
-                            names_pattern       = name_pattern,
-                            after_mclp_function = after_mclp
-                            )
+        # Потом переписать корректно для обработки единичного размещения
+        # lscp_b = LSCPCommon(mclp_function       = kopt,
+        #                     point_selector      = FarNodeSelector(FirstArrivalUnitState(), nodes_list=nodes_list),
+        #                     stop_case_function  = stop_case_func,
+        #                     metric_function     = metric_func,
+        #                     names_pattern       = name_pattern,
+        #                     after_mclp_function = after_mclp
+        #                     )
         
 
         ## Словари подразделений
         optimized_units_gdf['node'] = ox.nearest_nodes(G, optimized_units_gdf.geometry.x, optimized_units_gdf.geometry.y)
-        # optimized_units_dict = {node:unit for node, unit in zip(optimized_units_gdf['node'], optimized_units_gdf['name'])}
         optimized_units_dict = dict(zip(optimized_units_gdf['node'], optimized_units_gdf['name']))
         existed_units_dict = None
         if not existed_units_gdf is None:
             existed_units_gdf['node'] = ox.nearest_nodes(G, existed_units_gdf.geometry.x, existed_units_gdf.geometry.y)
-            # existed_units_dict = {node:unit for node, unit in zip(existed_units_gdf['node'], existed_units_gdf['name'])}
             existed_units_dict = dict(zip(existed_units_gdf['node'], existed_units_gdf['name']))
 
         ## Проводим расчет
         feedback.setProgressText('Расчет оптимального размещения')
-        if len(optimized_units_dict) == 1:
-            best_nodes, best_metric   = lscp_b(env      = G,
-                                        dynamic_nodes   = optimized_units_dict,
-                                        static_nodes    = existed_units_dict,
-                                        area            = area,
-                                        )
-        else:
-            best_nodes, best_metric   = lscp_a(env      = G,
-                                        dynamic_nodes   = optimized_units_dict,
-                                        static_nodes    = existed_units_dict,
-                                        area            = area,
-                                        )
+        # if len(optimized_units_dict) == 1:
+        #     best_nodes, best_metric   = lscp_b(env      = G,
+        #                                 dynamic_nodes   = optimized_units_dict,
+        #                                 static_nodes    = existed_units_dict,
+        #                                 area            = area,
+        #                                 )
+        # else:
+        best_nodes, best_metric   = lscp_a(env      = G,
+                                    dynamic_nodes   = optimized_units_dict,
+                                    static_nodes    = existed_units_dict,
+                                    area            = area,
+                                    )
         feedback.pushWarning(f'Лучшая метрика: {round(best_metric,1)}')
         feedback.setProgress(90)
 
