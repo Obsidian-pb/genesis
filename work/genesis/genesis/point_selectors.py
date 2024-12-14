@@ -43,7 +43,7 @@ class RandomNodesSelector(PointSelectorBase):
         `env`:nx.MultiDiGraph
             Граф улично-дорожной сети
         `points`: dict
-            Список стартовых узлов графа в которых размещены
+            Словарь стартовых узлов графа в которых размещены
             подразделения.
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
@@ -62,6 +62,8 @@ class RandomNodesSelector(PointSelectorBase):
         #     raise ValueError('Аргумент `points` должен содержать хотя бы 1 элемент! ' + \
         #                      'В случае если в `env` отсутствуют известные размещения `points`, ' + \
         #                      'используйте методы класса `BestPointsBase`')
+        if points is None:
+            raise ValueError(f'Аргумент `points` не может иметь значение None')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
         if k < 1:
