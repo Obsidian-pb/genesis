@@ -10,3 +10,14 @@ If you don't want to install packages to two Python installations you could also
 
 Источник: https://gis.stackexchange.com/questions/141320/installing-3rd-party-python-libraries-for-qgis-on-windows
 
+
+# Полезные ссылки
+
+## Страницы документации
+
+Иерархия классов процессинг плагина: https://qgis.org/pyqgis/master/core/QgsProcessingParameterDefinition.html
+
+Определение легенды в макете: https://qgis.org/pyqgis/master/core/QgsDataDefinedSizeLegend.html
+
+
+
