@@ -27,7 +27,7 @@ from qgis.core import (
                        )
 from qgis import processing
 
-from ..graphs.algorithms import fix_highway_list
+from graphs.algorithms import fix_highway_list
 
 
 

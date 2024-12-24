@@ -6,7 +6,7 @@
 name=Genesis
 qgisMinimumVersion=3.0
 description=Плагин для проведения расчетов параметров реагирования пожарных подразделений, численности и оптимальных мест их размещения
-version=0.3
+version=0.3.1
 author=SIBPSA
 email=malyutin@sibpsa.ru
 
@@ -40,7 +40,7 @@ deprecated=False
 # plugin_dependencies=
 
 Category of the plugin: Raster, Vector, Database or Web
-# category=
+# category=Vector
 
 # If the plugin can run on QGIS Server.
 server=False

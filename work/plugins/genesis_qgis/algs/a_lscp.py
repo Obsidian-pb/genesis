@@ -36,21 +36,21 @@ from qgis.core import (
                        QgsProcessingParameterDefinition,
                        )
 
-from ..genesis.metrics import ArrivalTime, CoverIndex
-from ..genesis.states import FirstArrivalUnitState
-from ..graphs.speeds import kmh_to_mm, set_graph_travel_times
-from ..graphs.algorithms import graph_rise_from_gpkg
+from genesis.metrics import ArrivalTime, CoverIndex
+from genesis.states import FirstArrivalUnitState
+from graphs.speeds import kmh_to_mm, set_graph_travel_times
+from graphs.algorithms import graph_rise_from_gpkg
 # from ..genesis.best_points import BestNodeMonkey, BestNodesHalfDiameter
-from ..fire_units.metrics import ArrivalTimeBuilding, CoverIndexBuilding
-from ..fire_units.mclp import BestNodesGAKopt
-from ..genesis.mclp import BestNodesKoptG
-from ..fire_units.best_points import BestNodeHillClimbingHD
-from ..genesis.point_selectors import GenesisNodeSelector, RandomNodesSelector, FarNodeSelector
+from fire_units.metrics import ArrivalTimeBuilding, CoverIndexBuilding
+from fire_units.mclp import BestNodesGAKopt
+from genesis.mclp import BestNodesKoptG
+from fire_units.best_points import BestNodeHillClimbingHD
+from genesis.point_selectors import GenesisNodeSelector, RandomNodesSelector, FarNodeSelector
+
+from genesis.lscp import LSCPCommon
+from genesis.stop_cases import LessEqualStopCase, MoreEqualStopCase
 
 from ..graph_tools import check_file_exists
-from ..genesis.lscp import LSCPCommon
-from ..genesis.stop_cases import LessEqualStopCase, MoreEqualStopCase
-
 
 
 # На будущее - добавление иконок

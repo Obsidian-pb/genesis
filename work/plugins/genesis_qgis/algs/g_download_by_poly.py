@@ -33,7 +33,7 @@ from qgis.core import (
                        )
 from qgis import processing
 
-from ..graphs.algorithms import fix_highway_list
+from graphs.algorithms import fix_highway_list
 
 
 
@@ -239,10 +239,12 @@ class GDownloadAlgorithmPoly(QgsProcessingAlgorithm):
         wkt_strings = []
         for _, feature in enumerate(features):
             wkt_strings.append(feature.geometry().asWkt())
+        # print(wkt_strings)
 
         # Формируем итоговый мультиполигон
         polygons = [loads(wkt) for wkt in wkt_strings]
         poly = unary_union(polygons)
+        # print(poly)
 
         # Загрузка данных из osmnx
         G = ox.graph_from_polygon(poly, network_type='drive_service',

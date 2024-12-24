@@ -40,8 +40,8 @@ from qgis.core import (
                        )
 
 
-from ..graphs.speeds import kmh_to_mm, set_graph_travel_times
-from ..graphs.algorithms import graph_rise_from_gpkg
+from graphs.speeds import kmh_to_mm, set_graph_travel_times
+from graphs.algorithms import graph_rise_from_gpkg
 
 from ..graph_tools import check_file_exists
 
