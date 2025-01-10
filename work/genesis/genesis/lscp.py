@@ -172,7 +172,7 @@ def drop_trash_points(env,
     if static_nodes is None:
         all_nodes = dynamic_nodes
     else:
-        all_nodes = list_dict_concat(tmp, static_nodes)
+        all_nodes = list_dict_concat(dynamic_nodes, static_nodes)
     metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
     
     return dynamic_nodes, metric
