@@ -85,7 +85,7 @@ class FirstArrivalUnitState(StateBase):
         # Либо переопределять в каждом отдельном случае именно State, а не state_algorithm.
         # т.е. вместо FirstArrivalUnitState будет FirstArrivalUnitStateForG или FirstArrivalUnitStateForGAndBuildings ...
         # times, routes = self.state_algorithm(env, points, weight, **kwargs)     # Так не надо
-        times, routes = self.state_algorithm(G=env, sources=points, weight = self.weight, **kwargs)
+        times, routes = self.state_algorithm(G=env, sources = points, weight = self.weight, **kwargs)
         times = pd.Series(times, dtype=float, name='times') + self.delay
 
         # Определение стартового узла для каждого маршрута

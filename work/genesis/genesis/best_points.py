@@ -103,7 +103,8 @@ class BestNodesFull(BestPointsBase):
                  state_function: StateBase,
                  metric_function: MetricBase,
                  appr_val: float = 0.95,
-                 node_calc_end_function:callable=None,
+                 return_list: bool = False,
+                 node_calc_end_function: callable = None,
                  **kwargs) -> None:
         '''
         `state_function` : StateBase
@@ -114,15 +115,26 @@ class BestNodesFull(BestPointsBase):
             Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
             Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
             то такой узел не рассматривается.
+        `return_list`: = False
+            Если True - вернет список всех лучших узлов. False - вернет только первый из списка.
+            Свойство необходимо для соблюдения правил возврата данных `BestPointsBase`.
+            Однако в ряде случаев может потребоваться получить список всех лучших узлов.
+        `node_calc_end_function`:callable=None
+            Функция вызываемая в конце расчета каждого узла.
+            Сигнатура функции:
+            ```
+                node_calc_end_function()
+            ```
         '''
         self.appr_val = appr_val
         self.node_calc_end_function = node_calc_end_function
+        self.return_list = return_list
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env:nx.MultiDiGraph,
-                 area:pd.Series=None,
-                 nodes_list:set=None,
-                #  node_calc_end_function:callable=None,
+    def __call__(self, env:   nx.MultiDiGraph,
+                 area:        pd.Series = None,
+                 start_point: int = None,
+                 points_list:  set = None,
                  **kwargs):
         '''
         ## Параметры
@@ -131,15 +143,10 @@ class BestNodesFull(BestPointsBase):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
-        `nodes_list`:set=None
+        `points_list`: set = None
             Множество узлов графа которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
-        `node_calc_end_function`:callable=None
-            Функция вызываемая в конце расчета каждого узла.
-            Сигнатура функции:
-            ```
-                node_calc_end_function()
-            ```
+        
 
         ## Возвращает
         `best_nodes_list`, `best_metric`: tuple[list[Any | None], None]
@@ -152,10 +159,11 @@ class BestNodesFull(BestPointsBase):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
         # Если списка узлов изначально не передано, рассматриваются все узлы графа
+        nodes_list = points_list
         if nodes_list is None:
             nodes_list = env.nodes()
 
-        # # Если маска приемлемых узлов графа не передана, 
+        # # Если маска приемлемых узлов графа не передана,
         # # то приемлемое количество узлов считается от количества узлов в графе
         # # Иначе - от количества True в маске
         # if area is None:
@@ -208,7 +216,9 @@ class BestNodesFull(BestPointsBase):
             if self.node_calc_end_function:
                 self.node_calc_end_function()
 
-        return list(best_nodes_list), best_metric
+        if self.return_list:
+            return best_nodes_list, best_metric
+        return best_nodes_list[0], best_metric
 
 
 
@@ -259,10 +269,11 @@ class BestNodeHillClimbing(BestPointsBase):
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self,
-                 env:nx.MultiDiGraph,
-                 area:pd.Series=None,
-                 start_node:int=None,
-                 debug_route:bool=False,
+                 env:         nx.MultiDiGraph,
+                 area:        pd.Series=None,
+                 start_point: int = None,
+                 points_list: set = None,
+                 debug_route: bool=False,
                 #  node_calc_end_function:callable=None,
                  **kwargs):
         '''
@@ -271,8 +282,11 @@ class BestNodeHillClimbing(BestPointsBase):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
-        `start_node`: int
+        `start_point`: int
             Идентификатор стартового узла
+        `points_list`: set = None
+            Множество точек среды которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
         `debug_route`: bool=False
             Если True - возвращается также маршрут по которому проходил алгоритм
             в процессе поиска
@@ -295,6 +309,7 @@ class BestNodeHillClimbing(BestPointsBase):
         # else:
         #     appr_nodes_count = int(sum(area) * self.appr_val)
 
+        start_node = start_point
         if start_node is None:
             # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО!
             # Иначе можно оказаться в тупике из которого нет выхода
@@ -371,10 +386,9 @@ class BestNodeHillClimbing(BestPointsBase):
             if self.node_calc_end_function:
                 self.node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
-        if not debug_route:
-            return best_node, best_metric
-        else:
+        if debug_route:
             return best_node, best_metric, route
+        return best_node, best_metric
 
 
 # Временно здесь - потом вынести в отдельный модель для кастомизированных решений
@@ -387,9 +401,10 @@ class BestNodeHillClimbing_maxMean(BestNodeHillClimbing):
                  **kwargs) -> None:
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
-    def __call__(self, env: nx.MultiDiGraph,
-                 area: pd.Series = None,
-                 start_node: int = None,
+    def __call__(self, env:   nx.MultiDiGraph,
+                 area:        pd.Series = None,
+                 start_point: int = None,
+                 points_list: set = None,
                  debug_route: bool = False,
                  node_calc_end_function: callable = None,
                  **kwargs):
@@ -399,8 +414,8 @@ class BestNodeHillClimbing_maxMean(BestNodeHillClimbing):
         bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
                                          metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_neighbors)
 
-        best_node, best_metric = bnch_max(env=env, area=area, start_node=start_node)
-        best_node, best_metric = bnch_mean(env=env, area=area, start_node=best_node)
+        best_node, best_metric = bnch_max(env=env, area=area, start_point=start_point, points_list=points_list)
+        best_node, best_metric = bnch_mean(env=env, area=area, start_point=start_point, points_list=points_list)
 
         # выполняем функцию завершения расчета для узла
         if node_calc_end_function:
@@ -458,12 +473,15 @@ class BestNodesHalfDiameter(BestPointsBase):
 
         # 1 Выбираем произвольную точку. По-умолчанию берем просто первую из списка узлов
         nd = list(env.nodes())[0]
+
         # 2.1 Находим самую отдаленную от нее (входящую) -- периферия №1
         lngs = nx.shortest_path_length(env, target=nd, weight=self.weight)
         corner_1 = max(lngs, key=lngs.get)
+
         # 2.2 Находим самую отдаленную от нее (входящую) -- периферия №2
         lngs = nx.shortest_path_length(env, target=corner_1, weight=self.weight)
         corner_2 = max(lngs, key=lngs.get)
+
         # # 2.3 Находим самую отдаленную от нее (входящую) -- периферия №3 (уточняющая)
         # lngs = nx.shortest_path_length(env, target=corner_2, weight=self.weight)
         # corner_3 = max(lngs, key=lngs.get)
@@ -474,8 +492,9 @@ class BestNodesHalfDiameter(BestPointsBase):
         # diameter = nx.shortest_path_length(env, corner_1, corner_2, weight=self.weight)
         # short_path = nx.shortest_path(env, corner_1, corner_2, weight=self.weight)
 
+        # Если в кратчайшем маршруте менее двух точек, возвращаем первую
         if len(short_path) < 2:
-            return short_path[0]
+            return short_path[0], None
 
         # Находим точку примерно по середине диаметра
         tot_len = 0
@@ -485,7 +504,7 @@ class BestNodesHalfDiameter(BestPointsBase):
             tot_len += cur_len
             if tot_len >= diameter / 2: break
 
-        return nd1
+        return nd1, None
 
 
 class BestNodeMonkey(BestNodeHillClimbing):
@@ -559,14 +578,17 @@ class BestNodeMonkey(BestNodeHillClimbing):
                          **kwargs)
 
 
-    def _get_sample_node(self, env, area, **kwargs):
+    def _get_sample_node(self, env, area, points_list, **kwargs):
         '''
         Получение случайного узла.
         Из узла можно попасть в большую часть других узлов графа (согласно `appr_val`)
         '''
         node_metric = None
         i=0
-        nodes_list = list(env.nodes())
+        if points_list is None:
+            nodes_list = list(env.nodes())
+        else:
+            nodes_list = points_list
         while node_metric is None:
             if i>=env.number_of_nodes():
                 raise ValueError('Определить наиболее выгодный стартовый узел невозможно, ' \
@@ -585,9 +607,10 @@ class BestNodeMonkey(BestNodeHillClimbing):
 
 
     def __call__(self,
-                 env:nx.MultiDiGraph,
-                 area=None,
-                 start_node:int=None,
+                 env: nx.MultiDiGraph,
+                 area = None,
+                 start_point: int = None,
+                 points_list:  set = None,
                  **kwargs) -> tuple[int | None, float | None]:
         '''
         Реализация: при помощи BestNodesHillClimbing ищется лучшая точка, 
@@ -601,8 +624,11 @@ class BestNodeMonkey(BestNodeHillClimbing):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
-        `start_node`: int
+        `start_point`: int
             Идентификатор стартового узла
+        `points_list`: set = None
+            Множество точек среды которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
 
         ## Возвращает
         `best_node`: int, `best_metric`: float
@@ -611,11 +637,13 @@ class BestNodeMonkey(BestNodeHillClimbing):
 
         if not isinstance(env, nx.MultiDiGraph):
             raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
+        
 
         # Первый глобальный прыжок - случайный выбор старта
         # ! Здесь потом заменить `_get_sample_node`` на передаваемую функцию
+        start_node = start_point
         if start_node is None:
-            start_node, node_metric = self._get_sample_node(env, area, **kwargs)
+            start_node, node_metric = self._get_sample_node(env, area, points_list, **kwargs)
         else:
             # Расчет метрики для узла `start_node`
             node_metric = self.node_metric_func(env=env, node=start_node, area=area, **kwargs)
@@ -634,8 +662,9 @@ class BestNodeMonkey(BestNodeHillClimbing):
             try:
                 best_node_local, best_metric_local = super().__call__(
                     env=env,
-                    start_node=start_node,
                     area=area,
+                    start_point=start_node,
+                    # points_list=points_list,
                     **kwargs,
                     )
             except Exception as _:
@@ -677,8 +706,9 @@ class BestNodeMonkey(BestNodeHillClimbing):
                 # Вычисление метрики для узла `jump_node`
                 try:
                     best_node_after_jump, best_metric_after_jump = super().__call__(env=env,
-                                                               start_node=jump_node,
                                                                area=area,
+                                                               start_point=jump_node,
+                                                            #    points_list=points_list,
                                                                **kwargs)
                 except Exception as _:
                     best_node_after_jump, best_metric_after_jump = None, None
@@ -775,7 +805,8 @@ class BestNodeBee(BestNodeHillClimbing):
     def __call__(self,
                  env:nx.MultiDiGraph,
                  area=None,
-                 nodes_list:set=None,
+                 start_point: int = None,
+                 points_list:set=None,
                  **kwargs) -> tuple[int | None, float | None]:
         '''
         Реализация: `scouts_count` пчел-разведчиков случайным образом проверяют узлы
@@ -791,7 +822,9 @@ class BestNodeBee(BestNodeHillClimbing):
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
-        `nodes_list`:set=None
+        `start_point`: int
+            Идентификатор стартовой точки
+        `points_list`:set=None
             Множество узлов графа которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
 
@@ -806,6 +839,7 @@ class BestNodeBee(BestNodeHillClimbing):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
         # Если списка узлов изначально не передано, рассматриваются все узлы графа
+        nodes_list = points_list
         if nodes_list is None:
             nodes_list = env.nodes()
 
@@ -832,8 +866,8 @@ class BestNodeBee(BestNodeHillClimbing):
         for node in tdf['node'][:self.best_scouts_count]:
             cur_node, cur_metric = super().__call__(
                     env=env,
-                    start_node=node,
                     area=area,
+                    start_point=node,
                     # **kwargs,
                     )
 
