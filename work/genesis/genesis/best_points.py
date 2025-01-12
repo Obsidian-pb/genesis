@@ -285,7 +285,7 @@ class BestNodeHillClimbing(BestPointsBase):
         `start_point`: int
             Идентификатор стартового узла
         `points_list`: set = None
-            Множество точек среды которые будут рассмотрены в качестве кандидатов.
+            !Для данного алгоритма не используется! Множество точек среды которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
         `debug_route`: bool=False
             Если True - возвращается также маршрут по которому проходил алгоритм
@@ -625,9 +625,9 @@ class BestNodeMonkey(BestNodeHillClimbing):
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
         `start_point`: int
-            Идентификатор стартового узла
+            !Для данного алгоритма не используется! Идентификатор стартового узла
         `points_list`: set = None
-            Множество точек среды которые будут рассмотрены в качестве кандидатов.
+            !Для данного алгоритма не используется! Множество точек среды которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
 
         ## Возвращает
@@ -738,7 +738,7 @@ class BestNodeMonkey(BestNodeHillClimbing):
                 jump_number+=1
 
             # Глобальный прыжок (выбор нового случайного узла)
-            start_node, node_metric = self._get_sample_node(env, area, **kwargs)
+            start_node, node_metric = self._get_sample_node(env, area, points_list, **kwargs)
 
         return best_node, best_metric
 
@@ -806,7 +806,7 @@ class BestNodeBee(BestNodeHillClimbing):
                  env:nx.MultiDiGraph,
                  area=None,
                  start_point: int = None,
-                 points_list:set=None,
+                 points_list: set = None,
                  **kwargs) -> tuple[int | None, float | None]:
         '''
         Реализация: `scouts_count` пчел-разведчиков случайным образом проверяют узлы
@@ -839,6 +839,7 @@ class BestNodeBee(BestNodeHillClimbing):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
         # Если списка узлов изначально не передано, рассматриваются все узлы графа
+        # Здесь возможначпроблема, т.к. при дальнейшем поиске в любом случае оптимальными могут быть признаны узлы не из списка
         nodes_list = points_list
         if nodes_list is None:
             nodes_list = env.nodes()
