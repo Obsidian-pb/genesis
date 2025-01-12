@@ -45,12 +45,11 @@ class MetricBase:
             Например, частные настройки алгоритма, дополнительные данные и т.д.
 
         # Возвращает
-        `metric` (`значение метрики`): abstract
+        `metric` (`значение метрики`): float
             значение метрики
         '''
         return None
 
-    # @classmethod
     def compare(self, a, b):
         '''
         Сравнение.       
@@ -104,13 +103,17 @@ class StateBase():
 
             Конкретный тип данных и их именование в аргументах осуществляются 
             непосредственно при реализации
+        
+        # Возвращает
+        `state` : abstract
+            Состояние среды. Зависит от конкретной реализации
         '''
         return None
 
 
 class BestPointsBase:
     '''
-    Базовый класс алгоритма расчета лучшей точки
+    Базовый класс алгоритма расчета оптимальной точки
     '''
     def __init__(self, state_function: StateBase, metric_function: MetricBase,  **kwargs) -> None:
         '''
@@ -122,8 +125,14 @@ class BestPointsBase:
         self.state_function = state_function
         self.metric_function = metric_function
 
-    def __call__(self, env, area=None, **kwargs):
+    def __call__(self,
+                 env,
+                 area=None,
+                 start_point: int = None,
+                 points_list:  set = None,
+                 **kwargs) -> tuple[None, None]:
         '''
+        # Аргументы
         `env` (`среда`): abstract
             данные среды используемые для проведения расчетов.
             Граф, растр или иное представление пространства, в том числе композитное.
@@ -132,7 +141,19 @@ class BestPointsBase:
             область для которой происходит оценивание метрики.
             ни какие точки являющиеся частью среды `env`, но расположенные
             вне `area` учтены при оценке метрики не будут.
+        `start_point`: int
+            Идентификатор стартовой точки
+        `points_list`: set = None
+            Множество точек среды которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
+        
+        # Возвращает
+        `point` : int
+            идентификатор оптимальной точки
+        `metric` (`значение метрики`): float
+            значение метрики
         '''
+
 
 class MCLPBase:
     '''

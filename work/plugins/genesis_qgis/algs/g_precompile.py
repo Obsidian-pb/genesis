@@ -29,7 +29,7 @@ from qgis.core import (
                        )
 from qgis import processing
 
-from ..graphs.algorithms import graph_rise_from_gpkg
+from graphs.algorithms import graph_rise_from_gpkg
 
 
 

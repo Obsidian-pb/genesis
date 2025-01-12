@@ -41,12 +41,12 @@ from qgis.core import (
                        QgsCoordinateTransform,
                        )
 
-from ..genesis.metrics import ArrivalTime, CoverIndex
-from ..genesis.states import FirstArrivalUnitState
-from ..graphs.speeds import kmh_to_mm, set_graph_travel_times
-from ..graphs.algorithms import graph_rise_from_gpkg
-from ..genesis.best_points import BestNodeMonkey, BestNodesHalfDiameter
-from ..fire_units.metrics import ArrivalTimeBuilding, CoverIndexBuilding
+from genesis.metrics import ArrivalTime, CoverIndex
+from genesis.states import FirstArrivalUnitState
+from graphs.speeds import kmh_to_mm, set_graph_travel_times
+from graphs.algorithms import graph_rise_from_gpkg
+from genesis.best_points import BestNodeMonkey, BestNodesHalfDiameter
+from fire_units.metrics import ArrivalTimeBuilding, CoverIndexBuilding
 
 from ..graph_tools import check_file_exists
 

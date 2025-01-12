@@ -103,15 +103,15 @@ class TestBestNodesFull:
         '''
         G = create_G
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), ArrivalTime())(G)
-        assert best_nodes==[1]
+        assert best_nodes==1
         assert best_metric==9.666666666666666
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), ArrivalTime(np.max))(G)
-        assert best_nodes==[4]
+        assert best_nodes==4
         assert best_metric==18.0
-        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex())(G)
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex(), return_list=True)(G)
         assert best_nodes==[1]
         assert best_metric==60.0
-        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex(20))(G)
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex(20), return_list=True)(G)
         assert best_nodes==[4]
         assert best_metric==100.0
 
@@ -122,15 +122,15 @@ class TestBestNodesFull:
         G = create_G
         points_mask = create_points_mask
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), ArrivalTime())(G, area=points_mask)
-        assert best_nodes==[3]
+        assert best_nodes==3
         assert best_metric==8.0
-        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), ArrivalTime(np.max))(G, area=points_mask)
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), ArrivalTime(np.max), return_list=True)(G, area=points_mask)
         assert best_nodes==[3, 4]
         assert best_metric==13.0
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex())(G, area=points_mask)
-        assert best_nodes==[2]
+        assert best_nodes==2
         assert best_metric==85.71428571428571
-        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex(20))(G, area=points_mask)
+        best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex(20), return_list=True)(G, area=points_mask)
         assert best_nodes==[1,2,3,4]
         assert best_metric==100.0
         
@@ -143,22 +143,22 @@ class TestBestNodesFull:
         nodes_for_calc = [1,4,7,9,10,11,12]
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
                                                 ArrivalTime())(G,
-                                                               nodes_list=nodes_for_calc)
-        assert best_nodes==[1]
+                                                               points_list=nodes_for_calc)
+        assert best_nodes==1
         assert best_metric==9.666666666666666
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
                                                 ArrivalTime(np.max))(G,
-                                                                     nodes_list=nodes_for_calc)
-        assert best_nodes==[4]
+                                                                     points_list=nodes_for_calc)
+        assert best_nodes==4
         assert best_metric==18.0
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
                                                 CoverIndex())(G,
-                                                              nodes_list=nodes_for_calc)
-        assert best_nodes==[1]
+                                                              points_list=nodes_for_calc)
+        assert best_nodes==1
         assert best_metric==60.0
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(), CoverIndex(20))(G,
-                                                                                         nodes_list=nodes_for_calc)
-        assert best_nodes==[4]
+                                                                                         points_list=nodes_for_calc)
+        assert best_nodes==4
         assert best_metric==100.0
 
     def test_best_nodes_full_list_nodes_in_area(self, create_G, create_points_mask):
@@ -172,25 +172,25 @@ class TestBestNodesFull:
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
                                                 ArrivalTime())(G,
                                                                area=points_mask,
-                                                               nodes_list=nodes_for_calc)
-        assert best_nodes==[4]
+                                                               points_list=nodes_for_calc)
+        assert best_nodes==4
         assert best_metric==8.125
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
                                                 ArrivalTime(np.max))(G,
                                                                      area=points_mask,
-                                                                     nodes_list=nodes_for_calc)
-        assert best_nodes==[4]
+                                                                     points_list=nodes_for_calc)
+        assert best_nodes==4
         assert best_metric==13.0
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
                                                 CoverIndex())(G,
                                                               area=points_mask,
-                                                              nodes_list=nodes_for_calc)
-        assert best_nodes==[1]
+                                                              points_list=nodes_for_calc)
+        assert best_nodes==1
         assert best_metric==75.0
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
-                                                CoverIndex(20))(G,
+                                                CoverIndex(20), return_list=True)(G,
                                                                 area=points_mask,
-                                                                nodes_list=nodes_for_calc)
+                                                                points_list=nodes_for_calc)
         assert best_nodes==[1,4]
         assert best_metric==100.0
 
@@ -203,7 +203,7 @@ class TestBestNodesFull:
         best_nodes, best_metric = BestNodesFull(FirstArrivalUnitState(),
                                                 ArrivalTime(),
                                                 appr_val=1)(env=G)
-        assert best_nodes==[1]
+        assert best_nodes==1
         assert best_metric==9.666666666666666
 
 class TestBestNodeHillClimbing:
@@ -275,16 +275,16 @@ class TestBestNodeHillClimbing:
         G = create_G
         node_for_calc = 1
 
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())(G, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())(G, start_point=node_for_calc)
         assert best_nodes == 1
         assert best_metric ==  9.666666666666666
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime(np.max))(G, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime(np.max))(G, start_point=node_for_calc)
         assert best_nodes == 4
         assert best_metric == 18.0
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex())(G, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex())(G, start_point=node_for_calc)
         assert best_nodes == 1
         assert best_metric == 60.0
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex(20))(G, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex(20))(G, start_point=node_for_calc)
         assert best_nodes == 4
         assert best_metric == 100.0
 
@@ -297,16 +297,16 @@ class TestBestNodeHillClimbing:
         points_mask = create_points_mask
         node_for_calc = 1
 
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())(G, area=points_mask, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())(G, area=points_mask, start_point=node_for_calc)
         assert best_nodes == 3
         assert best_metric == 8.0
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime(np.max))(G, area=points_mask, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime(np.max))(G, area=points_mask, start_point=node_for_calc)
         assert best_nodes == 3
         assert best_metric == 13.0
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex())(G, area=points_mask, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex())(G, area=points_mask, start_point=node_for_calc)
         assert best_nodes == 2
         assert best_metric == 85.71428571428571
-        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex(20))(G, area=points_mask, start_node=node_for_calc)
+        best_nodes, best_metric = BestNodeHillClimbing(FirstArrivalUnitState(), CoverIndex(20))(G, area=points_mask, start_point=node_for_calc)
         assert best_nodes == 1
         assert best_metric == 100.0
 
@@ -392,7 +392,7 @@ class TestBestNodeHillClimbing:
             bnch_mean = BestNodeHillClimbing(state_function=FirstArrivalUnitState(), metric_function=ArrivalTime())
 
             best_node, best_metric = bnch_max(env=env, area=area)
-            best_node, best_metric = bnch_mean(env=env, start_node=best_node, area=area)
+            best_node, best_metric = bnch_mean(env=env, start_point=best_node, area=area)
 
             return best_node, best_metric
 
@@ -420,9 +420,10 @@ class TestBestNodeHalfDiameter:
         G = load_G
 
         bnhd = BestNodesHalfDiameter()
-        best_node = bnhd(env=G)
+        best_node, metric_val = bnhd(env=G)
 
         assert best_node == 4116035731
+        assert metric_val == None
 
     def test_bnh_wrong_G(self):
         '''
