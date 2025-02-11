@@ -289,10 +289,10 @@ class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
         crs = self.parameterAsExtentCrs(parameters, self.INPUT, context)
 
         optimized_units_layer = self.parameterAsSource(parameters, self.OPTIMAIZED_UNITS, context)
-        existed_units_layer = self.parameterAsSource(parameters, self.EXISTED_UNITS, context)
+        existed_units_layer   = self.parameterAsSource(parameters, self.EXISTED_UNITS, context)
 
-        target_points_layer = self.parameterAsVectorLayer(parameters, self.TARGET_POINTS, context)
-        area_layer          = self.parameterAsVectorLayer(parameters, self.AREA_POLYGON_LAYER, context)
+        target_points_layer   = self.parameterAsVectorLayer(parameters, self.TARGET_POINTS, context)
+        area_layer            = self.parameterAsVectorLayer(parameters, self.AREA_POLYGON_LAYER, context)
 
         # Параметры графа дорожной сети
         simplify            = self.parameterAsBoolean(parameters, self.SIMPLIFY, context)
