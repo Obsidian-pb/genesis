@@ -357,16 +357,16 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         # if roads_gdf.crs != estimated_utm_crs: roads_gdf = ox.project_gdf(roads_gdf, to_crs=estimated_utm_crs)
         if optimized_units_layer:
             if optimized_units_gdf.crs != estimated_utm_crs:
-                optimized_units_gdf = ox.project_gdf(optimized_units_gdf, to_crs=estimated_utm_crs)
+                optimized_units_gdf = ox.projection.project_gdf(optimized_units_gdf, to_crs=estimated_utm_crs)
         if existed_units_layer:
             if existed_units_gdf.crs != estimated_utm_crs:
-                existed_units_gdf = ox.project_gdf(existed_units_gdf, to_crs=estimated_utm_crs)
+                existed_units_gdf = ox.projection.project_gdf(existed_units_gdf, to_crs=estimated_utm_crs)
         if target_points_layer:
             if target_points_gdf.crs != estimated_utm_crs:
-                target_points_gdf = ox.project_gdf(target_points_gdf, to_crs=estimated_utm_crs)
+                target_points_gdf = ox.projection.project_gdf(target_points_gdf, to_crs=estimated_utm_crs)
         if area_layer:
             if area_gdf.crs != estimated_utm_crs:
-                area_gdf = ox.project_gdf(area_gdf, to_crs=estimated_utm_crs)
+                area_gdf = ox.projection.project_gdf(area_gdf, to_crs=estimated_utm_crs)
         feedback.setProgress(50)
 
 
@@ -376,7 +376,7 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgressText('Расчет размещения')
 
         ## Проецируем граф
-        G = ox.project_graph(G)
+        G = ox.projection.project_graph(G)
 
         ## Определяем область для расчета, если передан area_layer (и получен area_gdf)
         if not area_gdf is None:
@@ -467,7 +467,11 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
 
 
         ## Вычисляем результирующие метрики
-        times, nearest = FirstArrivalUnitState()(env=G, points=best_nodes, area=area)
+        if existed_units_dict is None:
+            all_nodes = best_nodes
+        else:
+            all_nodes = {**best_nodes, **existed_units_dict}
+        times, nearest = FirstArrivalUnitState()(env=G, points=all_nodes, area=area)
 
         # Вычисляем основные метрики
         if target_points_gdf is None:
@@ -490,7 +494,7 @@ class MCLPCommonAlgorithm(QgsProcessingAlgorithm):
         result_gdf = ox.graph_to_gdfs(G, edges=False).loc[best_nodes.keys()]
         result_gdf['name'] = pd.Series(best_nodes)
 
-        result_gdf = ox.project_gdf(result_gdf, to_crs=crs.authid())
+        result_gdf = ox.projection.project_gdf(result_gdf, to_crs=crs.authid())
 
         # Сохраняем в итоговый слой
         result_gdf.to_file(target_file)

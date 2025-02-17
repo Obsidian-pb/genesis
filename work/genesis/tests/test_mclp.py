@@ -156,15 +156,15 @@ class TestBestNodesKoptG:
 
             def __call__(self, env: nx.MultiDiGraph, 
                         area: pd.Series = None, 
-                        start_node: int = None, 
+                        start_point: int = None, 
                         **kwargs):
                 bnch_max = BestNodeHillClimbing(state_function=self.state_function,
                                                 metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
                 bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
                                                 metric_function=ArrivalTime(), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
 
-                best_node, best_metric = bnch_max(env=env, area=area, start_node=start_node)
-                best_node, best_metric = bnch_mean(env=env, area=area, start_node=best_node)
+                best_node, best_metric = bnch_max(env=env, area=area, start_point=start_point)
+                best_node, best_metric = bnch_mean(env=env, area=area, start_point=best_node)
                 return best_node, best_metric
             
         G = load_G_simplyfied

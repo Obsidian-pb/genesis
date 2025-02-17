@@ -32,7 +32,7 @@ class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):
 
     def __call__(self, env: nx.MultiDiGraph,
                  area: pd.Series = None,
-                 start_node: int = None,
+                 start_point: int = None,
                  debug_route: bool = False,
                  node_calc_end_function: callable = None,
                  **kwargs):
@@ -44,9 +44,9 @@ class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):
         bnch_meetric = BestNodeHillClimbing(state_function=self.state_function,
                                          metric_function=self.metric_function, appr_val=self.appr_val, all_nodes=self.all_neighbors)
 
-        best_node, best_metric =     bnch_max(env=env, area=area, start_node=start_node)
-        best_node, best_metric =    bnch_mean(env=env, area=area, start_node=best_node)
-        best_node, best_metric = bnch_meetric(env=env, area=area, start_node=best_node)
+        best_node, best_metric =     bnch_max(env=env, area=area, start_point=start_point)
+        best_node, best_metric =    bnch_mean(env=env, area=area, start_point=best_node)
+        best_node, best_metric = bnch_meetric(env=env, area=area, start_point=best_node)
 
         # выполняем функцию завершения расчета для узла
         if node_calc_end_function:
@@ -72,7 +72,7 @@ class BestNodeHillClimbingHD(BestNodeHillClimbing):
 
     def __call__(self, env: nx.MultiDiGraph,
                  area: pd.Series = None,
-                 start_node: int = None,
+                 start_point: int = None,
                  debug_route: bool = False,
                  node_calc_end_function: callable = None,
                  **kwargs):
@@ -83,8 +83,8 @@ class BestNodeHillClimbingHD(BestNodeHillClimbing):
                                          appr_val=self.appr_val,
                                          all_nodes=self.all_neighbors)
 
-        start_node = bnhd(env=env, area=area)
-        best_node, best_metric = bnhc(env=env, area=area, start_node=start_node)
+        start_node, _ = bnhd(env=env, area=area)
+        best_node, best_metric = bnhc(env=env, area=area, start_point=start_node)
 
         # выполняем функцию завершения расчета для узла
         if node_calc_end_function:

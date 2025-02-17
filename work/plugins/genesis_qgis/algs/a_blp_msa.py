@@ -318,7 +318,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgressText('Расчет размещения')
 
         ## Проецируем граф
-        G = ox.project_graph(G)
+        G = ox.projection.project_graph(G)
 
         ## Определяем область для расчета, если передан area_layer (и получен area_gdf)
         if not area_gdf is None:

@@ -237,7 +237,7 @@ class BestNodesKoptG(MCLPBase):
 
                     # Определяем лучший узел
                     best_nodes, _ = self.best_point_function(env=node_area_G, 
-                                                                    start_node=dynamic_node,
+                                                                    start_point=dynamic_node,  # start_point
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
                     if isinstance(best_nodes, list):
@@ -257,7 +257,7 @@ class BestNodesKoptG(MCLPBase):
 
                     # Определяем лучший узел
                     best_nodes, _ = self.best_point_function(env=node_area_G,
-                                                                    start_node=dynamic_node_id,
+                                                                    start_point=dynamic_node_id,
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
 
