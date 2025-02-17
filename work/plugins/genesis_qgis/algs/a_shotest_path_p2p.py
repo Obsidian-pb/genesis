@@ -266,7 +266,7 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
 
 
         ## Проецируем граф
-        G = ox.project_graph(G)
+        G = ox.projection.project_graph(G)
         g_crs = G.graph['crs']
         feedback.setProgress(45)
 
@@ -304,7 +304,7 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
 
 
         # Перепроецируем датасет маршрутов в СК дорожной сети
-        route_gdf = ox.project_gdf(route_gdf, to_crs=crs.authid())
+        route_gdf = ox.projection.project_gdf(route_gdf, to_crs=crs.authid())
 
         # Сохраняем в итоговый слой
         if result_types == 0:

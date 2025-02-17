@@ -243,6 +243,8 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
         # Подготавливаем геодатасеты
         feedback.setProgressText('Подготавливаем данные')
         start_points_gdf = gpd.GeoDataFrame.from_features(list(start_points_layer.getFeatures()), crs=start_points_layer.sourceCrs().authid())
+        if not 'name' in start_points_gdf.columns:
+            raise QgsProcessingException(f'Поле "name" отсутствует в списке полей входящего слоя подразделений!')
         if target_points_layer:
             target_points_gdf = gpd.GeoDataFrame.from_features(list(target_points_layer.getFeatures()), crs=target_points_layer.sourceCrs().authid())
         else:
@@ -257,11 +259,11 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgressText('Приводим все данные к единой СК')
         estimated_utm_crs = roads_gdf.estimate_utm_crs()
         # if roads_gdf.crs != estimated_utm_crs: roads_gdf = ox.project_gdf(roads_gdf, to_crs=estimated_utm_crs)
-        if start_points_gdf.crs != estimated_utm_crs: start_points_gdf = ox.project_gdf(start_points_gdf, to_crs=estimated_utm_crs)
+        if start_points_gdf.crs != estimated_utm_crs: start_points_gdf = ox.projection.project_gdf(start_points_gdf, to_crs=estimated_utm_crs)
         if target_points_layer:
-            if target_points_gdf.crs != estimated_utm_crs: target_points_gdf = ox.project_gdf(target_points_gdf, to_crs=estimated_utm_crs)
+            if target_points_gdf.crs != estimated_utm_crs: target_points_gdf = ox.projection.project_gdf(target_points_gdf, to_crs=estimated_utm_crs)
         if area_layer:
-            if area_gdf.crs != estimated_utm_crs: area_gdf = ox.project_gdf(area_gdf, to_crs=estimated_utm_crs)
+            if area_gdf.crs != estimated_utm_crs: area_gdf = ox.projection.project_gdf(area_gdf, to_crs=estimated_utm_crs)
         # print(roads_gdf.crs, start_points_gdf.crs,)
         feedback.setProgress(55)
 
@@ -272,7 +274,7 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgressText('Расчет времен следования')
 
         ## Проецируем граф
-        G = ox.project_graph(G)
+        G = ox.projection.project_graph(G)
 
         ## Определение узлов размещения ПСЧ
         nodes_nn = ox.nearest_nodes(G, start_points_gdf.geometry.x, start_points_gdf.geometry.y)
@@ -327,7 +329,7 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
         # Формирование итоговых слоев
         feedback.setProgressText('Формирование итоговых слоев')
         # Перепроецируем датасет маршрутов в СК дорожной сети
-        result_gdf = ox.project_gdf(result_gdf, to_crs=crs.authid())
+        result_gdf = ox.projection.project_gdf(result_gdf, to_crs=crs.authid())
 
         # Сохраняем в итоговый слой
         result_gdf.to_file(target_file)

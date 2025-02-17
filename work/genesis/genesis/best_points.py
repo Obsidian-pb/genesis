@@ -690,7 +690,7 @@ class BestNodeMonkey(BestNodeHillClimbing):
             # 2.1 Определение узлов в округе
             g_nodes = ox.graph_to_gdfs(env, edges=False)
             if not ox.projection.is_projected(g_nodes.crs):
-                g_nodes = ox.project_gdf(g_nodes)
+                g_nodes = ox.projection.project_gdf(g_nodes)
             buffer = g_nodes.loc[best_node_local:best_node_local].geometry.buffer(self.local_jump_max_distance)
             nodes_in_buffer = g_nodes[g_nodes.within(buffer.iloc[0])]
             nodes_in_buffer = list(nodes_in_buffer.index)

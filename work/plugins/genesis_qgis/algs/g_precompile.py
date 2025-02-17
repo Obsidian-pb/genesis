@@ -164,7 +164,7 @@ class GPrecompileAlgorithm(QgsProcessingAlgorithm):
             G = ox.simplify_graph(G)
 
         ## По умолчанию перепроецируем граф в 4326 (WGS84)
-        G = ox.project_graph(G, to_latlong=True)
+        G = ox.projection.project_graph(G, to_latlong=True)
 
         ## Вывод
         g_crs = G.graph['crs']

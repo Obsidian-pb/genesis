@@ -36,7 +36,7 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     
     # Спроектируем DataFrame в местную метрическую систему координат
     try:
-        roads_p = ox.project_gdf(roads)
+        roads_p = ox.projection.project_gdf(roads)
     except:
         roads_p = roads
         pass
@@ -112,6 +112,6 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                     existed_edges_dict[(nodes_dict[coord1], nodes_dict[coord2])] = key + 1
     
     # перепроецируем граф к исходной системе координат
-    G = ox.project_graph(G, to_crs=crs)
+    G = ox.projection.project_graph(G, to_crs=crs)
 
     return G
