@@ -92,24 +92,24 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                 existed_edges_dict[(nodes_dict[coord2], nodes_dict[coord1])] = key + 1
             else:
                 # Добавляем ребро в обратную сторону и в прямую
-                if road['reversed']:
-                    # Получаем ключ ребра
-                    key = existed_edges_dict.get((nodes_dict[coord2], nodes_dict[coord1]), 0)
-                    # Добавляем ребро
-                    G.add_edge(nodes_dict[coord2], nodes_dict[coord1], key,
-                               **road_data,
-                               length=length)
-                    # Указываем количество имеющихся ребер
-                    existed_edges_dict[(nodes_dict[coord2], nodes_dict[coord1])] = key + 1
-                else:
-                    # Получаем ключ ребра
-                    key = existed_edges_dict.get((nodes_dict[coord1], nodes_dict[coord2]), 0)
-                    # Добавляем ребро
-                    G.add_edge(nodes_dict[coord1], nodes_dict[coord2], key,
-                               **road_data,
-                               length=length)
-                    # Указываем количество имеющихся ребер
-                    existed_edges_dict[(nodes_dict[coord1], nodes_dict[coord2])] = key + 1
+                # if road['reversed']:
+                #     # Получаем ключ ребра
+                #     key = existed_edges_dict.get((nodes_dict[coord2], nodes_dict[coord1]), 0)
+                #     # Добавляем ребро
+                #     G.add_edge(nodes_dict[coord2], nodes_dict[coord1], key,
+                #                **road_data,
+                #                length=length)
+                #     # Указываем количество имеющихся ребер
+                #     existed_edges_dict[(nodes_dict[coord2], nodes_dict[coord1])] = key + 1
+                # else:
+                # Получаем ключ ребра
+                key = existed_edges_dict.get((nodes_dict[coord1], nodes_dict[coord2]), 0)
+                # Добавляем ребро
+                G.add_edge(nodes_dict[coord1], nodes_dict[coord2], key,
+                            **road_data,
+                            length=length)
+                # Указываем количество имеющихся ребер
+                existed_edges_dict[(nodes_dict[coord1], nodes_dict[coord2])] = key + 1
     
     # перепроецируем граф к исходной системе координат
     G = ox.projection.project_graph(G, to_crs=crs)

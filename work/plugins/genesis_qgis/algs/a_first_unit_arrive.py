@@ -216,7 +216,7 @@ class FirstArrivalUnitAlgorithm(QgsProcessingAlgorithm):
             # Загружаем данные из слоя дорог
             roads_gdf        = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=network.sourceCrs().authid())
             ## Проверяем наличие нужных полей
-            columns_list = ['highway', 'oneway', 'lanes', 'reversed']
+            columns_list = ['highway', 'oneway', 'lanes']
             for col in columns_list:
                 if not col in roads_gdf.columns:
                     raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')

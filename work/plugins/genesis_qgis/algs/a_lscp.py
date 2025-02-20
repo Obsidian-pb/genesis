@@ -337,7 +337,7 @@ class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
             # Загружаем данные из слоя дорог
             roads_gdf        = gpd.GeoDataFrame.from_features(list(network.getFeatures()), crs=network.sourceCrs().authid())
             ## Проверяем наличие нужных полей
-            columns_list = ['highway', 'oneway', 'lanes', 'reversed']
+            columns_list = ['highway', 'oneway', 'lanes']
             for col in columns_list:
                 if not col in roads_gdf.columns:
                     raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')
@@ -522,7 +522,11 @@ class LSCPCommonAlgorithm(QgsProcessingAlgorithm):
 
 
         ## Вычисляем результирующие метрики
-        times, nearest = FirstArrivalUnitState()(env=G, points=best_nodes, area=area)
+        if existed_units_dict is None:
+            all_nodes = best_nodes
+        else:
+            all_nodes = {**best_nodes, **existed_units_dict}
+        times, nearest = FirstArrivalUnitState()(env=G, points=all_nodes, area=area)
 
         # Вычисляем основные метрики
         if target_points_gdf is None:

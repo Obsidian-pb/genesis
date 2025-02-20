@@ -150,7 +150,8 @@ class GPrecompileAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgressText('Формируем граф дорожной сети')
 
         ## Проверяем наличие нужных полей
-        columns_list = ['highway', 'oneway', 'lanes', 'reversed']
+        # columns_list = ['highway', 'oneway', 'lanes', 'reversed']     # Возможно reversed роли не играет для готового графа...
+        columns_list = ['highway', 'oneway', 'lanes']
         for col in columns_list:
             if not col in roads_gdf.columns:
                 raise QgsProcessingException(f'Поле {col} отсутствует в списке полей входящего слоя дорожной сети!')
