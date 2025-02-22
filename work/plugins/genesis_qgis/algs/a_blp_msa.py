@@ -364,7 +364,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         feedback.setProgressText('Расчет оптимального размещения')
         best_node, best_metric = bnmsa(env         = G,
                                         area       = area,
-                                        start_node = start_node)
+                                        start_point = start_node)
         best_nodes = {best_node: 'Оптимум'}
         # feedback.pushWarning(f'Среднее время прибытия:     {round(best_metric,1)} мин.')
         feedback.setProgress(90)
@@ -413,5 +413,4 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
 
         feedback.setProgress(100)
         return {self.OUTPUT: target_file}
-
 
