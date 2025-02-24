@@ -1,2 +1,5 @@
 ВАЖНО!
 pip install --force-reinstall -v "osmnx==1.9.4"
+
+Для установки последней версии:
+pip install --upgrade osmnx
