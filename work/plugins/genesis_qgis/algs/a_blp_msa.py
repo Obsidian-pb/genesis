@@ -291,7 +291,10 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         # Подготавливаем геодатасеты
         feedback.setProgressText('Подготавливаем данные')
         if target_points_layer:
-            target_points_gdf = gpd.GeoDataFrame.from_features(list(target_points_layer.getFeatures()), crs=target_points_layer.sourceCrs().authid())
+            target_points_gdf = gpd.GeoDataFrame.from_features(
+                list(target_points_layer.getFeatures()),
+                crs = target_points_layer.sourceCrs().authid()
+                )
         else:
             target_points_gdf = None
         if area_layer:
@@ -334,7 +337,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         ## Определение стартового узла
         Warning    ('Сейчас выбирается узел по середине диаметра')
         bnhd       = BestNodesHalfDiameter()
-        start_node = bnhd(env=G)
+        start_node, _ = bnhd(env=G)
 
         ## Определяем объекты алгоритма
         metric_func = None
