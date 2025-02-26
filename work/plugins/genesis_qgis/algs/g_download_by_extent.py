@@ -6,6 +6,7 @@
 
 import networkx as nx
 import osmnx as ox
+from osmnx import settings
 import geopandas as gpd
 from shapely.geometry import Polygon, box
 from shapely.wkt import loads
@@ -220,6 +221,9 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         ymax = extent.yMaximum()
         poly = Polygon().from_bounds(xmin, ymin, xmax, ymax)
 
+
+        # Указываем, что дороги с частным доступом также должны быть выгружены
+        settings.default_access = ''
 
         # Загрузка данных из osmnx
         G = ox.graph_from_polygon(poly, network_type='drive_service',

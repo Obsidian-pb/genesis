@@ -6,7 +6,7 @@
 name=Genesis
 qgisMinimumVersion=3.0
 description=Плагин для проведения расчетов параметров реагирования пожарных подразделений, численности и оптимальных мест их размещения
-version=0.3.4
+version=0.3.5
 author=SIBPSA
 email=malyutin@sibpsa.ru
 
