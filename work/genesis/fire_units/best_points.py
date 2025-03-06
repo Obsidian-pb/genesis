@@ -21,6 +21,43 @@ except:
     from genesis.states import FirstArrivalUnitState    
 
 
+
+class BestNodeHillClimbing_HD_Max_Mean_Metric(BestNodeHillClimbing):
+    def __init__(self, 
+                 state_function: StateBase,
+                 metric_function: MetricBase = None,
+                 appr_val: float = 0.95,
+                 all_neighbors: bool = True,
+                 **kwargs) -> None:
+        super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
+
+    def __call__(self, env: nx.MultiDiGraph,
+                 area: pd.Series = None,
+                 start_node: int = None,
+                 debug_route: bool = False,
+                 node_calc_end_function: callable = None,
+                 **kwargs):
+
+        bnch_d = BestNodesHalfDiameter()
+        bnch_max = BestNodeHillClimbing(state_function=self.state_function,
+                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+        bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
+                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+        bnch_meetric = BestNodeHillClimbing(state_function=self.state_function,
+                                         metric_function=self.metric_function, appr_val=self.appr_val, all_nodes=self.all_neighbors)
+
+        best_node, _           =    bnch_d(env=env, area=area)
+        best_node, best_metric =    bnch_max(env=env, area=area, start_point=best_node)
+        best_node, best_metric =    bnch_mean(env=env, area=area, start_point=best_node)
+        best_node, best_metric =    bnch_meetric(env=env, area=area, start_point=best_node)
+
+        # выполняем функцию завершения расчета для узла
+        if node_calc_end_function:
+            node_calc_end_function()
+
+        return best_node, best_metric
+
+
 class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):
     def __init__(self, 
                  state_function: StateBase,
