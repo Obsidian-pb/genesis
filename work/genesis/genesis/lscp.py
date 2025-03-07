@@ -166,6 +166,7 @@ def drop_trash_points(env,
                             iteration=0,
                             best_metric=metric,
                             dynamic_nodes=tmp,
+                            current_metric=metric,
                             static_nodes=static_nodes):
             dynamic_nodes = tmp
     
