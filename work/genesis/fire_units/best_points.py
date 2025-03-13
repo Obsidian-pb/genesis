@@ -46,10 +46,13 @@ class BestNodeHillClimbing_HD_Max_Mean_Metric(BestNodeHillClimbing):
         bnch_meetric = BestNodeHillClimbing(state_function=self.state_function,
                                          metric_function=self.metric_function, appr_val=self.appr_val, all_nodes=self.all_neighbors)
 
-        best_node, _           =    bnch_d(env=env, area=area)
-        best_node, best_metric =    bnch_max(env=env, area=area, start_point=best_node)
-        best_node, best_metric =    bnch_mean(env=env, area=area, start_point=best_node)
-        best_node, best_metric =    bnch_meetric(env=env, area=area, start_point=best_node)
+        best_node, _               =    bnch_d(env=env, area=area)
+        try:
+            best_node, best_metric =    bnch_max(env=env, area=area, start_point=best_node)
+        except:
+            best_node, best_metric =    bnch_max(env=env, area=area)
+        best_node, best_metric     =    bnch_mean(env=env, area=area, start_point=best_node)
+        best_node, best_metric     =    bnch_meetric(env=env, area=area, start_point=best_node)
 
         # выполняем функцию завершения расчета для узла
         if node_calc_end_function:

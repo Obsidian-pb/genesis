@@ -71,6 +71,7 @@ class NodeMetric(BestPointsBase):
         if len(times)>=appr_nodes_count:
             cur_val = self.metric_function(times, **kwargs)
         else:
+            # print(node, len(times))
             cur_val = self.err_val
         return cur_val
 
@@ -346,7 +347,7 @@ class BestNodeHillClimbing(BestPointsBase):
                 else:
                     raise ValueError('Указанный стартовый узел неприемлем, в связи с его слабой ' \
                         'связностью с остальной частью графа')
-            
+
             nodes_metric[start_node] = node_metric
 
         route[start_node] = node_metric

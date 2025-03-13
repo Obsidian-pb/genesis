@@ -147,8 +147,8 @@ def drop_trash_points(env,
 
     
     '''
-    
 
+    # Переписать как MCLP
 
     for node in dynamic_nodes:
         if len(dynamic_nodes) == 1:
@@ -169,11 +169,11 @@ def drop_trash_points(env,
                             current_metric=metric,
                             static_nodes=static_nodes):
             dynamic_nodes = tmp
-    
+
     if static_nodes is None:
         all_nodes = dynamic_nodes
     else:
         all_nodes = list_dict_concat(dynamic_nodes, static_nodes)
     metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
-    
+
     return dynamic_nodes, metric
