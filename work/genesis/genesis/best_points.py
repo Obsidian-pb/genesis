@@ -887,14 +887,16 @@ class Adapter_BLP_MCLP():
     Вместо идентификатора узла принимает и возвращает словарь.
     
     '''
-    def __init__(self, BLP: BestPointsBase):
-        self.BLP = BLP
+    def __init__(self,
+                 blp_function: BestPointsBase,
+                 **kwargs):
+        self.blp_function = blp_function
 
     def __call__(self,
                  dynamic_nodes: dict,
                 #  static_nodes: dict = None,
-                 **kwds) -> tuple[dict[int, str], float]:
+                 **kwargs) -> tuple[dict[int, str], float]:
         # Условие для идентификатора узла
         start_point, start_key = list(dynamic_nodes.items())[0]
-        best_node, best_metric = self.BLP(start_point = start_point, **kwds)
+        best_node, best_metric = self.blp_function(start_point = start_point, **kwargs)
         return {best_node: start_key}, best_metric
