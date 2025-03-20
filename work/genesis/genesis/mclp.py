@@ -807,7 +807,7 @@ class BestNodesSA(MCLPBase):
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
                  area=None,
-                 **kwargs):
+                 **kwargs) -> tuple[dict, int | None]:
         '''
         Запуск работы алгоритма имитации отжига
 

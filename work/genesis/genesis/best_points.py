@@ -274,7 +274,7 @@ class BestNodeHillClimbing(BestPointsBase):
                  area:        pd.Series=None,
                  start_point: int = None,
                  points_list: set = None,
-                 debug_route: bool=False,
+                #  debug_route: bool=False,
                 #  node_calc_end_function:callable=None,
                  **kwargs):
         '''
@@ -288,9 +288,6 @@ class BestNodeHillClimbing(BestPointsBase):
         `points_list`: set = None
             !Для данного алгоритма не используется! Множество точек среды которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
-        `debug_route`: bool=False
-            Если True - возвращается также маршрут по которому проходил алгоритм
-            в процессе поиска
         '''
         
         if not isinstance(env, nx.MultiDiGraph):
@@ -387,8 +384,8 @@ class BestNodeHillClimbing(BestPointsBase):
             if self.node_calc_end_function:
                 self.node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
-        if debug_route:
-            return best_node, best_metric, route
+        # if debug_route:
+        #     return best_node, best_metric, route
         return best_node, best_metric
 
 
@@ -881,3 +878,23 @@ class BestNodeBee(BestNodeHillClimbing):
                     best_node, best_metric = cur_node, cur_metric
 
         return best_node, best_metric
+
+
+class Adapter_BLP_MCLP():
+    '''
+    Адаптер алгоритма BLP к алгоритму MCLP.
+
+    Вместо идентификатора узла принимает и возвращает словарь.
+    
+    '''
+    def __init__(self, BLP: BestPointsBase):
+        self.BLP = BLP
+
+    def __call__(self,
+                 dynamic_nodes: dict,
+                #  static_nodes: dict = None,
+                 **kwds) -> tuple[dict[int, str], float]:
+        # Условие для идентификатора узла
+        start_point, start_key = list(dynamic_nodes.items())[0]
+        best_node, best_metric = self.BLP(start_point = start_point, **kwds)
+        return {best_node: start_key}, best_metric
