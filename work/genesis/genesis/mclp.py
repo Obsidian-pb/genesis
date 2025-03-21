@@ -909,3 +909,40 @@ class BestNodesSA(MCLPBase):
                     break
 
         return best_state, best_energy
+
+
+class AdapterBLPtoMCLP(MCLPBase):
+    '''
+    Адаптер алгоритмов BLP к MCLP
+    '''
+
+    def __init__(self,
+                 blp_function:    BestPointsBase,
+                 state_function:  StateBase      = None,
+                 metric_function: MetricBase     = None,
+                 **kwargs):
+        '''
+        Перечень аргументов соответсвует алгоритму BLP переданному через аргумент `blp_function`.
+        '''
+        self.blp_function = blp_function
+        super().__init__(state_function, metric_function, **kwargs)
+
+
+    def __call__(self,
+                 dynamic_nodes: dict,
+                 **kwargs) -> tuple[dict, int | float]:
+
+        # Проверка входящих данных
+        if dynamic_nodes is None:
+            raise ValueError("Аргумент `dynamic_nodes` должен быть словарем и не может быть равен None!")
+        if len(dynamic_nodes) < 1:
+            raise ValueError("Аргумент `dynamic_nodes` должен содержать не менее 1 узла!")
+
+        # Получение первого узла из словаря
+        start_point, start_key = list(dynamic_nodes.items())[0]
+
+        # Расчет лучшего узла с использованием BLP
+        best_node, best_metric = self.blp_function(start_point = start_point, **kwargs)
+
+        # Конвертация результата в результат метода MCLP
+        return {best_node: start_key}, best_metric
