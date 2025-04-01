@@ -20,17 +20,23 @@ class NodesMetric(BestPointsBase):
     
     ## Важно
     Применяется строго к графам!
+
+    ОЧЕНЬ ВНИМАТЕЛЬНО ПОДУМАТЬ НАД ЭТОЙ ФУНКЦИЕЙ!
+    
+
     '''
     def __init__(self, state_function: StateBase,
                  metric_function: MetricBase,
-                 appr_val = 0.95,
-                 err_val=None,
+                #  appr_val = 0.95,
+                #  err_val=None,
                  **kwargs) -> None:
         '''
             `state_function`: StateBase
                 функция расчета состояния окружения
             `metric_function`: MetricBase
                 Функция расчета метрики
+            
+            ### Устарело:
             `appr_val`: = 0.95
                 Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики. 
                 Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
@@ -39,8 +45,8 @@ class NodesMetric(BestPointsBase):
                 Значение которое будет возвращено в случае если из точки `node`
                 невозможно будет достичь требуемой доли узлов графа.
         '''
-        self.appr_val = appr_val
-        self.err_val = err_val
+        # self.appr_val = appr_val
+        # self.err_val = err_val
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self, env:nx.MultiDiGraph, nodes:list, area=None, **kwargs):
@@ -58,18 +64,19 @@ class NodesMetric(BestPointsBase):
         # Если маска приемлемых узлов графа не передана,
         # то приемлемое количество узлов считается от количества узлов в графе
         # Иначе - от количества True в маске
-        if area is None:
-            appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
-        else:
-            appr_nodes_count = int(sum(area) * self.appr_val)
+        # if area is None:
+        #     appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
+        # else:
+        #     appr_nodes_count = int(sum(area) * self.appr_val)
         # # Приемлемое количество узлов считается от количества узлов в графе
 
         # Собственно расчет
         times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
-        if len(times)>=appr_nodes_count:
-            cur_val = self.metric_function(times, **kwargs)
-        else:
-            cur_val = self.err_val
+        cur_val = self.metric_function(times, **kwargs)
+        # if len(times)>=appr_nodes_count:
+        #     cur_val = self.metric_function(times, **kwargs)
+        # else:
+        #     cur_val = self.err_val
         return cur_val
 
 
@@ -468,7 +475,7 @@ class BestNodesGA(MCLPBase):
             static_nodes = {}
 
         # Последовательность узлов графа (для последующего обращения к нему)
-        g_nodes = list(env.nodes())
+        # g_nodes = list(env.nodes())
 
         # ===================================== Генетический алгоритм ==============
         # 1. Создание стартовой популяции
@@ -481,7 +488,7 @@ class BestNodesGA(MCLPBase):
                                       nodes=list_dict_concat(dn, static_nodes),
                                       area=area,
                                       **kwargs) for dn in population]
-        if self.metric_function.compare(1,2)==1:        # Для минимизации:
+        if self.metric_function.compare(1,2) == 1:        # Для минимизации:
             max_val  = max(bot_fit)
             weights = [1.1*max_val-x for x in bot_fit]
             best_metric = min(bot_fit)
@@ -492,38 +499,6 @@ class BestNodesGA(MCLPBase):
 
         # 2. На каждой эпохе
         for epoch in range(self.epochs):
-
-            # new_population = []
-            # 2.1 Генерация новой популяции
-            # for _ in range(self.population_size):
-            #     # Элитарность
-            #     if self.elite_size>0:
-            #         # Определение весов
-            #         pop_weight = pd.DataFrame({'w': weights, 'p': population})
-            #         pop_weight = pop_weight.sort_values('w', ascending=False)
-            #         pop_weight = pop_weight.iloc[:self.elite_size]
-            #         population = pop_weight['p'].to_list()
-            #         weights = pop_weight['w'].to_list()
-
-            #     # Отбор по правилу рулетки
-            #     parent_bot_1 = random.choices(population, weights=weights)[0]
-            #     parent_bot_2 = random.choices(population, weights=weights)[0]
-
-            #     # Скрещивание (одноточечное)
-            #     split_point = int(len(parent_bot_1)/2)
-            #     left_gen_vals = list(parent_bot_1.values())[:split_point]
-            #     right_gen_vals  = list(parent_bot_1.values())[split_point:]
-            #     left_genome_part = {k:v for k, v in parent_bot_1.items() if v in left_gen_vals}
-            #     right_genome_part = {k:v for k, v in parent_bot_2.items() if v in right_gen_vals}
-            #     new_dynamic_nodes = {**left_genome_part, **right_genome_part}
-
-            #     # Мутация (выбор произвольного узла)
-            #     new_dynamic_nodes = self._mutate(env=env,
-            #                                      new_dynamic_nodes=new_dynamic_nodes,
-            #                                      area=area)
-
-            #     # Добавляем его в новую популяцию
-            #     new_population.append(new_dynamic_nodes)
 
             # 2.0 Элитарность
             if self.elite_size>0:
@@ -540,7 +515,6 @@ class BestNodesGA(MCLPBase):
 
             # 2.1 Генерация новой популяции
             for _ in range(self.population_size - self.elite_size):
-                # print(len(population), len(weights))
 
                 # Отбор по правилу рулетки
                 parent_bot_1 = random.choices(population, weights=weights)[0]
@@ -566,9 +540,9 @@ class BestNodesGA(MCLPBase):
             population = new_population
 
             # 2.3 Оценка приспособленности всех особей
-            bot_fit = [self._fit_function(env=env,
-                                      nodes=list_dict_concat(dn, static_nodes),
-                                      area=area,
+            bot_fit = [self._fit_function(env = env,
+                                      nodes   = list_dict_concat(dn, static_nodes),
+                                      area    = area,
                                       **kwargs) for dn in population]
 
             # 2.4 Определение лучшего на эпохе значения метрики

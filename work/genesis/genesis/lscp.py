@@ -26,6 +26,8 @@ class LSCPCommon(LSCPBase):
                  start_names_index: int = 1,
                  after_mclp_function: callable = None,
                  **kwargs):
+        if not hasattr(mclp_function, 'state_function'):
+            raise TypeError('Аргумент `mclp_function` не является MCLPBase! Возможно передаваемая функция обернута или декорирована.')
         self.after_mclp_function = after_mclp_function
         super().__init__(mclp_function, point_selector, stop_case_function, metric_function, names_pattern, start_names_index, **kwargs)
 
@@ -131,6 +133,7 @@ class LSCPCommon(LSCPBase):
 
         return best_dynamic_nodes, best_metric
     
+
 
 
 def drop_trash_points(env,
