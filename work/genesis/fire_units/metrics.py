@@ -310,9 +310,6 @@ class CoverIndexValue(MetricBase):
                 f"Аргумент state может быть только типа list или pd.Series"
                 f" Имеется {type(state)}"
                 )
-        
-        # Расчет полного веса по всему набору данных
-        total_value = self.data[self.value_field].sum()
 
         # Отбор узлов по area (списку узлов которые следует учесть в расчете)
         if not area is None:
@@ -331,14 +328,16 @@ class CoverIndexValue(MetricBase):
                              state_c,
                              left_on = self.data_node_id_field,
                              right_index = True)
+        
+        # Расчет полного веса по всему набору данных
+        total_value = merged_df[self.value_field].sum()
+        
         # Оставляем только строки для узлов в которые время прибытия меньше или равно 10 минут
         merged_df = merged_df[merged_df['times'] <= self.ip_val]
-        # print(len(merged_df))
+        
 
         # Если таких узлов нет - возвращаем значение для ноля
         if len(merged_df) == 0:
             return self.zero_val
-        
-        # print(merged_df[self.value_field].sum(), total_value)
 
         return 100 * merged_df[self.value_field].sum() / total_value
