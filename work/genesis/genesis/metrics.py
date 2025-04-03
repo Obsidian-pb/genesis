@@ -68,7 +68,7 @@ class CoverIndex(MetricBase):
     Для расчета исходя из количества всех узлов графа следует использовать fire_units.CoverIndexBuilding
     А позже metrics.CoverIndexPoints
     '''
-    def __init__(self, ip_val:int=10, zero_val:float=0, comp_func:callable=max, tot_len:int=None) -> None:
+    def __init__(self, ip_val:int=10, zero_val:float=0, comp_func:callable=max) -> None:
         '''
         `ip_val`:int
             Пороговое значение для определения индекса прикрытия.
@@ -79,12 +79,9 @@ class CoverIndex(MetricBase):
             `route_times` без элементов.
         `comp_func`: callable
             Функция сравнения значений метрики
-        `tot_len`: int = None
-            Общее количество объектов (например узлов) рассматриваемых при расчете
         '''
         self.ip_val = ip_val
         self.zero_val = zero_val
-        self.tot_len = tot_len
         super().__init__(comp_func)
 
     def __call__(self, state, area=None):
@@ -114,9 +111,43 @@ class CoverIndex(MetricBase):
         # Расчет
         if len(state_c)==0:
             return self.zero_val
-        ip_len = sum([1 for t in state_c if t<=self.ip_val])
-        if self.tot_len is None:
-            tot_len = len(state_c)
-        else:
-            tot_len = self.tot_len
-        return 100*ip_len/tot_len
+        ip_len = sum([1 for t in state_c if t <= self.ip_val])
+        tot_len = len(state_c)
+        return 100 * ip_len / tot_len
+
+
+class _CoverIndexComplex(MetricBase):
+    '''
+    Составная метрика. 
+    Не использовать! В настоящий момент не реализована.
+    '''
+    def __init__(self, metrics:list, **kwargs):
+        self.metrics = metrics
+        super().__init__(**kwargs)
+
+    def __call__(self, state, area=None, **kwargs):
+        result = []
+        for m in self.metrics:
+            result.append(m(state, area, **kwargs))
+        return result
+    
+    def compare(self, a, b):
+        if a==b:
+            return b        # Требуется доп. проверка: Не понятно как это будет себя вести с другими алгоритмами.
+        if a is None and b is None:
+            return None
+        if a is None:
+            return b
+        if b is None:
+            return a
+        
+        # result = []
+        for m, ma, mb in zip(self.metrics, a, b):
+            if ma == mb:
+                continue
+            if m.compare(ma, mb) == ma:
+                return a
+            else:
+                return b
+        # print('all equal')
+        return b
