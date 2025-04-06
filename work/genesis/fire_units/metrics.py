@@ -83,6 +83,7 @@ class Demand(MetricBase):
         # Расчет метрики по спросу
         merged_df = pd.merge(self.buildings,
                              state_c,
+                             how='left',
                              left_on=self.buildings_node_id_field,
                              right_index=True)
 
@@ -162,6 +163,7 @@ class CoverIndexBuilding(MetricBase):
         # Расчет метрики по спросу
         merged_df = pd.merge(self.buildings,
                              state_c,
+                             how='left',
                              left_on=self.buildings_node_id_field,
                              right_index=True)
         # Расчет
@@ -245,6 +247,7 @@ class ArrivalTimeBuilding(MetricBase):
         # Расчет метрики по спросу
         merged_df = pd.merge(self.buildings,
                              state_c,
+                             how='left',
                              left_on=self.buildings_node_id_field,
                              right_index=True)
         # Расчет
@@ -326,6 +329,7 @@ class CoverIndexValue(MetricBase):
         # Объединение данных об узлах и временах прибытия в каждый из них
         merged_df = pd.merge(self.data,
                              state_c,
+                             how='left',
                              left_on = self.data_node_id_field,
                              right_index = True)
         
