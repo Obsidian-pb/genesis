@@ -113,6 +113,8 @@ class CoverIndex(MetricBase):
             return self.zero_val
         ip_len = sum([1 for t in state_c if t <= self.ip_val])
         tot_len = len(state_c)
+
+
         return 100 * ip_len / tot_len
 
 

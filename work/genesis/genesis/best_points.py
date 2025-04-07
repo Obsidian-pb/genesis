@@ -44,10 +44,10 @@ class NodeMetric(BestPointsBase):
         self.err_val = err_val
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env:nx.MultiDiGraph, node:int, area=None, **kwargs):
+    def __call__(self, env:nx.Graph, node:int, area=None, **kwargs):
         '''
             ## Параметры
-            `env` : MultiDiGraph (G)
+            `env` : Graph (G)
                 Граф дорожной сети
             `node`: int
                 Идентификатор узла графа для которого происходит расчет
@@ -132,14 +132,14 @@ class BestNodesFull(BestPointsBase):
         self.return_list = return_list
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env:   nx.MultiDiGraph,
+    def __call__(self, env:   nx.Graph,
                  area:        pd.Series = None,
                  start_point: int = None,
                  points_list:  set = None,
                  **kwargs):
         '''
         ## Параметры
-        `env` : MultiDiGraph (G)
+        `env` : Graph (G)
             Граф улично-дорожной сети
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
@@ -154,8 +154,8 @@ class BestNodesFull(BestPointsBase):
             Множество - (идентификатор узла, значение метрики узла)
         '''
 
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError('Тип данных аргумента `env` должен быть nx.MultiDiGraph')
+        if not isinstance(env, nx.Graph):
+            raise TypeError('Тип данных аргумента `env` должен быть nx.Graph')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
@@ -270,7 +270,7 @@ class BestNodeHillClimbing(BestPointsBase):
         super().__init__(state_function, metric_function, **kwargs)
 
     def __call__(self,
-                 env:         nx.MultiDiGraph,
+                 env:         nx.Graph,
                  area:        pd.Series=None,
                  start_point: int = None,
                  points_list: set = None,
@@ -278,7 +278,7 @@ class BestNodeHillClimbing(BestPointsBase):
                 #  node_calc_end_function:callable=None,
                  **kwargs):
         '''
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
@@ -290,8 +290,8 @@ class BestNodeHillClimbing(BestPointsBase):
             Если не указан, то будут рассмотрены все узлы графа.
         '''
         
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип переменной `env` должен быть Graph!")
         
 
         node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None, **kwargs)
@@ -399,7 +399,7 @@ class BestNodeHillClimbing_maxMean(BestNodeHillClimbing):
                  **kwargs) -> None:
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
-    def __call__(self, env:   nx.MultiDiGraph,
+    def __call__(self, env:   nx.Graph,
                  area:        pd.Series = None,
                  start_point: int = None,
                  points_list: set = None,
@@ -456,18 +456,18 @@ class BestNodesHalfDiameter(BestPointsBase):
         self.weight = weight
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env:nx.MultiDiGraph, area=None, **kwargs):
+    def __call__(self, env:nx.Graph, area=None, **kwargs):
         '''
         ## Аргументы
 
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `area`
             Не используется!
         '''
         # Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError(f'Неверный тип аргумента `env`! Должен быть `nx.MultiDiGraph` - имеется `{type(env)}`.')
+        if not isinstance(env, nx.Graph):
+            raise TypeError(f'Неверный тип аргумента `env`! Должен быть `nx.Graph` - имеется `{type(env)}`.')
 
         # 1 Выбираем произвольную точку. По-умолчанию берем просто первую из списка узлов
         nd = list(env.nodes())[0]
@@ -605,7 +605,7 @@ class BestNodeMonkey(BestNodeHillClimbing):
 
 
     def __call__(self,
-                 env: nx.MultiDiGraph,
+                 env: nx.Graph,
                  area = None,
                  start_point: int = None,
                  points_list:  set = None,
@@ -617,7 +617,7 @@ class BestNodeMonkey(BestNodeHillClimbing):
         Так, пока не будет найден глобальный оптимум или не будет достигнуто количество итераций.
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
@@ -633,8 +633,8 @@ class BestNodeMonkey(BestNodeHillClimbing):
             Лучший узел, лучшая метрика
         '''
 
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип переменной `env` должен быть Graph!")
         
 
         # Первый глобальный прыжок - случайный выбор старта
@@ -801,7 +801,7 @@ class BestNodeBee(BestNodeHillClimbing):
 
 
     def __call__(self,
-                 env:nx.MultiDiGraph,
+                 env:nx.Graph,
                  area=None,
                  start_point: int = None,
                  points_list: set = None,
@@ -815,7 +815,7 @@ class BestNodeBee(BestNodeHillClimbing):
         Так, пока не будет найден глобальный оптимум или не будет достигнуто количество итераций.
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
@@ -831,8 +831,8 @@ class BestNodeBee(BestNodeHillClimbing):
             Лучший узел, лучшая метрика
         '''
 
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип переменной `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип переменной `env` должен быть Graph!")
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 

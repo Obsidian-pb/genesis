@@ -47,7 +47,7 @@ class FirstArrivalUnitState(StateBase):
                  **kwargs):
         '''
         # Аргументы
-        `env`: nx.MultiDiGraph (G)
+        `env`: nx.Graph (G)
             Граф улично-дорожной сети.
         `points`: list|dict (source)
             Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
@@ -64,8 +64,8 @@ class FirstArrivalUnitState(StateBase):
             nearest - Соответствие узлов первому подразделению. 
         '''
 
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError('Тип данных аргумента `env` должен быть nx.MultiDiGraph')
+        if not isinstance(env, nx.Graph):
+            raise TypeError('Тип данных аргумента `env` должен быть nx.Graph')
         if not isinstance(points, (list, dict)):
             raise TypeError('Тип данных аргумента `points` должен быть (list или dict)')
         if isinstance(points, (list)):
@@ -169,7 +169,7 @@ class FirstArrivalUnitCacheState(StateBase):
                  **kwargs):
         '''
         # Аргументы
-        `env`: nx.MultiDiGraph (G)
+        `env`: nx.Graph (G)
             Граф улично-дорожной сети.
         `points`: list|dict (source)
             Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 

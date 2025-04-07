@@ -30,7 +30,7 @@ class RandomNodesSelector(PointSelectorBase):
         super().__init__(**kwargs)
 
     def __call__(self,
-                env:nx.MultiDiGraph,
+                env:nx.Graph,
                 points:dict,
                 area: pd.Series = None,
                 # nodes_list:set=None,
@@ -40,7 +40,7 @@ class RandomNodesSelector(PointSelectorBase):
         Запуск работы алгоритма
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `points`: dict
             Словарь стартовых узлов графа в которых размещены
@@ -53,8 +53,8 @@ class RandomNodesSelector(PointSelectorBase):
         '''
 
         # 0. Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть Graph!")
         if not isinstance(points,dict):
             raise TypeError(f'Аргумент `points` должен иметь тип: dict'
                             f'Имеет: {type(points)}')
@@ -122,7 +122,7 @@ class GenesisNodeSelector(PointSelectorBase):
         super().__init__(**kwargs)
 
     def __call__(self,
-                env:nx.MultiDiGraph,
+                env:nx.Graph,
                 points:dict,
                 area: pd.Series = None,
                 **kwargs):
@@ -130,7 +130,7 @@ class GenesisNodeSelector(PointSelectorBase):
         Запуск работы алгоритма
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `points`: dict
             Список стартовых узлов графа в которых размещены
@@ -141,8 +141,8 @@ class GenesisNodeSelector(PointSelectorBase):
         '''
 
         # 0. Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть Graph!")
         if not isinstance(points,dict):
             raise TypeError(f'Аргумент `points` должен иметь тип: dict'
                             f'Имеет: {type(points)}')
@@ -262,7 +262,7 @@ class FarNodeSelector(PointSelectorBase):
         super().__init__(**kwargs)
 
     def __call__(self,
-                env:nx.MultiDiGraph,
+                env:nx.Graph,
                 points:dict,
                 area: pd.Series = None,
                 # nodes_list:set=None,
@@ -271,7 +271,7 @@ class FarNodeSelector(PointSelectorBase):
         Запуск работы алгоритма
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `points`: dict
             Список стартовых узлов графа в которых размещены
@@ -282,8 +282,8 @@ class FarNodeSelector(PointSelectorBase):
         '''
 
         # 0. Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть Graph!")
         if not isinstance(points,dict):
             raise TypeError(f'Аргумент `points` должен иметь тип: dict'
                             f'Имеет: {type(points)}')

@@ -31,7 +31,7 @@ class BestNodeHillClimbing_HD_Max_Mean_Metric(BestNodeHillClimbing):
                  **kwargs) -> None:
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
-    def __call__(self, env: nx.MultiDiGraph,
+    def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_node: int = None,
                  debug_route: bool = False,
@@ -70,7 +70,7 @@ class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):
                  **kwargs) -> None:
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
-    def __call__(self, env: nx.MultiDiGraph,
+    def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_point: int = None,
                  debug_route: bool = False,
@@ -104,7 +104,7 @@ class BestNodeHillClimbing_HD_Max_Mean(BestNodeHillClimbing):
                  **kwargs) -> None:
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
-    def __call__(self, env: nx.MultiDiGraph,
+    def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_node: int = None,
                  debug_route: bool = False,
@@ -149,7 +149,7 @@ class BestNodeHillClimbingHD(BestNodeHillClimbing):
                  **kwargs) -> None:
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
-    def __call__(self, env: nx.MultiDiGraph,
+    def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_point: int = None,
                  debug_route: bool = False,

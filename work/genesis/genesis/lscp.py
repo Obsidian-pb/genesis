@@ -32,7 +32,7 @@ class LSCPCommon(LSCPBase):
         super().__init__(mclp_function, point_selector, stop_case_function, metric_function, names_pattern, start_names_index, **kwargs)
 
     def __call__(self,
-                 env:nx.MultiDiGraph,
+                 env:nx.Graph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
                  area: pd.Series = None,
@@ -42,7 +42,7 @@ class LSCPCommon(LSCPBase):
         Запуск работы алгоритма
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `dynamic_nodes`: list|dict
             Список стартовых узлов графа в которых размещены
@@ -59,8 +59,8 @@ class LSCPCommon(LSCPBase):
         '''
 
         # 0. Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть Graph!")
         if not static_nodes is None:
             if not (isinstance(dynamic_nodes,dict) and isinstance(static_nodes,dict)):
                 raise TypeError(f'Аргументы `dynamic_nodes` и `static_nodes` должны быть одинакового типа: dict'

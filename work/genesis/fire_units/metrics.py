@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
+from genesis.metrics import ArrivalTime
+
 try:
     from ..genesis.core import MetricBase
 except:
@@ -81,7 +83,8 @@ class Demand(MetricBase):
             return self.zero_val
 
         # Расчет метрики по спросу
-        merged_df = pd.merge(self.buildings,
+        buildings_s = self.buildings.query(f'{self.buildings_node_id_field} in @state_c.keys()')
+        merged_df = pd.merge(buildings_s,
                              state_c,
                              how='left',
                              left_on=self.buildings_node_id_field,
@@ -161,7 +164,8 @@ class CoverIndexBuilding(MetricBase):
             return self.zero_val
 
         # Расчет метрики по спросу
-        merged_df = pd.merge(self.buildings,
+        buildings_s = self.buildings.query(f'{self.buildings_node_id_field} in @state_c.keys()')
+        merged_df = pd.merge(buildings_s,
                              state_c,
                              how='left',
                              left_on=self.buildings_node_id_field,
@@ -245,7 +249,8 @@ class ArrivalTimeBuilding(MetricBase):
             return self.zero_val
 
         # Расчет метрики по спросу
-        merged_df = pd.merge(self.buildings,
+        buildings_s = self.buildings.query(f'{self.buildings_node_id_field} in @state_c.keys()')
+        merged_df = pd.merge(buildings_s,
                              state_c,
                              how='left',
                              left_on=self.buildings_node_id_field,
@@ -327,7 +332,9 @@ class CoverIndexValue(MetricBase):
             return self.zero_val
 
         # Объединение данных об узлах и временах прибытия в каждый из них
-        merged_df = pd.merge(self.data,
+        data_s = self.data.query(f'{self.data_node_id_field} in @state_c.keys()')
+        merged_df = pd.merge(data_s,
+        # merged_df = pd.merge(self.data,
                              state_c,
                              how='left',
                              left_on = self.data_node_id_field,
@@ -343,5 +350,6 @@ class CoverIndexValue(MetricBase):
         # Если таких узлов нет - возвращаем значение для ноля
         if len(merged_df) == 0:
             return self.zero_val
+        
 
         return 100 * merged_df[self.value_field].sum() / total_value

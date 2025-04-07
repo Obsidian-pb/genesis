@@ -49,10 +49,10 @@ class NodesMetric(BestPointsBase):
         # self.err_val = err_val
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env:nx.MultiDiGraph, nodes:list, area=None, **kwargs):
+    def __call__(self, env:nx.Graph, nodes:list, area=None, **kwargs):
         '''
             ## Параметры
-            `env` : MultiDiGraph (G)
+            `env` : Graph (G)
                 Граф дорожной сети
             `node`: list
                 Список идентификаторов узлов графа для которого происходит расчет
@@ -134,7 +134,7 @@ class BestNodesKoptG(MCLPBase):
 
 
     def __call__(self,
-                 env:nx.MultiDiGraph,
+                 env:nx.Graph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
                 #  before_iters_start_function: callable =None,
@@ -144,7 +144,7 @@ class BestNodesKoptG(MCLPBase):
         '''
         ## Аргументы
 
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `dynamic_nodes`: dict
             Список стартовых узлов графа в которых размещены
@@ -185,8 +185,8 @@ class BestNodesKoptG(MCLPBase):
         '''
         
         # 0. Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть MultiDiGraph!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть Graph!")
         if not static_nodes is None:
             if not (isinstance(dynamic_nodes,dict) and isinstance(static_nodes,dict)):
                 raise TypeError(f'Аргументы `dynamic_nodes` и `static_nodes` должны быть одинакового типа: dict'
@@ -323,18 +323,18 @@ class BestNodesGA(MCLPBase):
     '''
 
     def __init__(self,
-                 state_function: StateBase,
-                 metric_function: MetricBase,
-                 node_selector:PointSelectorBase,
-                 population_size:int = 25,
-                 epochs:int = 50,
-                 mutation_rate:float = 0.5,
-                 elite_size:int = 0,
-                 appr_val_in_area:float = 0,
-                 mutation_max_count:int = 1,
-                 bad_val_in_area:int = 1000,
-                 epoch_end_function:callable = None,
-                 stop_case_function:callable = None,
+                 state_function     :StateBase,
+                 metric_function    :MetricBase,
+                 node_selector      :PointSelectorBase,
+                 population_size    :int = 25,
+                 epochs             :int = 50,
+                 mutation_rate      :float = 0.5,
+                 elite_size         :int = 0,
+                 appr_val_in_area   :float = 0,
+                 mutation_max_count :int | float = 1,
+                 bad_val_in_area    :int = 1000,
+                 epoch_end_function :callable = None,
+                 stop_case_function :callable = None,
                  **kwargs) -> None:
         '''
         ## Аргументы
@@ -417,7 +417,13 @@ class BestNodesGA(MCLPBase):
         '''
         Мутация особи
         '''
-        for _ in range(self.mutation_max_count):
+        if self.mutation_max_count>0:
+            mutation_count = self.mutation_max_count
+        elif self.mutation_max_count > 0 and self.mutation_max_count < 1:
+            mutation_count = int(len(new_dynamic_nodes) * self.mutation_max_count)
+        else:
+            mutation_count = len(new_dynamic_nodes)
+        for _ in range(mutation_count):
             if random.random() < self.mutation_rate:
                 # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
                 node, unit = random.choice(list(new_dynamic_nodes.items()))
@@ -425,16 +431,12 @@ class BestNodesGA(MCLPBase):
 
                 # Поиск нового узла, которого при этом нет в new_dynamic_nodes
                 node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
-                # node = random.choice(g_nodes)
-                # while node in new_dynamic_nodes.keys():
-                #     node = random.choice(g_nodes)
-
                 new_dynamic_nodes[node] = unit
 
         return  new_dynamic_nodes
 
     def __call__(self,
-                 env:nx.MultiDiGraph,
+                 env:nx.Graph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
                  area: pd.Series = None,
@@ -443,7 +445,7 @@ class BestNodesGA(MCLPBase):
         Запуск работы генетического алгоритма
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `dynamic_nodes`: list|dict
             Список стартовых узлов графа в которых размещены
@@ -457,8 +459,8 @@ class BestNodesGA(MCLPBase):
         '''
 
         # 0. Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть `Graph`!")
         if not isinstance(dynamic_nodes, dict):
             raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
         if not static_nodes is None and not isinstance(static_nodes, dict):
@@ -720,13 +722,13 @@ class BestNodesSA(MCLPBase):
             return 0
             # raise OverflowError(dE, T)
 
-    def _calculate_energy(self, env: nx.MultiDiGraph, nodes: list, area=None, **kwargs):
+    def _calculate_energy(self, env: nx.Graph, nodes: list, area=None, **kwargs):
         '''
         Расчет энергии состояния.
         Здесь это значение целевой метрики.
 
         ## Аргументы
-        `env`: nx.MultiDiGraph
+        `env`: nx.Graph
             окружение
         `nodes`: list
             список стартовых узлов. Например мест размещения пожарных депо
@@ -786,7 +788,7 @@ class BestNodesSA(MCLPBase):
         Запуск работы алгоритма имитации отжига
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `dynamic_nodes`: dict
             Список стартовых узлов графа в которых размещены
@@ -800,8 +802,8 @@ class BestNodesSA(MCLPBase):
         '''
 
         # 0. Проверяем пришедшие данные
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть `Graph`!")
         if not isinstance(dynamic_nodes, dict):
             raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
         if not static_nodes is None and not isinstance(static_nodes, dict):

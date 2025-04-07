@@ -19,7 +19,7 @@ class FireDemandSatisfyState(FirstArrivalUnitState):
         super().__init__(state_algorithm, weight, delay, **kwargs)
 
     def __call__(self,
-                 env: nx.MultiDiGraph,
+                 env: nx.Graph,
                  points: dict,
                  buildings: gpd.GeoDataFrame,
                  buildings_node_id_field: str = 'node',

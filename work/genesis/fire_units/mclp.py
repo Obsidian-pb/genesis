@@ -49,7 +49,7 @@ class BestNodesGAKopt(MCLPBase):
                  mutation_rate:float = 0.5,
                  elite_size:int = 0,
                  appr_val_in_area:float = 0,
-                 mutation_max_count:int = 1,
+                 mutation_max_count: int | float = 1,
                  bad_val_in_area:int = 1000, # &! Возможна ошибка при возрастающих метриках...
                  epoch_end_function:callable = None,
                  stop_case_function:callable = None,
@@ -75,8 +75,9 @@ class BestNodesGAKopt(MCLPBase):
             то такой узел не рассматривается.
             При расчет размещения нескольких узлов неминуемо возникает ситуация при которой
             часть территории area будет недостижима. Поэтому по умолчанию считается
-        `mutation_max_count`: int = 1
-            Максимальное количество единиц мутации.
+        `mutation_max_count`: int | float = 1
+            Максимальное количество единиц мутации. Если указано в диапазоне от 0 до 1,
+            то она будет рассчитываться относительно размера популяции.
         `bad_val_in_area`: int=1000
             Значение указываемое для узла, в случае если
             из него нельзя попасть в `appr_val_in_area` долю узлов в пределах
@@ -128,11 +129,15 @@ class BestNodesGAKopt(MCLPBase):
 
         return best_metric
 
-    # def _mutate(self, new_dynamic_nodes, g_nodes):
+
     def _mutate(self, env, new_dynamic_nodes, area):
-        # for _ in range(self.mutation_max_count):
+        '''
+        Мутация особи
+        '''
         if self.mutation_max_count>0:
             mutation_count = self.mutation_max_count
+        elif self.mutation_max_count > 0 and self.mutation_max_count < 1:
+            mutation_count = int(len(new_dynamic_nodes) * self.mutation_max_count)
         else:
             mutation_count = len(new_dynamic_nodes)
         for _ in range(mutation_count):
@@ -141,19 +146,15 @@ class BestNodesGAKopt(MCLPBase):
                 node, unit = random.choice(list(new_dynamic_nodes.items()))
                 del new_dynamic_nodes[node]
 
-                # Поиск нового узла, котрого при этом нет в new_dynamic_nodes
+                # Поиск нового узла, которого при этом нет в new_dynamic_nodes
                 node = self.node_selector(env=env, points=new_dynamic_nodes, area=area)
-                # node = random.choice(g_nodes)
-                # while node in new_dynamic_nodes.keys():
-                #     node = random.choice(g_nodes)
-
                 new_dynamic_nodes[node] = unit
 
         return  new_dynamic_nodes
 
 
     def __call__(self,
-                 env:nx.MultiDiGraph,
+                 env:nx.Graph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
                  area: pd.Series = None,
@@ -162,7 +163,7 @@ class BestNodesGAKopt(MCLPBase):
         Запуск работы генетического алгоритма
 
         ## Аргументы
-        `env`:nx.MultiDiGraph
+        `env`:nx.Graph
             Граф улично-дорожной сети
         `dynamic_nodes`: list|dict
             Список стартовых узлов графа в которых размещены
@@ -176,8 +177,8 @@ class BestNodesGAKopt(MCLPBase):
         '''
 
         # 0. Проверка корректности пришедших данных
-        if not isinstance(env, nx.MultiDiGraph):
-            raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип аргумента `env` должен быть `Graph`!")
         if not isinstance(dynamic_nodes, dict):
             raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
         if not static_nodes is None and not isinstance(static_nodes, dict):
@@ -451,7 +452,7 @@ class BestNodesGAKopt(MCLPBase):
 
 
 #     def __call__(self,
-#                  env:nx.MultiDiGraph,
+#                  env:nx.Graph,
 #                  dynamic_nodes: dict,
 #                  static_nodes: dict = None,
 #                  area: pd.Series = None,
@@ -460,7 +461,7 @@ class BestNodesGAKopt(MCLPBase):
 #         Запуск работы генетического алгоритма
 
 #         ## Аргументы
-#         `env`:nx.MultiDiGraph
+#         `env`:nx.Graph
 #             Граф улично-дорожной сети
 #         `dynamic_nodes`: list|dict
 #             Список стартовых узлов графа в которых размещены
@@ -474,8 +475,8 @@ class BestNodesGAKopt(MCLPBase):
 #         '''
 
 #         # 0. Проверка корректности пришедших данных
-#         if not isinstance(env, nx.MultiDiGraph):
-#             raise TypeError("Тип аргумента `env` должен быть `MultiDiGraph`!")
+#         if not isinstance(env, nx.Graph):
+#             raise TypeError("Тип аргумента `env` должен быть `Graph`!")
 #         if not isinstance(dynamic_nodes, dict):
 #             raise TypeError("Тип аргумента `dynamic_nodes` должен быть `dict`!")
 #         if not static_nodes is None and not isinstance(static_nodes, dict):
