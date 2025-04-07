@@ -423,6 +423,8 @@ class BestNodesGA(MCLPBase):
             mutation_count = int(len(new_dynamic_nodes) * self.mutation_max_count)
         else:
             mutation_count = len(new_dynamic_nodes)
+        if mutation_count == 0:
+            mutation_count = 1
         for _ in range(mutation_count):
             if random.random() < self.mutation_rate:
                 # Выбор случайного элемента в словаре и удаление его из new_dynamic_nodes
