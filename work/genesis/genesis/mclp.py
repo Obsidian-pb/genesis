@@ -417,7 +417,7 @@ class BestNodesGA(MCLPBase):
         '''
         Мутация особи
         '''
-        if self.mutation_max_count>0:
+        if self.mutation_max_count >= 1:
             mutation_count = self.mutation_max_count
         elif self.mutation_max_count > 0 and self.mutation_max_count < 1:
             mutation_count = int(len(new_dynamic_nodes) * self.mutation_max_count)

@@ -7,7 +7,9 @@ import random
 import warnings
 
 import pandas as pd
+import geopandas as gpd
 import networkx as nx
+import osmnx as ox
 
 from .core import MetricBase, PointSelectorBase, StateBase
 from .tools import get_dict_key
@@ -88,6 +90,87 @@ class RandomNodesSelector(PointSelectorBase):
         if len(new_nodes)==1:
             return new_nodes[0]
         return new_nodes
+
+
+class RandomNodeInDistanceSelector(PointSelectorBase):
+    '''
+    Простой выбор случайного узла в графе с расстоянием
+    '''
+    def __init__(self,
+                 g_nodes    : gpd.GeoDataFrame,
+                 nodes_list : set = None,
+                 distance   : int = 250,
+                 **kwargs)  -> None:
+        '''
+        Выбор случайного узла в графе в пределах указанного расстояния
+
+        `env`:nx.Graph
+            Граф улично-дорожной сети
+        `nodes_list`: set=None
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
+        `distance`  : int = 250
+            Максимальное расстояние от произвольной вершины в метрах.
+        '''
+        if not ox.projection.is_projected(g_nodes.crs):
+            g_nodes = ox.projection.project_gdf(g_nodes)
+        self.g_nodes = g_nodes
+
+        self.nodes_list = nodes_list
+        self.distance = distance
+        super().__init__(**kwargs)
+
+    def __call__(self,
+                env:nx.Graph,
+                points:dict,
+                area: pd.Series = None,
+                **kwargs):
+        '''
+        Запуск работы алгоритма
+
+        ## Аргументы
+        `env`:nx.Graph
+            Граф улично-дорожной сети. Не используется.
+        `points`: dict
+            Словарь стартовых узлов графа в которых размещены
+            подразделения.
+        `area`: pd.Series = None
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+        `k`: int = 1
+            Количество подразделений которые следует добавить.
+        '''
+
+        # 0. Проверка корректности пришедших данных
+        if not isinstance(points,dict):
+            raise TypeError(f'Аргумент `points` должен иметь тип: dict'
+                            f'Имеет: {type(points)}')
+
+        if points is None:
+            raise ValueError(f'Аргумент `points` не может иметь значение None')
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+
+        # 1. Выбор случайного узла из числа не входящих в points
+        points_set = set(points.keys())
+        
+        ## 1.2 Узел центр для радиуса
+        center_node = random.choice(list(points_set))
+        # ТЕСТИРОВАНИЕ!
+        # center_node = list(points_set)[0]
+
+        ## 1.3 Выбор случайного узла в радиусе
+        nodes_in_buffer = self.g_nodes.sjoin_nearest(self.g_nodes.loc[[center_node]], max_distance=self.distance)
+        nodes_in_buffer = set(nodes_in_buffer.index)
+
+        ## 1.4 Проверка на наличие прочих узлов с ПСЧ     
+        if self.nodes_list is None:
+            nodes_set = nodes_in_buffer - points_set
+        else:
+            nodes_set = nodes_in_buffer & self.nodes_list - points_set
+
+        # 2. Возвращаем случайный узел
+        return random.choice(list(nodes_set))
 
 
 class GenesisNodeSelector(PointSelectorBase):
