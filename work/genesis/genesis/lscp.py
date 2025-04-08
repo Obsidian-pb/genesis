@@ -132,7 +132,7 @@ class LSCPCommon(LSCPBase):
             name_index += 1
 
         return best_dynamic_nodes, best_metric
-    
+
 
 
 
