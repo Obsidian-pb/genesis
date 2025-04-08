@@ -87,16 +87,7 @@ class FirstArrivalUnitState(StateBase):
         # Возможно лучшим вариантом будет просто передавать **kwargs
         # Либо переопределять в каждом отдельном случае именно State, а не state_algorithm.
         # т.е. вместо FirstArrivalUnitState будет FirstArrivalUnitStateForG или FirstArrivalUnitStateForGAndBuildings ...
-        # times, routes = self.state_algorithm(env, points, weight, **kwargs)     # Так не надо
         times, routes = self.state_algorithm(G=env, sources = points, weight = self.weight, **kwargs)
-        
-        # # Дополнение сведениями о 
-        # times_zero = {k:0 for k in env.nodes()}
-        # times_zero.update(times)
-        # times = times_zero
-        # routes_zero = {k:0 for k in env.nodes()}
-        # routes_zero.update(routes)
-        # routes = routes_zero
 
         times = pd.Series(times, dtype=float, name='times') + self.delay
 
@@ -110,9 +101,6 @@ class FirstArrivalUnitState(StateBase):
         if not area is None:
             times = times[area]
             nearest = nearest[area]
-
-        # Построение леса. Потом удалить.
-        # times_forest = {s:{k:v} for s,k,v in zip(nearest, times.items())}
 
         return times, nearest
 
