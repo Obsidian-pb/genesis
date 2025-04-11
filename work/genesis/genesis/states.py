@@ -5,6 +5,7 @@
 from heapq import heappush, heappop
 from itertools import count
 
+import numpy as np
 import pandas as pd
 # import geopandas as gpd
 import networkx as nx
@@ -89,13 +90,25 @@ class FirstArrivalUnitState(StateBase):
         # т.е. вместо FirstArrivalUnitState будет FirstArrivalUnitStateForG или FirstArrivalUnitStateForGAndBuildings ...
         times, routes = self.state_algorithm(G=env, sources = points, weight = self.weight, **kwargs)
 
+        # Дополнение строками узлов в которые нет возможности попасть
+        # Необходимо для корректности расчета
+        tl = set(times.keys())
+        nl = env.nodes()
+        ss = nl ^ tl
+        add_dict = {k:np.nan for k in ss}
+        
+        times = {**times, **add_dict}
         times = pd.Series(times, dtype=float, name='times') + self.delay
 
         # Определение стартового узла для каждого маршрута
         if isinstance(points, dict):
-            nearest = pd.Series({k:points[route[0]] for k, route in routes.items()}, dtype=str, name='nearest')
+            nearest = {k:points[route[0]] for k, route in routes.items()}
+            nearest = {**nearest, **add_dict}
+            nearest = pd.Series(nearest, dtype=str, name='nearest')
         else:
-            nearest = pd.Series({k:route[0] for k, route in routes.items()}, dtype='int64', name='nearest')
+            nearest = {k:route[0] for k, route in routes.items()}
+            nearest = {**nearest, **add_dict}
+            nearest = pd.Series(nearest, dtype='int64', name='nearest')
 
         # Отбор узлов по маске
         if not area is None:
