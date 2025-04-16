@@ -28,6 +28,16 @@ class RandomNodesSelector(PointSelectorBase):
             Множество узлов графа которые будут рассмотрены в качестве кандидатов.
             Если не указан, то будут рассмотрены все узлы графа.
         '''
+        if not isinstance(nodes_list, set) and nodes_list is not None:
+            warnings.warn(f'Аргумент `nodes_list` не является `set`. '
+                          f'Имеет тип: {type(nodes_list)}. '
+                          f'Следует использовать тип `set`. '
+                          f'Для получения набора узлов можно использовать методы класса `BestPointsBase`')
+            try:
+                nodes_list = set(nodes_list)
+            except Exception as e:
+                TypeError(f'Не удалось преобразовать аргумент `nodes_list` в `set`! {e}')
+
         self.nodes_list = nodes_list
         super().__init__(**kwargs)
 

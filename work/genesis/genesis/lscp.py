@@ -5,6 +5,7 @@
 '''
 
 import networkx as nx
+import numpy as np
 import pandas as pd
 
 from .core import LSCPBase, BestPointsBase, MCLPBase, MetricBase, PointSelectorBase, StateBase, StopCaseBase
@@ -132,6 +133,217 @@ class LSCPCommon(LSCPBase):
             name_index += 1
 
         return best_dynamic_nodes, best_metric
+
+
+
+class LSCP_ADD(LSCPBase):
+    '''
+    Решение задачи LSCP алгоритмом жадного добавления.
+    '''
+    def __init__(self,
+                 state_function: StateBase,
+                 matrix: pd.DataFrame,
+                 metric_function: MetricBase,
+                 ip_val: int=10,
+                 mclp_function: MCLPBase = None,
+                 point_selector: PointSelectorBase = None,
+                 stop_case_function: StopCaseBase = None,
+                 names_pattern: str = '{}',
+                 start_names_index: int = 1,
+                 after_mclp_function: callable = None,
+                 **kwargs):
+        '''
+        
+        # Аргументы
+
+        `state_function`: StateBase
+
+            Функция расчета состояния узла.
+
+        `matrix`: pd.DataFrame
+
+            Матрица времен прибытия, отражающая время прибытия к каждому из объектов из каждого из узлов.
+
+        `metric_function`: MetricBase
+
+            Функция расчета метрики оптимальности размещения подразделений.
+        
+        `ip_val`:int
+
+            Пороговое значение для определения индекса прикрытия.
+            Рекомендуется использовать 10 для городских населенных пунктов и 
+            20 для сельских.
+
+        `mclp_function`: MCLPBase = None,
+
+            Реализация алгоритма решения задачи MCLP.
+
+        `point_selector`: PointSelectorBase = None
+
+            Реализация алгоритма выбора узлов.
+
+        `stop_case_function``: callable = None,
+
+            Функция условия остановки. Если не указана, расчет производится 
+            до тех пор пока не будут удалены все строки в matrix.
+
+        `names_pattern`: str = '{}'
+
+            Шаблон имен подразделений.
+        
+        `start_names_index`: int = 1
+
+            Стартовый номер подразделений.
+        
+        `after_mclp_function`: callable = None
+
+            Функция выполняемая после выполнения каждой итерации алгоритма.
+            
+            Сигнатура функции:
+
+                after_mclp_function(iteration,
+                            best_metric,
+                            current_metric,
+                            dynamic_nodes,
+                            static_nodes)
+        
+        '''
+
+        # Сохраняем матрицу прибытия в пределах максимального времени прибытия
+        self.matrix = matrix
+        self.ip_val = ip_val
+
+        self.state_function = state_function
+        self.after_mclp_function = after_mclp_function
+        super().__init__(mclp_function, point_selector, stop_case_function, metric_function, names_pattern, start_names_index, **kwargs)
+
+    def __call__(self,
+                 env:nx.Graph = None,
+                 dynamic_nodes: dict = None,
+                 static_nodes: dict = None,
+                 area: pd.Series = None,
+                 nodes_list:set=None,
+                 **kwargs):
+        '''
+        Запуск работы алгоритма
+
+        ## Аргументы
+
+        `env`:nx.Graph
+
+            Граф улично-дорожной сети
+
+        `dynamic_nodes`: list|dict
+
+            Список стартовых узлов графа в которых размещены
+            подразделения оптимальные места которых следует определить.
+
+        `static_nodes`: list|dict = None
+
+            Список стартовых узлов графа в которых размещены
+            подразделения изменять размещение которых не следует.
+
+        `area`: pd.Series = None
+
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+
+        `nodes_list`:set=None
+        
+            Множество узлов графа которые будут рассмотрены в качестве кандидатов.
+            Если не указан, то будут рассмотрены все узлы графа.
+
+        ## Возвращает
+
+        `best_dynamic_nodes, best_metric`
+
+            Словарь лучших размещений ({узел: имя}), лучшая метрика.
+        '''
+
+        # 0. Проверка корректности пришедших данных
+        if not static_nodes is None:
+            if not isinstance(static_nodes,dict):
+                raise TypeError(f'Аргумент `static_nodes` должен быть типа dict'
+                                f'Имеет: {type(static_nodes)}')
+        if not dynamic_nodes is None:
+            if not isinstance(dynamic_nodes,dict):
+                raise TypeError(f'Аргумент `dynamic_nodes` должен быть типа dict'
+                                f'Имеет: {type(dynamic_nodes)}')
+        if not area is None and not isinstance(area, pd.Series):
+            raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
+      
+
+        # Создание копии матрицы для использования в алгоритме
+        matrix_temp = self.matrix.copy()
+
+        # Установка ля матрицы признака прикрытой исходя из
+        # максимально допустимого времени прибытия
+        matrix_temp = matrix_temp <= self.ip_val #- self.delay
+
+
+        # 0.1. Если статические узлы не указаны - заменяем значение переменной с None на {}
+        if static_nodes is None:
+            static_nodes = {}
+        else:
+            # Отброс узлов прикрытых имеющимися подразделениями
+            node_column = matrix_temp[static_nodes.keys()]
+            matrix_temp = matrix_temp[np.any(node_column, axis=1) == False]
+        
+        # 0.2. Если динамические узлы не указаны - заменяем значение переменной с None на {}
+        if dynamic_nodes is None:
+            best_dynamic_nodes = {}
+        else:
+            best_dynamic_nodes = dynamic_nodes
+
+
+        # Итерации
+        iteration = 0
+        name_index = self.start_names_index
+        while len(matrix_temp) > 0:
+            # 1. Расчет оптимального размещения подразделений
+            node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+            best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
+            node_column = matrix_temp[node_id]
+
+            # 2. Отброс прикрытых узлов
+            matrix_temp = matrix_temp[node_column == False]
+
+            
+            # 3. Расчет текущей метрики
+            if static_nodes is None:
+                all_nodes = best_dynamic_nodes
+            else:
+                all_nodes = list_dict_concat(best_dynamic_nodes, static_nodes)
+            current_metric = NodesMetric(self.state_function,
+                                         self.metric_function
+                                         )(env,
+                                           list(all_nodes.keys()),
+                                           area=area)
+            # times, _ = self.state_function(env = env, points = all_nodes)
+            # current_metric = self.metric_function(times)
+            # 4. Печать отчета расчета
+            if not self.after_mclp_function is None:
+                self.after_mclp_function(iteration=iteration,
+                            best_metric=current_metric,
+                            current_metric=current_metric,
+                            dynamic_nodes=best_dynamic_nodes,
+                            static_nodes=static_nodes)
+
+            # 5. Если достигнута цель расчета, выходим из цикла
+            if not self.stop_case_function is None:
+                if self.stop_case_function(value=current_metric,
+                                iteration=iteration,
+                                best_metric=current_metric,
+                                current_metric=current_metric,
+                                dynamic_nodes=best_dynamic_nodes,
+                                static_nodes=static_nodes):
+                    return best_dynamic_nodes, current_metric
+
+            # ========================================================
+            iteration += 1
+            name_index += 1
+
+        return best_dynamic_nodes, current_metric
 
 
 

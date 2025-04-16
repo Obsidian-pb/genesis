@@ -4,12 +4,15 @@
 
 from heapq import heappush, heappop
 from itertools import count
+from typing import Any
 
 import numpy as np
 import pandas as pd
 # import geopandas as gpd
 import networkx as nx
-# import osmnx as ox
+import osmnx as ox
+
+from genesis.utils import Progressbar
 
 from .core import StateBase
 from .swiss_knife import DELAY_TIME, MSF
@@ -24,16 +27,21 @@ class FirstArrivalUnitState(StateBase):
                  **kwargs):
         '''
             `state_algorithm`: function
+
                 Функция расчета кратчайших путей от единственного источника. 
                 В качестве функции могут быть переданы реализации алгоритмов из пакета
                 `networkx`. Например, реализация алгоритма Дейкстры: `nx.multi_source_dijkstra`.
                 Пользователь может использовать собственные функции с
                 интерфейсом `func(G: Graph, sources: Any, target: Any | None = None, cutoff: Any | None = None, 
                                     weight: str = "weight") -> (dict, dict)`
+
             `weight`:str или callable  = "travel_time"
+
                 Имя поля содержащего вес ребер, или функция позволяющая вычислять 
                 вес динамически.
-            `delay`: 
+
+            `delay`:
+
                 Задержка в расчете. Например на обслуживание вызова на пожар.
                 По умолчанию указана в swiss_knife.DELAY_TIME
         '''
@@ -48,18 +56,25 @@ class FirstArrivalUnitState(StateBase):
                  **kwargs):
         '''
         # Аргументы
+
         `env`: nx.Graph (G)
+
             Граф улично-дорожной сети.
+
         `points`: list|dict (source)
+
             Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
             идентификатор узла, значение - его наименование. Может использоваться для указания узлов в которых 
             расположены пожарные подразделения: {1234:'ПСЧ-1'}
+
         `area`: pd.Series = None
+
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
         
 
         # Возвращает
+
             times, nearest -> tuple[Series[float], Series[str] | Series]. 
             times - Время прибытия первого подразделения в каждый из узлов графа. 
             nearest - Соответствие узлов первому подразделению. 
@@ -90,24 +105,24 @@ class FirstArrivalUnitState(StateBase):
         # т.е. вместо FirstArrivalUnitState будет FirstArrivalUnitStateForG или FirstArrivalUnitStateForGAndBuildings ...
         times, routes = self.state_algorithm(G=env, sources = points, weight = self.weight, **kwargs)
 
-        # Дополнение строками узлов в которые нет возможности попасть
-        # Необходимо для корректности расчета
-        tl = set(times.keys())
-        nl = env.nodes()
-        ss = nl ^ tl
-        add_dict = {k:np.nan for k in ss}
-        
-        times = {**times, **add_dict}
+        # # Дополнение строками узлов в которые нет возможности попасть
+        # # Необходимо для корректности расчета
+        # tl = set(times.keys())
+        # nl = env.nodes()
+        # ss = nl ^ tl
+        # add_dict = {k:np.nan for k in ss}
+
+        # times = {**times, **add_dict}
         times = pd.Series(times, dtype=float, name='times') + self.delay
 
         # Определение стартового узла для каждого маршрута
         if isinstance(points, dict):
             nearest = {k:points[route[0]] for k, route in routes.items()}
-            nearest = {**nearest, **add_dict}
+            # nearest = {**nearest, **add_dict}
             nearest = pd.Series(nearest, dtype=str, name='nearest')
         else:
             nearest = {k:route[0] for k, route in routes.items()}
-            nearest = {**nearest, **add_dict}
+            # nearest = {**nearest, **add_dict}
             nearest = pd.Series(nearest, dtype='int64', name='nearest')
 
         # Отбор узлов по маске
@@ -201,7 +216,7 @@ class FirstArrivalUnitCacheState(StateBase):
         nearest_total.update(nearest)
 
         return times_total, nearest_total
-    
+
     def _dijkstra_multisource_cache(
         self, G, sources, weight, pred=None, paths=None, cutoff=None, target=None, seen=None
     ):
@@ -258,44 +273,45 @@ class FirstArrivalUnitCacheState(StateBase):
         # by the caller via the pred and paths objects passed as arguments.
         return dist
 
-    # def _weight_function_cache(self, G, weight):
-    #     """Returns a function that returns the weight of an edge.
 
-    #     The returned function is specifically suitable for input to
-    #     functions :func:`_dijkstra` and :func:`_bellman_ford_relaxation`.
+    def _weight_function_cache(self, G, weight):
+        """Returns a function that returns the weight of an edge.
 
-    #     Parameters
-    #     ----------
-    #     G : NetworkX graph.
+        The returned function is specifically suitable for input to
+        functions :func:`_dijkstra` and :func:`_bellman_ford_relaxation`.
 
-    #     weight : string or function
-    #         If it is callable, `weight` itself is returned. If it is a string,
-    #         it is assumed to be the name of the edge attribute that represents
-    #         the weight of an edge. In that case, a function is returned that
-    #         gets the edge weight according to the specified edge attribute.
+        Parameters
+        ----------
+        G : NetworkX graph.
 
-    #     Returns
-    #     -------
-    #     function
-    #         This function returns a callable that accepts exactly three inputs:
-    #         a node, an node adjacent to the first one, and the edge attribute
-    #         dictionary for the eedge joining those nodes. That function returns
-    #         a number representing the weight of an edge.
+        weight : string or function
+            If it is callable, `weight` itself is returned. If it is a string,
+            it is assumed to be the name of the edge attribute that represents
+            the weight of an edge. In that case, a function is returned that
+            gets the edge weight according to the specified edge attribute.
 
-    #     If `G` is a multigraph, and `weight` is not callable, the
-    #     minimum edge weight over all parallel edges is returned. If any edge
-    #     does not have an attribute with key `weight`, it is assumed to
-    #     have weight one.
+        Returns
+        -------
+        function
+            This function returns a callable that accepts exactly three inputs:
+            a node, an node adjacent to the first one, and the edge attribute
+            dictionary for the eedge joining those nodes. That function returns
+            a number representing the weight of an edge.
 
-    #     """
-    #     if callable(weight):
-    #         return weight
-    #     # If the weight keyword argument is not callable, we assume it is a
-    #     # string representing the edge attribute containing the weight of
-    #     # the edge.
-    #     if G.is_multigraph():
-    #         return lambda u, v, d: min(attr.get(weight, 1) for attr in d.values())
-    #     return lambda u, v, data: data.get(weight, 1)
+        If `G` is a multigraph, and `weight` is not callable, the
+        minimum edge weight over all parallel edges is returned. If any edge
+        does not have an attribute with key `weight`, it is assumed to
+        have weight one.
+
+        """
+        if callable(weight):
+            return weight
+        # If the weight keyword argument is not callable, we assume it is a
+        # string representing the edge attribute containing the weight of
+        # the edge.
+        if G.is_multigraph():
+            return lambda u, v, d: min(attr.get(weight, 1) for attr in d.values())
+        return lambda u, v, data: data.get(weight, 1)
 
 
     def multi_source_dijkstra_cache(self, dists_cache):
@@ -415,5 +431,192 @@ class FirstArrivalUnitCacheState(StateBase):
                 return (dists[target], paths[target])
             except KeyError as e:
                 raise nx.NetworkXNoPath(f"No path to {target}.") from e
-        
+
         return multi_source_dijkstra_cache_
+
+
+
+# Блок расчета по матрице прибытия
+class ArrivalTimeMatrixState(StateBase):
+    '''
+    Класс-функций расчета параметров прибытия на основе предварительно 
+    рассчитанной матрицы времен прибытия.
+
+    Позволяет существенно сократить время моделирования при расчете
+    для известных объектов или ограниченного количества узлов графа.
+    '''
+    def __init__(self,
+                 matrix,
+                 state_algorithm = np.min,
+                 delay = 0,
+                 **kwargs):
+        '''
+        Расчет параметров прибытия на основе предварительно 
+        рассчитанной матрицы времен прибытия
+
+        # Аргументы
+
+        `matrix`: pd.DataFrame
+
+            Матрица времен прибытия, отражающая время прибытия к каждому из объектов из каждого из узлов.
+
+        `state_algorithm`: function
+
+            Функция оценки времени прибытия из всех возможных стартовых узлов `points`.
+            По умолчанию - `np.min`, что отражает время прибытия первого подразделения.
+
+        `delay`: float, optional = None
+
+            Задержка в расчете. Например на обслуживание вызова на пожар.
+            По умолчанию указана в swiss_knife.DELAY_TIME
+            **Предполагается, что уже учтена в `matrix`, поэтому не рекомендуется использовать!**
+        '''
+        self.matrix = matrix
+        self.delay = delay
+        super().__init__(state_algorithm, **kwargs)
+
+    def __call__(self,
+                 env    = None,
+                 points = None,
+                 area   = None,
+                 **kwargs):
+        '''
+        # Аргументы        
+    
+        Согласно правилам genesis, должны быть переданы следующие данные:
+        
+        `env` (`среда`): None.
+
+            Не используется.
+
+        `points`: list|dict (source)
+
+            Стартовые узлы. Может быть списком узлов вида list(int), или словарем вида dict(int:str), где ключ - 
+            идентификатор узла, значение - его наименование. Может использоваться для указания узлов в которых 
+            расположены пожарные подразделения: {1234:'ПСЧ-1'}
+
+        `area`: pd.Series = None
+
+            Маска узлов графа. Значениями True отмечены узлы графа - цели расчета.
+            Потенциальные места размещения.
+            Если не указана, расчет производится для всех узлов графа.
+
+        `**kwargs`:
+            Данные которые используются для расчета.
+
+        
+        # Возвращает
+
+            times, nearest -> tuple[Series[float], Series[str] | Series]. 
+            times - Время прибытия первого подразделения в каждый из узлов графа. 
+            nearest - Соответствие узлов первому подразделению. 
+            
+        '''
+
+        if not isinstance(points, (list, dict)):
+            raise TypeError('Тип данных аргумента `points` должен быть (list или dict)')
+        if isinstance(points, (list)):
+            if len(points)!=len(set(points)):
+                duplicates = get_duplicates_list(points)
+                raise ValueError(f'Значения элементов аргумента `points` не могут повторяться! '
+                                 f'Список повторяющихся значений: {duplicates}')
+
+        # Обрезка матрицы по узлам графа
+        # if not env is None:
+        #     print('Обрезка матрицы по узлам графа')
+
+        if isinstance(points, dict):
+            data = self.matrix[points.keys()]
+        else:
+            data = self.matrix[points]
+
+        times =  self.state_algorithm(data, axis=1)
+        times = pd.Series(times, dtype=float, name='times') + self.delay
+
+
+        nearest = np.argmin(data, axis=1)
+        if isinstance(points, dict):
+            units = list(points.values())
+        else:
+            units = points
+
+        nearest = {k: units[v] for k, v in zip(times.index, nearest)}
+        nearest = pd.Series(nearest, dtype=str, name='nearest')
+
+        # Отбор узлов по маске
+        if not area is None:
+            times = times[area]
+            nearest = nearest[area]
+
+        return times, nearest
+
+def get_atm(G,
+            data: pd.DataFrame    = None,
+            data_sample_size: int = None,
+            data_node_field: str  = 'node',
+            weight: str           = 'travel_time',
+            cutoff: float         = None,
+            delay: float          = DELAY_TIME,
+            target_set: set       = None,
+            ):
+    '''
+    Расчет матрицы времен прибытия.
+
+    # Аргументы
+
+    `G`: nx.MultiDiGraph
+        Граф сети городского пожарного хозяйства
+
+    `data`: pd.DataFrame = None
+        Данные для расчета. Может быть указан набор узлов, или набор вершин графа.
+        По умолчанию используется все узлы графа
+
+    `data_sample_size`: int = None
+        Размер выборки данных для расчета. Количество записей
+        data ,которые будут учтены при расчете.
+    
+    `data_node_field`: 
+        Поле в котором хранится индекс узла, для которого производится расчет.
+
+    `weight`:str или callable  = "travel_time"
+                Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+                вес динамически.
+    `delay`: float, optional = None
+        Задержка в расчете. Например на обслуживание вызова на пожар.
+        По умолчанию указана в swiss_knife.DELAY_TIME
+
+    `target_set`: set = None
+        Целевой сет узлов графа, которые рассматриваются в качестве потенциальных мест размещения.
+    '''
+
+    # Если конкретный набор данных не передан, используем узлы графа
+    if data is None:
+        data = ox.graph_to_gdfs(G, edges=False)
+        data[data_node_field] = data.index
+
+    # Если указана доля набора данных, выбираем его случайным образом из data
+    if not data_sample_size is None:
+        data = data.sample(data_sample_size)
+
+    # Реверсный граф
+    GR = nx.reverse(G, copy=True)
+
+    # перебираем все записи в наборе данных
+    d = {}
+    pb = Progressbar(len(data), bins=40)
+    for di, dt in data.iterrows():
+        node = dt[data_node_field]
+        length = nx.single_source_dijkstra_path_length(
+            GR,
+            source = node,
+            cutoff = cutoff - delay if not cutoff is None else None,
+            weight = weight,
+            )
+        if not target_set is None:
+            length = {k:v for k,v in length.items() if k in target_set}
+        # d[di] = pd.Series(length) + delay
+        d[node] = pd.Series(length) + delay
+        pb()
+
+    del GR
+    return pd.DataFrame(d).T
