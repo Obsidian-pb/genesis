@@ -339,17 +339,17 @@ class CoverIndexValue(MetricBase):
                              how='left',
                              left_on = self.data_node_id_field,
                              right_index = True)
-        
+
         # Расчет полного веса по всему набору данных
         total_value = merged_df[self.value_field].sum()
-        
+
         # Оставляем только строки для узлов в которые время прибытия меньше или равно 10 минут
         merged_df = merged_df[merged_df['times'] <= self.ip_val]
-        
+
 
         # Если таких узлов нет - возвращаем значение для ноля
         if len(merged_df) == 0:
             return self.zero_val
-        
+
 
         return 100 * merged_df[self.value_field].sum() / total_value
