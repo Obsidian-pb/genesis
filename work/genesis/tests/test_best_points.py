@@ -434,7 +434,9 @@ class TestBestNodeHalfDiameter:
         G.add_edges_from([(1, 2), (2, 3)])
 
         bnhd = BestNodesHalfDiameter()
-        with pytest.raises(TypeError):
+        # with pytest.raises(TypeError):
+        #     bnhd(env=G)
+        with pytest.raises(KeyError):
             bnhd(env=G)
 
 class TestBestNodeMonkey:
