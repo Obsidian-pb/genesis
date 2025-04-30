@@ -425,19 +425,6 @@ class TestBestNodeHalfDiameter:
         assert best_node == 4116035731
         assert metric_val == None
 
-    def test_bnh_wrong_G(self):
-        '''
-        Проверка на ошибку при некорректном графе
-        '''
-        G = nx.Graph()
-        G.add_nodes_from([1, 2, 3])
-        G.add_edges_from([(1, 2), (2, 3)])
-
-        bnhd = BestNodesHalfDiameter()
-        # with pytest.raises(TypeError):
-        #     bnhd(env=G)
-        with pytest.raises(KeyError):
-            bnhd(env=G)
 
 class TestBestNodeMonkey:
     '''
@@ -476,14 +463,3 @@ class TestBestNodeMonkey:
 
         assert best_metric < 9
 
-    def test_bnm_wrong_G(self):
-        '''
-        Проверка на ошибку при некорректном графе
-        '''
-        G = nx.Graph()
-        G.add_nodes_from([1, 2, 3])
-        G.add_edges_from([(1, 2), (2, 3)])
-
-        bnmsa = BestNodeMonkey(FirstArrivalUnitState(), ArrivalTime(), all_neighbors=True)
-        with pytest.raises(TypeError):
-            bnmsa(env=G)

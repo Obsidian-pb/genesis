@@ -2,11 +2,14 @@
 Реализация алгоритмов поиска оптимального размещения нескольких наилучшим образом расположенных узлов (MCLP)
 '''
 
+
 import random
+import warnings
+import math
+
 import networkx as nx
 import numpy as np
 import pandas as pd
-import math
 
 from .core import BestPointsBase, MetricBase, PointSelectorBase, StateBase, MCLPBase
 from .best_points import NodeMetric
@@ -106,21 +109,59 @@ class BestNodesKoptG(MCLPBase):
                  **kwargs) -> None:
         '''
         ## Аргументы
+
         `state_function`: StateBase
+
             функция расчета состояния окружения
+
         `metric_function`: MetricBase
+
             Функция расчета метрики
+
         `best_point_function`: BestPointsBase
+
             Функция расчета лучшего размещения узла
+
         `iterations`:int=5
+
             Количество итераций расчета
+
         `appr_val_in_area`: int=0
+
             Доля узлов графа в пределах area, покрытие которой считается приемлемой для принятия расчетной метрики. 
             Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
             то такой узел не рассматривается.
             При расчет размещения нескольких узлов неминуемо возникает ситуация при которой
             часть территории area будет недостижима. Поэтому по умолчанию считается
+
+        `before_iters_start_function`: callable=None
+
+            Функция выполняемая перед началом итеративного расчета.
+            Сигнатура функции:
+            ```
+            before_iters_start_function(
+                                    best_metric: float,
+                                    dynamic_nodes: list|dict,
+                                    static_nodes: list|dict
+                                    )
+            ```
+            Если не указана, ничего не происходит.
+
+        `iter_calc_end_function`: callable=None
+        
+            Функция выполняемая в конце каждой итерации.
+            Сигнатура функции:
+            ```
+            before_iters_start_function(
+                                    best_metric: float,
+                                    dynamic_nodes: list|dict,
+                                    static_nodes: list|dict
+                                    )
+            ```
+            Если не указана, ничего не происходит.
+
         `stop_case_function`: callable = None
+        
             Функция проверки достигнута ли цель расчета
         '''
         
@@ -137,8 +178,6 @@ class BestNodesKoptG(MCLPBase):
                  env:nx.Graph,
                  dynamic_nodes: dict,
                  static_nodes: dict = None,
-                #  before_iters_start_function: callable =None,
-                #  iter_calc_end_function: callable =None,
                  area: pd.Series = None,
                  **kwargs):
         '''
@@ -152,28 +191,7 @@ class BestNodesKoptG(MCLPBase):
         `static_nodes`: dict = None
             Список стартовых узлов графа в которых размещены
             подразделения изменять размещение которых не следует.
-        `before_iters_start_function`: callable=None
-            Функция выполняемая перед началом итеративного расчета.
-            Сигнатура функции:
-            ```
-            before_iters_start_function(
-                                    best_metric: float,
-                                    dynamic_nodes: list|dict,
-                                    static_nodes: list|dict
-                                    )
-            ```
-            Если не указана, ничего не происходит.
-        `iter_calc_end_function`: callable=None
-            Функция выполняемая в конце каждой итерации.
-            Сигнатура функции:
-            ```
-            before_iters_start_function(
-                                    best_metric: float,
-                                    dynamic_nodes: list|dict,
-                                    static_nodes: list|dict
-                                    )
-            ```
-            Если не указана, ничего не происходит.
+
         `area`: pd.Series = None
             Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
             Если не указана, расчет производится для всех узлов графа.
@@ -814,8 +832,6 @@ class BestNodesSA(MCLPBase):
             raise ValueError(f'Количество элементов `dynamic_nodes` не может быть меньше 1. Сейчас {len(dynamic_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
-        if len(dynamic_nodes)<1:
-            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {len(dynamic_nodes)}')
 
         if static_nodes is None:
             static_nodes = {}
@@ -889,38 +905,4 @@ class BestNodesSA(MCLPBase):
         return best_state, best_energy
 
 
-class AdapterBLPtoMCLP(MCLPBase):
-    '''
-    Адаптер алгоритмов BLP к MCLP
-    '''
 
-    def __init__(self,
-                 blp_function:    BestPointsBase,
-                 state_function:  StateBase      = None,
-                 metric_function: MetricBase     = None,
-                 **kwargs):
-        '''
-        Перечень аргументов соответсвует алгоритму BLP переданному через аргумент `blp_function`.
-        '''
-        self.blp_function = blp_function
-        super().__init__(state_function, metric_function, **kwargs)
-
-
-    def __call__(self,
-                 dynamic_nodes: dict,
-                 **kwargs) -> tuple[dict, int | float]:
-
-        # Проверка входящих данных
-        if dynamic_nodes is None:
-            raise ValueError("Аргумент `dynamic_nodes` должен быть словарем и не может быть равен None!")
-        if len(dynamic_nodes) < 1:
-            raise ValueError("Аргумент `dynamic_nodes` должен содержать не менее 1 узла!")
-
-        # Получение первого узла из словаря
-        start_point, start_key = list(dynamic_nodes.items())[0]
-
-        # Расчет лучшего узла с использованием BLP
-        best_node, best_metric = self.blp_function(start_point = start_point, **kwargs)
-
-        # Конвертация результата в результат метода MCLP
-        return {best_node: start_key}, best_metric

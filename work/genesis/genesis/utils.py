@@ -36,7 +36,7 @@ class Progressbar(object):
     '''
     Прогресс бар для использования в итеративных функциях
     '''
-    def __init__(self, maxval, minval=0, bins=10, ok_char='#', est_char='_'):
+    def __init__(self, maxval, minval=0, bins=40, ok_char='#', est_char='_'):
         self.maxval = maxval
         self.minval = minval
         self.bins = bins
