@@ -21,3 +21,8 @@ work/documentation/*
 # файлы данных для тестирования
 /work/genesis/tests/data
 
+/work/docs/pages/genesis
+/work/docs/pages/fire_units
+/work/docs/pages/graphs
+/work/docs/pages/lists
+/work/docs/venv

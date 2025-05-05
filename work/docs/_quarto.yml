@@ -14,22 +14,14 @@ book:
   downloads: [pdf, epub]
   chapters:
     - index.qmd
-    - pages/structure.qmd
-    - pages/rapid_start.qmd
-    - pages/installation.qmd
-    - pages/concept.qmd
-    - pages/structure.qmd
-    - part: pages/usage.qmd           # Тут описывается применение библиотеки
-      chapters:
-      - pages/usage/environment_usage.qmd
-      - pages/usage/gds_usage.qmd
-      - pages/usage/metrics_calc.qmd
-    - part: pages/documentation.qmd         # Тут документация по алгоритмам (описание того как что считается)
-      chapters:
-      - pages/documentation/algorithms.qmd
-    - pages/terms.qmd
-    - pages/references.qmd
-    - pages/discussion.qmd
+    
+    - pages/010_installation.qmd
+    - pages/020_rapid_start.ipynb
+    - pages/910_short.qmd
+    - pages/920_terms.qmd
+    - pages/900_references.qmd
+
+    - 999_discussion.qmd
 
 bibliography: references.bib
 
