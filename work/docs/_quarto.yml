@@ -1,35 +1,56 @@
 project:
   type: book
   output-dir: documentation
+  preview:
+    port: 7502
 
 book:
   title: "genesis docs"
   description: |
     Документация библиотеки genesis
-  version: 0.0.1
+  version: 0.0.2
   author: "Малютин О.С., Матеров Е.Н., Бабенышев С.В."
   date: today
   repo-url: https://github.com/Obsidian-pb/genesis
   repo-actions: [edit]
   downloads: [pdf, epub]
   chapters:
+    # Вводная часть
     - index.qmd
-    
     - pages/010_installation.qmd
     - pages/020_rapid_start.ipynb
+
+    # Раздел Описание инструментов (osmnx, networkx, geopandas)
+    - pages/100_what_is_osmnx.ipynb
+
+    # Раздел Для пользователей
+
+    # Раздел Для разработчиков
+
+    # Заключительный раздел
     - pages/910_short.qmd
     - pages/920_terms.qmd
     - pages/900_references.qmd
 
+    # Технический раздел
     - 999_discussion.qmd
+
+lang: ru
 
 bibliography: references.bib
 
 format:
   html:
-    theme: cosmo
-  pdf:
-    documentclass: scrreprt
+    # theme: cosmo
+    theme: flatly
+  # pdf:
+  #   documentclass: scrreprt
 
+crossref:
+  fig-prefix: рис.      # (default is "Figure")
+  tbl-prefix: табл.     # (default is "Table")
+  title-delim: " -- "
+
+csl: gost-r-7-0-5-2008-numeric.csl
 
 

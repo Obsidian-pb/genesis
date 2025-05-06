@@ -1,6 +1,6 @@
 # Общие сведения {.unnumbered}
 
-:::{.callout-caution}
+:::{.callout-note}
 *Документация версии {{< var docs_version >}}, написана для библиотеки genesis версии {{< var genesis_version >}}.*
 :::
 
