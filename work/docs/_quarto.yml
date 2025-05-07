@@ -20,8 +20,9 @@ book:
     - pages/010_installation.qmd
     - pages/020_rapid_start.ipynb
 
-    # Раздел Описание инструментов (osmnx, networkx, geopandas)
+    # Раздел Описание инструментов (osmnx, geopandas)
     - pages/100_what_is_osmnx.ipynb
+    - pages/110_what_is_geopandas.ipynb
 
     # Раздел Для пользователей
 

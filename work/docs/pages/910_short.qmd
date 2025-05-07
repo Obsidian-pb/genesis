@@ -32,3 +32,9 @@ GA (Genetic Algorithm)
 
 SAA (Simulation Annealing Algorithm)
 : Алгоритм имитации отжига
+
+СК
+: Система координат
+
+CRS
+: Coordinate References System - то же что СК
