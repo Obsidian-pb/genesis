@@ -31,6 +31,7 @@ book:
     # Заключительный раздел
     - pages/910_short.qmd
     - pages/920_terms.qmd
+    - pages/930_useful_links.qmd
     - pages/900_references.qmd
 
     # Технический раздел
@@ -42,8 +43,8 @@ bibliography: references.bib
 
 format:
   html:
-    # theme: cosmo
-    theme: flatly
+    theme: cosmo
+    # theme: flatly
   # pdf:
   #   documentclass: scrreprt
 

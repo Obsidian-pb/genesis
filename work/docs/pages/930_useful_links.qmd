@@ -1,0 +1,5 @@
+# Полезные ссылки {.unnumbered}
+
+1. https://docs.qgis.org/3.40/ru/docs/index.html Официальная документация QGIS
+2. https://osmnx.readthedocs.io/ Официальная документация OSMNX
+3. https://geopandas.org Официальная документация GeoPandas

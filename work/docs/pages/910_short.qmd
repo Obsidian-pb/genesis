@@ -1,5 +1,8 @@
 # Сокращения {.unnumbered}
 
+ДТП
+: дорожно-транспортное происшествие
+
 ГДС
 : граф улично-дорожной сети
 
@@ -38,3 +41,6 @@ SAA (Simulation Annealing Algorithm)
 
 CRS
 : Coordinate References System - то же что СК
+
+POI
+: point of interest - точка интереса
