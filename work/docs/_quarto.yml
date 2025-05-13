@@ -25,6 +25,12 @@ book:
     - pages/110_what_is_geopandas.ipynb
 
     # Раздел Для пользователей
+    - pages/200_data_preparation.ipynb
+    # - pages/300_state_modelling.ipynb
+    # - pages/310_metrics.ipynb
+    # - pages/320_blp.ipynb
+    # - pages/330_mclp.ipynb
+    # - pages/340_lscp.ipynb
 
     # Раздел Для разработчиков
 
