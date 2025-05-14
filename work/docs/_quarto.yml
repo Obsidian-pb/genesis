@@ -8,7 +8,7 @@ book:
   title: "genesis docs"
   description: |
     Документация библиотеки genesis
-  version: 0.0.2
+  version: 0.0.3
   author: "Малютин О.С., Матеров Е.Н., Бабенышев С.В."
   date: today
   repo-url: https://github.com/Obsidian-pb/genesis
@@ -21,18 +21,28 @@ book:
     - pages/020_rapid_start.ipynb
 
     # Раздел Описание инструментов (osmnx, geopandas)
-    - pages/100_what_is_osmnx.ipynb
-    - pages/110_what_is_geopandas.ipynb
+    - part: 100_tools.qmd
+      chapters: 
+      - pages/110_what_is_osmnx.ipynb
+      - pages/120_what_is_geopandas.ipynb
+
+    # Раздел Подготовка данных
+    - part: 200_data_preparation.qmd
+      chapters: 
+      - pages/210_data_preparation.ipynb
+      - pages/220_data_preparation_qgis.ipynb
 
     # Раздел Для пользователей
-    - pages/200_data_preparation.ipynb
-    # - pages/300_state_modelling.ipynb
-    # - pages/310_metrics.ipynb
-    # - pages/320_blp.ipynb
-    # - pages/330_mclp.ipynb
-    # - pages/340_lscp.ipynb
+    - part: 300_for_users.qmd
+      chapters: 
+      - pages/310_state_modelling.ipynb
+    # - pages/320_metrics.ipynb
+    # - pages/330_blp.ipynb
+    # - pages/340_mclp.ipynb
+    # - pages/350_lscp.ipynb
 
     # Раздел Для разработчиков
+    # - pages/410_state_modelling.ipynb
 
     # Заключительный раздел
     - pages/910_short.qmd
@@ -49,8 +59,8 @@ bibliography: references.bib
 
 format:
   html:
-    theme: cosmo
-    # theme: flatly
+    # theme: cosmo
+    theme: flatly
   # pdf:
   #   documentclass: scrreprt
 

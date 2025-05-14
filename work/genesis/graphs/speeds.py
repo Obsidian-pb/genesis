@@ -21,14 +21,17 @@ def kmh_to_mm(kmh: float, precision: int = 2) -> float:
     Аргументы
     ---------
     `kmh`: float
+
         Скорость в километрах в час
 
     `precision`: int
+
         Точность округления, знаков после запятой
 
     Возвращает
     ----------
     `mm`: float
+    
         Скорость в метрах в минуту
     """
     if not isinstance(kmh, (int, float)):
@@ -51,8 +54,11 @@ def set_graph_travel_times(G: nx.MultiDiGraph,
     Аргументы
     ---------
     `G`: networkx.MultiDiGraph
+
         Граф улично-дорожной сети
+
     `speeds`: list
+
         Список скоростей для 5 классов дорог:
         ```
         1 - Магистральные городские дороги и улицы общегородского значения
@@ -72,13 +78,19 @@ def set_graph_travel_times(G: nx.MultiDiGraph,
         или:
         set_graph_travel_times(G, DEFAULT_SPEEDS, kmh_to_mm)
         ```
+
     `morph_function`: callable
+
         Функция преобразования скоростей.
         Если указана, то будет применена к `speeds` как `morph_function(speeds)`
         Может быть использована для перевода `километры в час` -> `метры в минуту`
+
     `travel_time_field`: str = 'travel_time'
+
         Название поля в котором будет сохранено время следования
+
     `speed_field`: str ='maxspeed'
+
         Название поля в котором будет сохранено значение скорости следования
 
     Возвращает

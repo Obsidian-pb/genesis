@@ -35,7 +35,7 @@ BUILDING_FIELDS = [
   'addr:housenumber',
   'building:levels',
   'building:flats',
-#   'rooms',
+  'rooms',
   'geometry',
 ]
 
