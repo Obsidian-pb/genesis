@@ -12,7 +12,8 @@ import pandas as pd
 import networkx as nx
 import osmnx as ox
 
-from genesis.utils import Progressbar
+from .utils import Progressbar
+from ._errors import KeyNotInMatrixError
 
 from .core import StateBase
 from .swiss_knife import DELAY_TIME, MSF
@@ -529,8 +530,20 @@ class ArrivalTimeMatrixState(StateBase):
         #     print('Обрезка матрицы по узлам графа')
 
         if isinstance(points, dict):
+            missed_nodes = []
+            for unit_node, unit_name in points.items():
+                if not unit_node in self.matrix.columns:
+                    missed_nodes.append(unit_node)
+            if len(missed_nodes)>0:
+                raise KeyNotInMatrixError(f'Узлы `{missed_nodes}` отсутствуют в матрице.')
             data = self.matrix[points.keys()]
         else:
+            missed_nodes = []
+            for unit_node in points:
+                if not unit_node in self.matrix.columns:
+                    missed_nodes.append(unit_node)
+            if len(missed_nodes)>0:
+                raise KeyNotInMatrixError(f'Узлы `{missed_nodes}` отсутствуют в матрице.')
             data = self.matrix[points]
 
         times =  self.state_algorithm(data, axis=1)
@@ -554,13 +567,14 @@ class ArrivalTimeMatrixState(StateBase):
         return times, nearest
 
 def get_atm(G,
-            data: pd.DataFrame    = None,
-            data_sample_size: int = None,
-            data_node_field: str  = 'node',
-            weight: str           = 'travel_time',
-            cutoff: float         = None,
-            delay: float          = DELAY_TIME,
-            target_set: set       = None,
+            data: pd.DataFrame     = None,
+            data_sample_size: int  = None,
+            data_node_field: str   = 'node',
+            weight: str            = 'travel_time',
+            cutoff: float          = None,
+            data_cutoff_field: str = None,
+            delay: float           = DELAY_TIME,
+            target_set: set        = None,
             ):
     '''
     Расчет матрицы времен прибытия.
@@ -590,6 +604,10 @@ def get_atm(G,
 
                 Имя поля содержащего вес ребер, или функция позволяющая вычислять 
                 вес динамически.
+
+    `cutoff`: float = None,
+
+        Размер расчетной области. По умолчанию производится расчет для сего графа.
 
     `delay`: float, optional = None
 
@@ -623,10 +641,14 @@ def get_atm(G,
     pb = Progressbar(len(data), bins=40)
     for di, dt in data.iterrows():
         node = dt[data_node_field]
+        if not data_cutoff_field is None:
+            cutoff = dt[data_cutoff_field]
+        else:
+            cutoff = cutoff - delay if not cutoff is None else None
         length = nx.single_source_dijkstra_path_length(
             GR,
             source = node,
-            cutoff = cutoff - delay if not cutoff is None else None,
+            cutoff = cutoff,
             weight = weight,
             )
         if not target_set is None:
