@@ -550,7 +550,7 @@ class ArrivalTimeMatrixState(StateBase):
         times = pd.Series(times, dtype=float, name='times') + self.delay
 
 
-        nearest = np.argmin(data, axis=1)
+        nearest = np.nanargmin(data, axis=1)
         if isinstance(points, dict):
             units = list(points.values())
         else:
@@ -642,13 +642,13 @@ def get_atm(G,
     for di, dt in data.iterrows():
         node = dt[data_node_field]
         if not data_cutoff_field is None:
-            cutoff = dt[data_cutoff_field]
+            ctf = dt[data_cutoff_field]
         else:
-            cutoff = cutoff - delay if not cutoff is None else None
+            ctf = cutoff - delay if not cutoff is None else None
         length = nx.single_source_dijkstra_path_length(
             GR,
             source = node,
-            cutoff = cutoff,
+            cutoff = ctf,
             weight = weight,
             )
         if not target_set is None:
