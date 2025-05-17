@@ -546,16 +546,19 @@ class ArrivalTimeMatrixState(StateBase):
                 raise KeyNotInMatrixError(f'Узлы `{missed_nodes}` отсутствуют в матрице.')
             data = self.matrix[points]
 
+        # Отброс строк в которых нет значений (недостижимых за t узлов
+        data = data[data.sum(axis=1) != 0]
+
+        # Получение времен прибытия
         times =  self.state_algorithm(data, axis=1)
         times = pd.Series(times, dtype=float, name='times') + self.delay
 
-
+        # Получение названий первых прибывающих подразделений
         nearest = np.nanargmin(data, axis=1)
         if isinstance(points, dict):
             units = list(points.values())
         else:
             units = points
-
         nearest = {k: units[v] for k, v in zip(times.index, nearest)}
         nearest = pd.Series(nearest, dtype=str, name='nearest')
 
