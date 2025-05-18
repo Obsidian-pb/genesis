@@ -36,7 +36,7 @@ book:
     - part: 300_for_users.qmd
       chapters: 
       - pages/310_state_modelling.ipynb
-    # - pages/320_analize.ipynb
+      - pages/320_analize.ipynb
     # - pages/330_blp.ipynb
     # - pages/340_mclp.ipynb
     # - pages/350_lscp.ipynb
