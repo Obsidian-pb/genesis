@@ -39,7 +39,7 @@ book:
       - pages/320_analize.ipynb
       - pages/330_blp.ipynb
       - pages/340_mclp.ipynb
-    # - pages/350_lscp.ipynb
+      - pages/350_lscp.ipynb
 
     # Раздел Для разработчиков
     # - pages/410_state_modelling.ipynb
