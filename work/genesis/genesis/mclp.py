@@ -528,7 +528,10 @@ class BestNodesGA(MCLPBase):
             if self.elite_size>0:
                 # Определение весов
                 pop_weight = pd.DataFrame({'w': weights, 'p': population})
-                pop_weight = pop_weight.sort_values('w', ascending=False)
+                if self.metric_function.compare(1,2) == 1:                      # Для минимизации:
+                    pop_weight = pop_weight.sort_values('w', ascending=True)
+                else:                                                           # Для максимизации
+                    pop_weight = pop_weight.sort_values('w', ascending=False)
                 pop_weight = pop_weight.iloc[:self.elite_size]
                 population = pop_weight['p'].to_list()
                 weights = pop_weight['w'].to_list()
@@ -573,7 +576,7 @@ class BestNodesGA(MCLPBase):
             # и весов в зависимости от приспособленности        
             if self.metric_function.compare(1,2)==1:    # Для минимизации:
                 max_val  = max(bot_fit)
-                weights = [max_val-x for x in bot_fit]
+                weights = [1.1*max_val-x for x in bot_fit]
                 cur_metric = min(bot_fit)
             else:                                       # Для максимизации
                 weights = bot_fit

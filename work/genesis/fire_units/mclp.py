@@ -225,7 +225,10 @@ class BestNodesGAKopt(MCLPBase):
             if self.elite_size>0:
                 # Определение весов
                 pop_weight = pd.DataFrame({'w': weights, 'p': population})
-                pop_weight = pop_weight.sort_values('w', ascending=False)
+                if self.metric_function.compare(1,2) == 2:
+                    pop_weight = pop_weight.sort_values('w', ascending=False)
+                else:
+                    pop_weight = pop_weight.sort_values('w', ascending=True)
                 pop_weight = pop_weight.iloc[:self.elite_size]
                 population = pop_weight['p'].to_list()
                 weights = pop_weight['w'].to_list()
