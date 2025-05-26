@@ -298,7 +298,7 @@ class BestNodesKoptG(MCLPBase):
             start_nodes = list_dict_concat(dynamic_nodes, static_nodes)
 
             # 4. Расчет состояния
-            times, nearest = self.state_function(env=env, points=start_nodes, **kwargs)   # area=area, 
+            times, nearest = self.state_function(env=env, points=start_nodes, **kwargs)
 
             # 5. Расчет метрики состояния
             state_metric = self.metric_function(times, area=area, **kwargs)
@@ -528,14 +528,11 @@ class BestNodesGA(MCLPBase):
             if self.elite_size>0:
                 # Определение весов
                 pop_weight = pd.DataFrame({'w': weights, 'p': population})
-                if self.metric_function.compare(1,2) == 1:                      # Для минимизации:
-                    pop_weight = pop_weight.sort_values('w', ascending=True)
-                else:                                                           # Для максимизации
-                    pop_weight = pop_weight.sort_values('w', ascending=False)
+                pop_weight = pop_weight.sort_values('w', ascending=False)
                 pop_weight = pop_weight.iloc[:self.elite_size]
                 population = pop_weight['p'].to_list()
                 weights = pop_weight['w'].to_list()
-                
+
                 new_population = population.copy()
             else:
                 new_population = []

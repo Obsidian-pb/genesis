@@ -31,7 +31,7 @@
 2. Внизу слева выберите **Environments** (Среды).
 3. Нажмите кнопку **Import** (Импорт).
 ![](imgs/env_setup_01.png){#fig-anaconda-import}
-4. В поле **Local drive** (Локальное хранилище) укажите путь к файлу `genesis.yaml`
+4. В поле **Local drive** (Локальное хранилище) укажите путь к файлу `genesis.yaml` [Скачать](https://cloud.mail.ru/public/ZUVE/UFQweuK5k)
 5. В поле **New environment name** (Имя нового окружения) укажите имя создаваемого виртуального окружения, например `genesis`
 ![](imgs/env_setup_02.png){#fig-import-env}
 6. Нажмите кнопку **Import** (Импорт)
@@ -123,7 +123,7 @@ conda create -n genesis -c conda-forge --strict-channel-priority osmnx ipykernel
 В настоящий момент библиотека Genesis все еще находится в процессе разработки. Поэтому установка ограничивается размещением рабочих папок библиотеки в рабочей папке вашего проекта.
 
 ### Шаг 1: Копирование файлов {.unnumbered}
-1. Сохраните архив `genesis.rar` в любую удобную папку.
+1. Сохраните архив `genesis.rar` [Скачать](https://cloud.mail.ru/public/CLWT/TD3yfUn5N) в любую удобную папку.
 2. Распакуйте архив и перенести папки `fire_units`, `genesis`, `graphs`, `lists` в рабочую папку проекта (папку в которой в дальнейшем будут размещаться ноутбуки и файлы с кодом Python).
 
 ---
