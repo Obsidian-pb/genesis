@@ -300,13 +300,20 @@ class LSCP_ADD(LSCPBase):
         iteration = 0
         name_index = self.start_names_index
         while len(matrix_temp) > 0:
-            # 1. Расчет оптимального размещения подразделений
-            node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
-            best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
-            node_column = matrix_temp[node_id]
+            # Если динамические узлы не были переданы, выполняем расчет
+            # ! Проверить !
+            if static_nodes is None:
+                all_nodes = best_dynamic_nodes
+            else:
+                all_nodes = list_dict_concat(best_dynamic_nodes, static_nodes)
+            if len(all_nodes) == 0:
+                # 1. Расчет оптимального размещения подразделений
+                node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+                best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
+                node_column = matrix_temp[node_id]
 
-            # 2. Отброс прикрытых узлов
-            matrix_temp = matrix_temp[node_column == False]
+                # 2. Отброс прикрытых узлов
+                matrix_temp = matrix_temp[node_column == False]
 
             
             # 3. Расчет текущей метрики
@@ -338,6 +345,14 @@ class LSCP_ADD(LSCPBase):
                                 dynamic_nodes=best_dynamic_nodes,
                                 static_nodes=static_nodes):
                     return best_dynamic_nodes, current_metric
+
+            # 1. Расчет оптимального размещения подразделений
+            node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+            best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
+            node_column = matrix_temp[node_id]
+
+            # 2. Отброс прикрытых узлов
+            matrix_temp = matrix_temp[node_column == False]
 
             # ========================================================
             iteration += 1
