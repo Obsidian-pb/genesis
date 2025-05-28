@@ -42,7 +42,13 @@ book:
       - pages/350_lscp.ipynb
 
     # Раздел Для разработчиков
-    # - pages/410_state_modelling.ipynb
+    - part: 400_for_developers.qmd
+      chapters:
+      # - pages/310_state_modelling.ipynb
+      # - pages/320_analize.ipynb
+      - pages/430_blp.ipynb
+      - pages/440_mclp.ipynb
+      - pages/450_lscp.ipynb      
 
     # Заключительный раздел
     - pages/910_short.qmd
@@ -61,6 +67,8 @@ format:
   html:
     # theme: cosmo
     theme: flatly
+    toc: true
+    toc-depth: 3
   # pdf:
   #   documentclass: scrreprt
 
