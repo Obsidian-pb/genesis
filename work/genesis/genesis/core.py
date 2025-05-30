@@ -69,8 +69,6 @@ class MetricBase:
 class StateBase():
     '''
     Базовый класс для класс-функций расчета состояния среды.
-
-    Лес Вороного, например.
     '''
     def __init__(self, state_algorithm, **kwargs):
         '''

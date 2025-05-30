@@ -40,6 +40,7 @@ book:
       - pages/330_blp.ipynb
       - pages/340_mclp.ipynb
       - pages/350_lscp.ipynb
+      - pages/360_lscp_package.ipynb
 
     # Раздел Для разработчиков
     - part: 400_for_developers.qmd
@@ -48,7 +49,8 @@ book:
       # - pages/320_analize.ipynb
       - pages/430_blp.ipynb
       - pages/440_mclp.ipynb
-      - pages/450_lscp.ipynb      
+      - pages/450_lscp.ipynb
+      # - pages/460_osmosis.qmd
 
     # Заключительный раздел
     - pages/910_short.qmd
