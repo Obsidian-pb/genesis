@@ -44,7 +44,7 @@ book:
     # Раздел Для разработчиков
     - part: 400_for_developers.qmd
       chapters:
-      # - pages/310_state_modelling.ipynb
+      - pages/410_state_modelling.ipynb
       # - pages/320_analize.ipynb
       - pages/430_blp.ipynb
       - pages/440_mclp.ipynb
