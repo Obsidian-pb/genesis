@@ -51,7 +51,7 @@ book:
       - pages/430_blp.qmd
       - pages/440_mclp.qmd
       - pages/450_lscp.qmd
-      # - pages/460_osmosis.qmd
+      - pages/460_osmosis.qmd
 
     # Заключительный раздел
     - pages/910_short.qmd
