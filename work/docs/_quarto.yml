@@ -45,11 +45,12 @@ book:
     # Раздел Для разработчиков
     - part: 400_for_developers.qmd
       chapters:
+      - pages/405_base_classes.qmd
       - pages/410_state_modelling.ipynb
       # - pages/320_analize.ipynb
-      - pages/430_blp.ipynb
-      - pages/440_mclp.ipynb
-      - pages/450_lscp.ipynb
+      - pages/430_blp.qmd
+      - pages/440_mclp.qmd
+      - pages/450_lscp.qmd
       # - pages/460_osmosis.qmd
 
     # Заключительный раздел
