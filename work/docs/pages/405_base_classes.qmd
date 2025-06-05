@@ -4,13 +4,15 @@
 
 Ниже описаны ключевые классы:
 
-- `MetricBase`  
-- `StateBase`  
-- `BestPointsBase`  
-- `MCLPBase`  
-- `StopCaseBase`  
-- `PointSelectorBase`  
-- `LSCPBase`  
+| Базовый Класс-функция | Описание |
+|--------------------|----------|
+| `MetricBase` | Метрики |
+| `StateBase` | Состояние |
+| `BestPointsBase` | Алгоритм BLP |
+| `MCLPBase` | Алгоритм MCLP |
+| `StopCaseBase` | Функция остановки |
+| `PointSelectorBase` | Селектор новых узлов |
+| `LSCPBase` | Алгоритм LSCP |
 
 ## MetricBase
 

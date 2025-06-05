@@ -17,6 +17,10 @@ class LSCPCommon(LSCPBase):
     '''
     Наиболее общий модульный алгоритм расчета количества и оптимального 
     размещения узлов для достижения целевой метрики.
+
+    ## Область применения
+        Определение размещения требуемого количества подразделений пожарной охраны
+        исходя из цели расчета. 
     '''
     def __init__(self,
                  mclp_function: MCLPBase,
@@ -27,6 +31,31 @@ class LSCPCommon(LSCPBase):
                  start_names_index: int = 1,
                  after_mclp_function: callable = None,
                  **kwargs):
+        '''
+        ## Аргументы
+
+        `mclp_function`: MCLPBase
+            функция решения задачи MCLP
+        `point_selector`: PointSelectorBase
+            функция выбора узла
+        `stop_case_function`: StopCaseBase
+            функция проверки достигнутой цели расчета
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `names_pattern`: str = '{}'
+            Шаблон имен подразделений.
+        `start_names_index`: int = 1
+            Стартовый номер подразделений.
+        `after_mclp_function`: callable = None
+            функция выполняемая после выполнения каждой итерации алгоритма.
+            Сигнатура функции:
+
+                after_mclp_function(iteration,
+                            best_metric,
+                            current_metric,
+                            dynamic_nodes,
+                            static_nodes)
+        '''
         if not hasattr(mclp_function, 'state_function'):
             raise TypeError('Аргумент `mclp_function` не является MCLPBase! Возможно передаваемая функция обернута или декорирована.')
         self.after_mclp_function = after_mclp_function
@@ -379,7 +408,7 @@ def drop_trash_points(env,
     '''
 
     # Переписать как MCLP
-
+    count = 0
     for node in dynamic_nodes:
         if len(dynamic_nodes) == 1:
             break
@@ -392,12 +421,12 @@ def drop_trash_points(env,
             all_nodes = list_dict_concat(tmp, static_nodes)
 
         metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
-        if stop_case_function(value=metric,
-                            iteration=0,
-                            best_metric=metric,
-                            dynamic_nodes=tmp,
-                            current_metric=metric,
-                            static_nodes=static_nodes):
+        if stop_case_function(value        = metric,
+                            iteration      = count,
+                            best_metric    = metric,
+                            dynamic_nodes  = tmp,
+                            current_metric = metric,
+                            static_nodes   = static_nodes):
             dynamic_nodes = tmp
 
     if static_nodes is None:

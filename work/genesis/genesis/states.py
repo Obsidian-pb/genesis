@@ -635,8 +635,8 @@ def get_atm(G,
             )
         if not target_set is None:
             length = {k:v for k,v in length.items() if k in target_set}
-        # d[di] = pd.Series(length) + delay
-        d[node] = pd.Series(length) + delay
+        d[di] = pd.Series(length) + delay
+        # d[node] = pd.Series(length) + delay
         pb()
 
     del GR

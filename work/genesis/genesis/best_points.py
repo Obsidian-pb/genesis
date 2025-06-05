@@ -389,7 +389,7 @@ class BestNodeHillClimbing(BestPointsBase):
         return best_node, best_metric
 
 
-# Временно здесь - потом вынести в отдельный модель для кастомизированных решений
+# Временно здесь - потом вынести в отдельный модуль для кастомизированных решений
 class BestNodeHillClimbing_maxMean(BestNodeHillClimbing):
     def __init__(self, 
                  state_function: StateBase,
