@@ -80,6 +80,11 @@ format:
     number-depth: 2
   # pdf:
   #   documentclass: scrreprt
+  docx:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    number-depth: 2
 
 crossref:
   fig-prefix: рис.      # (default is "Figure")

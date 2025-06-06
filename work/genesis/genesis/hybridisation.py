@@ -12,46 +12,124 @@ import warnings
 import networkx as nx
 import pandas as pd
 
-from genesis.core import BestPointsBase, MCLPBase, MetricBase, StateBase
+from genesis.core import BestPointsBase, LSCPBase, MCLPBase, MetricBase, StateBase
 
 
 
-class Boosting(MCLPBase):
+class Hybridization(MCLPBase):
     '''
     Реализация базового алгоритма MCLP как гибрида
 
     Является функцией гибридизации алгоритмов BestPoints, MCLP и LSCP,
-    методом бустинга, т.е. последовательного выполнения функций и передачи полученного 
+    методами бустинга и беггинга, т.е. последовательного выполнения функций и передачи полученного 
     результата далее.
     '''
     def __init__(self,
-                 functions: list,
-                 state_function:  StateBase      = None,
-                 metric_function: MetricBase     = None,
-                 function_end_function: callable =None,
+                 state_function:        StateBase,
+                 metric_function:       MetricBase,
+                 functions:             list,
+                 type_of_hybrid:        str        = 'Boosting',
+                 function_end_function: callable   = None,
                  **kwargs):
+        '''
+        ## Аргументы
+
+        `functions`: list
+            Список функций для гибридизации.
+
+        `type_of_hybrid`: str = 'Boosting'  
+            Тип гибридизации. Возможные варианты: 'Boosting' или 'Stacking'.
+            * 'Boosting' - метод бустинга, т.е. последовательного выполнения функций и передачи полученного 
+            результата далее.
+            * 'Stacking' - метод стекинга, т.е. параллельного выполнения функций и выбора лучшего результата.  
+
+        `state_function`: StateBase = None
+            Функция для расчета состояния.
+
+        `metric_function`: MetricBase = None
+            Функция для расчета основной метрики.
+
+        `function_end_function`: callable = None
+            Функция для выполнения после выполнения каждой функции.
+
+        `**kwargs`
+            Дополнительные аргументы для функций.
+        '''
 
         # 0. Проверка корректности пришедших данных
         if not isinstance(functions, list):
             raise TypeError('Аргумент `functions` должен быть типа list!')
-        if not isinstance(function_end_function, callable) and not function_end_function is None:
+        if not callable(function_end_function) and function_end_function is not None:
             raise TypeError('Аргумент `function_end_function` должен быть типа callable или иметь значение None!')
         if not isinstance(state_function, StateBase) and not state_function is None:
             raise TypeError('Аргумент `state_function` должен быть типа StateBase или иметь значение None!')
         if not isinstance(metric_function, MetricBase) and not metric_function is None:
             raise TypeError('Аргумент `metric_function` должен быть типа MetricBase или иметь значение None!')
+        if type_of_hybrid not in ['Boosting', 'Stacking']:
+            raise ValueError('Аргумент `type_of_hybrid` должен быть типа str и иметь значение "Boosting" или "Stacking"!')
 
         # 1. Сохранение данных в свойствах функции
-        self.functions = functions
+        self.functions             = functions
+        self.type_of_hybrid        = type_of_hybrid
         self.function_end_function = function_end_function
         super().__init__(state_function, metric_function, **kwargs)
+        
+
+    def set_type_of_hybrid(self, type_of_hybrid: str):
+        '''
+        Установить тип гибридизации
+
+        Аргументы:
+
+        `type_of_hybrid`: str = 'Boosting'  
+
+            Тип гибридизации. Возможные варианты: 'Boosting' или 'Stacking'.
+
+            'Boosting' - метод бустинга, т.е. последовательного выполнения функций и передачи полученного 
+            результата далее.
+
+            'Stacking' - метод стекинга, т.е. параллельного выполнения функций и выбора лучшего результата.  
+
+        '''
+        if type_of_hybrid not in ['Boosting', 'Stacking']:
+            raise ValueError('Аргумент `type_of_hybrid` должен быть типа str и иметь значение "Boosting" или "Stacking"!')
+        self.type_of_hybrid = type_of_hybrid
+
+
+    def append(self, func):
+        '''
+        Добавить функцию расчета
+        '''
+        if isinstance(func, (BestPointsBase, MCLPBase, LSCPBase)):
+            self.functions.append(func)
+        else:
+            raise TypeError('Аргумент `func` должен быть типом класса BestPoints, MCLP или LSCP!')
+        
+
+    def _main_metric(self, env, nodes, area=None, **kwargs):
+        '''
+        Расчет функции приспособленности
+        '''
+        # Расчет состояния
+        times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
+
+        if not area is None:
+            appr_nodes_count = area.sum() * self.appr_val_in_area
+            if len(times) < appr_nodes_count:
+                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
+                return self.bad_val_in_area
+
+        # Расчет стартовой метрики состояния и определение стартового размещения
+        best_metric = self.metric_function(times, **kwargs)
+
+        return best_metric
 
     
     def __call__(self,
-                 env:nx.Graph,
+                 env:           nx.Graph,
                  dynamic_nodes: dict,
-                 static_nodes: dict = None,
-                 area: pd.Series = None,
+                 static_nodes:  dict      = None,
+                 area:          pd.Series = None,
                  **kwargs):
         '''
         ## Аргументы
@@ -85,30 +163,54 @@ class Boosting(MCLPBase):
         # 0. Проверка корректности пришедших данных
         if not isinstance(env, nx.Graph):
             raise TypeError("Тип аргумента `env` должен быть Graph!")
-        if not static_nodes is None:
-            if not (isinstance(dynamic_nodes,dict) and isinstance(static_nodes,dict)):
-                raise TypeError(f'Аргументы `dynamic_nodes` и `static_nodes` должны быть одинакового типа: dict'
-                                f'Имеют: {type(dynamic_nodes)}, {type(static_nodes)}')
+        if not isinstance(dynamic_nodes, dict) and not dynamic_nodes is None:
+            raise TypeError(f'Аргумент `dynamic_nodes` должен иметь тип `dict`! Имеет {type(area)}')
+        if not isinstance(static_nodes, dict) and not static_nodes is None:
+            raise TypeError(f'Аргумент `static_nodes` должен иметь тип `dict`! Имеет {type(area)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
-        if len(dynamic_nodes) <1:
-            raise ValueError(f'Количество элементов `dynamic_nodes` не может быть равно 0! Сейчас {(len(dynamic_nodes) + len(static_nodes))}')
 
-        # 1. Сбор данных о размещении в единый словарь
-        if not static_nodes is None:
-            best_nodes = {**dynamic_nodes, **static_nodes}
-        else:
-            best_nodes = dynamic_nodes
+
+        main_best_metric = None
+        main_best_nodes  = None
+        best_nodes = dynamic_nodes.copy()
 
         # 2. Последовательный перебор всех функций
+        i = 0
         for m in self.functions:
-            best_nodes, metric_val = m(env           = env,
+            if self.type_of_hybrid == 'Boosting':
+                best_nodes, cur_metric = m(env       = env,
                                        area          = area,
                                        dynamic_nodes = best_nodes,
+                                       static_nodes  = static_nodes,
                                        **kwargs)
+            elif self.type_of_hybrid == 'Stacking':
+                best_nodes, cur_metric = m(env       = env,
+                                       area          = area,
+                                       dynamic_nodes = dynamic_nodes.copy(),
+                                       static_nodes  = static_nodes,
+                                       **kwargs)
+            # Оценка основной метрики
+            if not static_nodes is None:
+                all_nodes = {**best_nodes, **static_nodes}
+            else:
+                all_nodes = best_nodes
+            best_metric = self._main_metric(env, all_nodes, area, **kwargs)
+            # Проверяем улучшилась ли основная метрика, если да, то сохраняем результат
+            if main_best_metric is None or \
+                    self.metric_function.compare(main_best_metric, best_metric) == best_metric:
+                main_best_nodes  = best_nodes
+                main_best_metric = best_metric
+            # Печать результатов
+            if self.function_end_function:
+                self.function_end_function(turn = i,
+                            best_metric = main_best_metric,
+                            cur_metric = cur_metric,
+                            best_nodes = main_best_nodes)
+            i += 1
 
         # 3. Возвращаем результат
-        return best_nodes, metric_val
+        return main_best_nodes, main_best_metric
 
 
 
@@ -161,8 +263,9 @@ class AdapterBLP2MCLP(MCLPBase):
 
     def __call__(self,
                  env,
-                 area = None,
+                 area                = None,
                  dynamic_nodes: dict = None,
+                 static_nodes:  dict = None,
                  **kwargs) -> tuple[dict, int | float]:
         '''
         # Аргументы
@@ -180,6 +283,12 @@ class AdapterBLP2MCLP(MCLPBase):
 
             Список стартовых узлов графа в которых размещены
             подразделения оптимальные места которых следует определить.
+        
+        `static_nodes`: dict = None
+
+            Список стартовых узлов графа в которых размещены
+            подразделения изменять размещение которых не следует.
+            Для BLP не используется.
 
         `**kwargs`
             
@@ -201,7 +310,12 @@ class AdapterBLP2MCLP(MCLPBase):
         start_point, start_key = list(dynamic_nodes.items())[0]
 
         # Расчет лучшего узла с использованием BLP
-        best_node, best_metric = self.blp_function(env=env, area=area, start_point = start_point, **kwargs)
+        best_node, best_metric = self.blp_function(
+            env=env,
+            area=area,
+            start_point = start_point,
+            points_list = dynamic_nodes,
+            **kwargs)
 
         # Конвертация результата в результат метода MCLP
         return {best_node: start_key}, best_metric
