@@ -901,7 +901,7 @@ class BestNodeBee(BestNodeHillClimbing):
 class BestNodeSquareZoom(BestPointsBase):
     """
     Требуется тестирование! Использование не рекомендуется.
-    
+
     Поиск лучшего узла графа методом рекурсивного деления области на квадраты.
     1. Проекция графа в локальную систему координат.
     2. Определение главного прямоугольника, в который вписаны узлы графа.
@@ -909,7 +909,11 @@ class BestNodeSquareZoom(BestPointsBase):
     4. В каждом квадрате случайная выборка до n узлов и вычисление метрики.
     5. Выбор квадрата с узлом наилучшей метрики и рекурсия, пока количество узлов в квадрате не <= n_min_count.
     """
-    def __init__(self, state_function: StateBase, metric_function: MetricBase, n_samples: int = 10, n_min_count: int = 5, **kwargs):
+    def __init__(self,
+                 state_function: StateBase,
+                 metric_function: MetricBase,
+                 n_samples: int = 10,
+                 n_min_count: int = 10, **kwargs):
         """
         `state_function`: StateBase — функция расчета состояния окружения.
         `metric_function`: MetricBase — функция расчета метрики.
