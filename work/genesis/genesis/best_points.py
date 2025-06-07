@@ -900,8 +900,6 @@ class BestNodeBee(BestNodeHillClimbing):
 
 class BestNodeSquareZoom(BestPointsBase):
     """
-    Требуется тестирование! Использование не рекомендуется.
-
     Поиск лучшего узла графа методом рекурсивного деления области на квадраты.
     1. Проекция графа в локальную систему координат.
     2. Определение главного прямоугольника, в который вписаны узлы графа.
@@ -909,22 +907,29 @@ class BestNodeSquareZoom(BestPointsBase):
     4. В каждом квадрате случайная выборка до n узлов и вычисление метрики.
     5. Выбор квадрата с узлом наилучшей метрики и рекурсия, пока количество узлов в квадрате не <= n_min_count.
     """
-    def __init__(self,
-                 state_function: StateBase,
-                 metric_function: MetricBase,
-                 n_samples: int = 10,
-                 n_min_count: int = 10, **kwargs):
+    def __init__(self, state_function: StateBase,
+                metric_function: MetricBase,
+                n_samples: int = 10,
+                n_min_count: int = 5,
+                step_end_function: callable = None,
+                **kwargs):
         """
         `state_function`: StateBase — функция расчета состояния окружения.
         `metric_function`: MetricBase — функция расчета метрики.
         `n_samples`: int — максимальное число узлов для оценки в каждом квадрате.
         `n_min_count`: int — минимальное число узлов для останова рекурсии.
+        `step_end_function` - функция, вызываемая после каждого шага рекурсии.
         """
         self.n_samples = n_samples
         self.n_min_count = n_min_count
+        self.step_end_function = step_end_function
         super().__init__(state_function, metric_function, **kwargs)
 
-    def __call__(self, env: nx.Graph, area=None, start_point: int = None, points_list: set = None, **kwargs) -> tuple[int | None, float | None]:
+    def __call__(self, env: nx.Graph,
+                area=None, 
+                start_point: int = None,
+                points_list: set = None,
+                **kwargs) -> tuple[int | None, float | None]:
         """
         `env`: MultiDiGraph — граф улично-дорожной сети.
         `area`: pandas.Series — маска узлов графа для расчёта доступности (см. NodeMetric).
@@ -932,13 +937,12 @@ class BestNodeSquareZoom(BestPointsBase):
         `points_list`: set — начальный набор узлов-кандидатов.
         Возвращает `(best_node, best_metric)`.
         """
-
         # Подготовка исходных узлов
         if points_list is None:
             current_nodes = list(env.nodes())
         else:
             current_nodes = list(points_list)
-
+        # Проекция графа
         # Проекция графа только если он в географической системе координат
         if env.graph['crs'] == 'epsg:4326':
             G = ox.project_graph(env)
@@ -948,14 +952,8 @@ class BestNodeSquareZoom(BestPointsBase):
         best_node = None
         best_metric = None
 
+        level = 1
         while True:
-
-            # Ограничиваем текущие узлы маской area, если задана
-            if area is not None:
-                current_nodes = [u for u in current_nodes if area.get(u, False)]
-            if not current_nodes:
-                return None, None
-            
             # Координаты узлов
             xs = [G.nodes[u]['x'] for u in current_nodes]
             ys = [G.nodes[u]['y'] for u in current_nodes]
@@ -963,7 +961,6 @@ class BestNodeSquareZoom(BestPointsBase):
             y_min, y_max = min(ys), max(ys)
             dx, dy = x_max - x_min, y_max - y_min
             size = min(dx, dy) / 2
-
             # Создание квадратов
             nx_squares = int(math.ceil(dx / size))
             ny_squares = int(math.ceil(dy / size))
@@ -972,24 +969,22 @@ class BestNodeSquareZoom(BestPointsBase):
                 for j in range(ny_squares):
                     x0, y0 = x_min + i * size, y_min + j * size
                     squares.append((x0, y0, x0 + size, y0 + size))
-
             # Оценка квадратов
             best_node_sq = None
             best_metric_sq = None
             best_square_nodes = None
+            square = 1
+            best_square = None
             for x0, y0, x1, y1 in squares:
-
                 # Узлы в квадрате
                 nodes_sq = [u for u in current_nodes if x0 <= G.nodes[u]['x'] <= x1 and y0 <= G.nodes[u]['y'] <= y1]
                 if not nodes_sq:
                     continue
-
                 # Выборка узлов
                 if len(nodes_sq) > self.n_samples:
                     sample = random.sample(nodes_sq, self.n_samples)
                 else:
                     sample = nodes_sq
-
                 # Оценка узлов
                 for u in sample:
                     node_metric = node_metric_fn(env=G, node=u, area=area, **kwargs)
@@ -999,17 +994,26 @@ class BestNodeSquareZoom(BestPointsBase):
                         best_metric_sq = node_metric
                         best_node_sq = u
                         best_square_nodes = nodes_sq
-
+                        best_square = (x0, y0, x1, y1)
+                square += 1
+            # best_squares.append(best_square)
             if best_node_sq is None:
                 break
             best_node, best_metric = best_node_sq, best_metric_sq
-
             # Проверка условия останова
             if len(best_square_nodes) <= self.n_min_count:
                 break
-
             # Переход к узлам лучшего квадрата
             current_nodes = best_square_nodes
+            # Печать результата
+            if self.step_end_function is not None:
+                self.step_end_function(
+                    step        = level,
+                    best_node   = best_node,
+                    best_metric = best_metric,
+                    best_square = best_square)
+            # Уменьшение масштаба квадратов
+            level += 1
 
         return best_node, best_metric
 
