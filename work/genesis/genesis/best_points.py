@@ -1017,3 +1017,101 @@ class BestNodeSquareZoom(BestPointsBase):
 
         return best_node, best_metric
 
+
+class BestNodeCircleZoom(BestPointsBase):
+    """
+    Поиск лучшего узла графа методом рекурсивного деления области на вложенные окружности.
+    1. Проекция графа в локальную систему координат.
+    2. Определение окружности, в которую вписаны все узлы графа.
+    3. В пределах окружности случайная выборка до n узлов и вычисление метрики.
+    4. Выбор узла с наилучшей метрикой.
+    5. Построение окружности с радиусом вдвое меньше предыдущего и центром в наилучшем узле.
+    6. Повторять шаги 3-5, пока количество узлов в окружности не <= n_min_count.
+    """
+    def __init__(self, state_function: StateBase,
+                 metric_function: MetricBase,
+                 n_samples: int = 10,
+                 n_min_count: int = 5,
+                 step_end_function: callable = None,
+                 **kwargs):
+        self.n_samples = n_samples
+        self.n_min_count = n_min_count
+        self.step_end_function = step_end_function
+        super().__init__(state_function, metric_function, **kwargs)
+    
+    def __call__(self, env: nx.Graph,
+                 area=None,
+                 start_point: int = None,
+                 points_list: set = None,
+                 **kwargs) -> tuple[int | None, float | None]:
+        # Подготовка исходных узлов
+        if points_list is None:
+            current_nodes = list(env.nodes())
+        else:
+            current_nodes = list(points_list)
+        # Проекция графа
+        if env.graph.get('crs') == 'epsg:4326':
+            G = ox.project_graph(env)
+        else:
+            G = env
+        # Координаты узлов
+        xs = [G.nodes[u]['x'] for u in current_nodes]
+        ys = [G.nodes[u]['y'] for u in current_nodes]
+        x_min, x_max = min(xs), max(xs)
+        y_min, y_max = min(ys), max(ys)
+        # Центр и радиус окружности
+        center_x = (x_min + x_max) / 2
+        center_y = (y_min + y_max) / 2
+        radius = max(math.hypot(G.nodes[u]['x'] - center_x,
+                                G.nodes[u]['y'] - center_y)
+                     for u in current_nodes)
+        node_metric_fn = NodeMetric(self.state_function, self.metric_function)
+        best_node = None
+        best_metric = None
+        level = 1
+        current_center = (center_x, center_y)
+        current_radius = radius
+        while True:
+            # Узлы внутри текущей окружности
+            circle_nodes = [u for u in current_nodes
+                            if math.hypot(G.nodes[u]['x'] - current_center[0],
+                                          G.nodes[u]['y'] - current_center[1])
+                            <= current_radius]
+            if not circle_nodes:
+                break
+            # Случайная выборка узлов
+            if len(circle_nodes) > self.n_samples:
+                sample = random.sample(circle_nodes, self.n_samples)
+            else:
+                sample = circle_nodes
+            # Оценка узлов в выборке
+            best_node_iter = None
+            best_metric_iter = None
+            for u in sample:
+                m = node_metric_fn(env=G, node=u, area=area, **kwargs)
+                if m is None:
+                    continue
+                if best_metric_iter is None or \
+                   self.metric_function.compare(m, best_metric_iter) == m:
+                    best_metric_iter = m
+                    best_node_iter = u
+            if best_node_iter is None:
+                break
+            best_node, best_metric = best_node_iter, best_metric_iter
+            # Условие останова
+            if len(circle_nodes) <= self.n_min_count:
+                break
+            # Обновление центра и радиуса
+            current_center = (G.nodes[best_node]['x'], G.nodes[best_node]['y'])
+            current_radius /= 2
+            # Вызов функции после шага
+            if self.step_end_function:
+                self.step_end_function(
+                    step=level,
+                    best_node=best_node,
+                    best_metric=best_metric,
+                    center=current_center,
+                    radius=current_radius)
+            level += 1
+        return best_node, best_metric
+
