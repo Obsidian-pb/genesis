@@ -5,11 +5,14 @@
 
 from collections import defaultdict
 
+import numpy as np
+
 import osmnx as ox
 from osmnx import utils
 import networkx as nx
 import geopandas as gpd
 from shapely.ops import unary_union
+from shapely.geometry import MultiLineString
 
 
 
@@ -27,12 +30,25 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     '''
     Алгоритм собирает граф дорожной сети на основе геометрии входного векторного GeoDataFrame
 
-    # Аргументы
+    Аргументы
+    ---------
     `roads`: gpd.GeoDataFrame
         Датафрейм дорог
     `columns_list`: list
         Список полей, которые должны сохраниться в итоговом графе
+
+    Возвращает
+    ----------
+    `nx.MultiDiGraph`
+        Граф улично-дорожной сети
+    ``
     '''
+    import warnings
+
+    # Проверка наличия колонок
+    missing_cols = [col for col in columns_list if col not in roads.columns]
+    if missing_cols:
+        raise ValueError(f"В GeoDataFrame отсутствуют необходимые колонки: {missing_cols}")
 
     # Запомним исходную СК
     crs = roads.crs
@@ -40,7 +56,7 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     # Спроектируем DataFrame в местную метрическую систему координат
     try:
         roads_p = ox.projection.project_gdf(roads)
-    except:
+    except Exception:
         roads_p = roads
         pass
 
@@ -62,57 +78,78 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     for _, road in roads_p.iterrows():
         geometry = road['geometry']
 
-        Warning('Необходимо добавить проверку наличия соответствующих колонок')
+        # Обработка MultiLineString
+        # Это нужно проверить
+        if isinstance(geometry, MultiLineString):
+            lines = geometry.geoms
+        else:
+            lines = [geometry]
+
         road_data = road[columns_list]
-        road_data = {k:v[0] if isinstance(v, list) else v for k,v in road_data.items()}
+        road_data = {k: v[0] if isinstance(v, list) else v for k, v in road_data.items()}
 
-        # Координаты всех точек в линии
-        coords = list(geometry.coords)
+        # Перебираем все линии в геометрии (может быть несколько для MultiLineString)
+        for line in lines:
+            coords = list(line.coords)
 
-        # Добавляем узлы в граф
-        for coord in coords:
-            if not coord in nodes_dict:
-                nodes_dict[coord] = node_id
-                node_id += 1
+            # Добавляем узлы в граф
+            for coord in coords:
+                if coord not in nodes_dict:
+                    nodes_dict[coord] = node_id
+                    node_id += 1
+                G.add_node(nodes_dict[coord], x=coord[0], y=coord[1])
 
-            G.add_node(nodes_dict[coord], x = coord[0], y = coord[1])
+            # Добавляем ребра в граф
+            for coord1, coord2 in zip(coords[:-1], coords[1:]):
+                length = ox.distance.euclidean(y1=coord1[1], x1=coord1[0],
+                                              y2=coord2[1], x2=coord2[0])
 
-        # Добавляем ребра в граф
-        for coord1, coord2 in zip(coords[:-1], coords[1:]):
-            # Важно! Здесь сейчас длина просто берется из данных указанных в участке дороги на карте. НО должна вычисляться!
-            length = ox.distance.euclidean(y1 = coord1[1], x1 = coord1[0],
-                                        y2 = coord2[1], x2 = coord2[0])
+                # Универсальная обработка oneway
+                oneway = road_data.get('oneway', False)
+                # Проверка на NaN
+                if isinstance(oneway, float) and np.isnan(oneway):
+                    oneway = False
+                elif isinstance(oneway, str):
+                    oneway = oneway.lower() in ['yes', 'true', '1']
+                elif isinstance(oneway, (int, float)):
+                    oneway = bool(oneway)
+                road_data['oneway'] = oneway
 
-            # Добавляем ребра в обе стороны
-            if road['oneway'] == False:
-                # Получаем ключ ребра
-                key = existed_edges_dict.get((nodes_dict[coord2], nodes_dict[coord1]), 0)
-                # Добавляем ребро
-                G.add_edge(nodes_dict[coord2], nodes_dict[coord1], key,
-                           **road_data,
-                           length=length)
-                # Указываем количество имеющихся ребер
-                existed_edges_dict[(nodes_dict[coord2], nodes_dict[coord1])] = key + 1
-            else:
-                # Добавляем ребро в обратную сторону и в прямую
-                # if road['reversed']:
-                #     # Получаем ключ ребра
-                #     key = existed_edges_dict.get((nodes_dict[coord2], nodes_dict[coord1]), 0)
-                #     # Добавляем ребро
-                #     G.add_edge(nodes_dict[coord2], nodes_dict[coord1], key,
-                #                **road_data,
-                #                length=length)
-                #     # Указываем количество имеющихся ребер
-                #     existed_edges_dict[(nodes_dict[coord2], nodes_dict[coord1])] = key + 1
-                # else:
-                # Получаем ключ ребра
-                key = existed_edges_dict.get((nodes_dict[coord1], nodes_dict[coord2]), 0)
-                # Добавляем ребро
-                G.add_edge(nodes_dict[coord1], nodes_dict[coord2], key,
-                            **road_data,
-                            length=length)
-                # Указываем количество имеющихся ребер
-                existed_edges_dict[(nodes_dict[coord1], nodes_dict[coord2])] = key + 1
+                # Универсальная обработка reversed
+                reversed_val = road_data.get('reversed', False)
+                if isinstance(reversed_val, float) and np.isnan(reversed_val):
+                    reversed_val = False
+                elif isinstance(reversed_val, str):
+                    reversed_val = reversed_val.lower() in ['yes', 'true', '1']
+                elif isinstance(reversed_val, (int, float)):
+                    reversed_val = bool(reversed_val)
+                road_data['reversed'] = reversed_val
+
+                if not oneway:
+                    # Двусторонняя дорога — ребра в обе стороны
+                    key = existed_edges_dict.get((nodes_dict[coord2], nodes_dict[coord1]), 0)
+                    G.add_edge(nodes_dict[coord2], nodes_dict[coord1], key,
+                               **road_data, length=length)
+                    existed_edges_dict[(nodes_dict[coord2], nodes_dict[coord1])] = key + 1
+
+                    key = existed_edges_dict.get((nodes_dict[coord1], nodes_dict[coord2]), 0)
+                    G.add_edge(nodes_dict[coord1], nodes_dict[coord2], key,
+                               **road_data, length=length)
+                    existed_edges_dict[(nodes_dict[coord1], nodes_dict[coord2])] = key + 1
+                else:
+                    # Односторонняя дорога
+                    if reversed_val:
+                        # Движение в обратном направлении
+                        key = existed_edges_dict.get((nodes_dict[coord2], nodes_dict[coord1]), 0)
+                        G.add_edge(nodes_dict[coord2], nodes_dict[coord1], key,
+                                   **road_data, length=length)
+                        existed_edges_dict[(nodes_dict[coord2], nodes_dict[coord1])] = key + 1
+                    else:
+                        # Движение в прямом направлении
+                        key = existed_edges_dict.get((nodes_dict[coord1], nodes_dict[coord2]), 0)
+                        G.add_edge(nodes_dict[coord1], nodes_dict[coord2], key,
+                                   **road_data, length=length)
+                        existed_edges_dict[(nodes_dict[coord1], nodes_dict[coord2])] = key + 1
 
     # перепроецируем граф к исходной системе координат
     G = ox.projection.project_graph(G, to_crs=crs)

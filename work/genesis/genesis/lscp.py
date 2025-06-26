@@ -401,34 +401,65 @@ def drop_trash_points(env,
                     area=None,
                     ):
     '''
-    Функция отброса мусорных размещений.
-    В данном случае используется жадное удаление
+    Функция отбора «мусорных» (лишних) точек размещения методом жадного удаления.
 
-    
+    На каждом шаге поочередно пробует удалить каждую точку из dynamic_nodes и вычисляет метрику для нового набора.
+    Если после удаления метрика удовлетворяет критерию останова (stop_case_function), точка окончательно удаляется.
+    Процесс повторяется, пока не останется одна точка или не будет достигнут критерий останова.
+
+    Аргументы
+    ---------
+    `env` : object
+        Окружение или данные, необходимые для вычисления метрики.
+    `state_function` : StateBase
+        Функция или объект для вычисления состояния.
+    `metric_function` : MetricBase
+        Функция или объект для вычисления метрики.
+    `stop_case_function` : StopCaseBase
+        Функция или объект, определяющий критерий останова.
+    `dynamic_nodes` : dict
+        Словарь динамических (удаляемых) точек размещения.
+    `static_nodes` : dict, optional
+        Словарь статических (неудаляемых) точек размещения (по умолчанию None).
+    `area` : object, optional
+        Дополнительная область или параметры для метрики (по умолчанию None).
+
+    Возвращает
+    ----------
+    `dynamic_nodes` : dict
+        Оставшиеся динамические точки размещения после отбора.
+    `metric` : float
+        Значение метрики для итогового набора точек.
     '''
 
-    # Переписать как MCLP
+    # TODO: В будущем переписать как MCLP
+
+    # Жадное удаление точек: поочередно пробуем удалить каждую точку
     count = 0
     for node in dynamic_nodes:
         if len(dynamic_nodes) == 1:
-            break
+            break  # Оставляем хотя бы одну точку
         tmp = dynamic_nodes.copy()
-        tmp.pop(node)
+        tmp.pop(node)  # Пробуем удалить текущую точку
 
+        # Формируем новый набор точек для оценки
         if static_nodes is None:
             all_nodes = tmp
         else:
             all_nodes = list_dict_concat(tmp, static_nodes)
 
+        # Вычисляем метрику для нового набора точек
         metric = NodesMetric(state_function, metric_function)(env, list(all_nodes.keys()), area=area)
+        # Проверяем критерий останова
         if stop_case_function(value        = metric,
                             iteration      = count,
                             best_metric    = metric,
                             dynamic_nodes  = tmp,
                             current_metric = metric,
                             static_nodes   = static_nodes):
-            dynamic_nodes = tmp
+            dynamic_nodes = tmp  # Если критерий выполнен — удаляем точку
 
+    # Итоговая метрика для оставшихся точек
     if static_nodes is None:
         all_nodes = dynamic_nodes
     else:

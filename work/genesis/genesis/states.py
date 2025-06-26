@@ -450,6 +450,8 @@ class ArrivalTimeMatrixState(StateBase):
                  delay = 0,
                  **kwargs):
         '''
+        УСТАРЕВШЕЕ - не использовать! В последующих версиях будет удалено.
+        
         Расчет параметров прибытия на основе предварительно 
         рассчитанной матрицы времен прибытия
 
@@ -554,6 +556,7 @@ class ArrivalTimeMatrixState(StateBase):
             nearest = nearest[area]
 
         return times, nearest
+
 
 def get_atm(G,
             data: pd.DataFrame     = None,
