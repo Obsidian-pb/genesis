@@ -7,7 +7,6 @@
 - fire_units
 - genesis
 - graphs
-- lists
 
 В папку `C:\Program Files\QGIS 3.34.11\apps\Python312\lib\site-packages`.
 

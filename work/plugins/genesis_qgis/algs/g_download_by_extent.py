@@ -98,15 +98,6 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Необходимо ли произвести упрощение графа
-        # self.addParameter(
-        #     QgsProcessingParameterBoolean (
-        #         'SIMPLIFY',
-        #         self.tr('Упростить граф'),
-        #         False
-        #     )
-        # )
-
         # Необходимо ли получить все компоненты графа
         self.addParameter(
             QgsProcessingParameterBoolean (
@@ -165,16 +156,7 @@ class GDownloadAlgorithm(QgsProcessingAlgorithm):
         if crs is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
         feedback.pushInfo(crs.authid())
-
-        # ## Получаем флаг необходимости упрощения графа
-        # simplify = self.parameterAsBoolean(
-        #     parameters,
-        #     'SIMPLIFY',
-        #     context
-        # )
-        # if simplify is None:
-        #     raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
-        
+       
         ## Получаем флаг необходимости получения изолированных компонентов
         retain_all = self.parameterAsBoolean(
             parameters,

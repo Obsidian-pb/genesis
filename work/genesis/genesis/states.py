@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+import geopandas as gpd
 # import geopandas as gpd
 import networkx as nx
 import osmnx as ox
@@ -559,7 +560,7 @@ class ArrivalTimeMatrixState(StateBase):
 
 
 def get_atm(G,
-            data: pd.DataFrame     = None,
+            data: gpd.GeoDataFrame = None,
             data_sample_size: int  = None,
             data_node_field: str   = 'node',
             weight: str            = 'travel_time',

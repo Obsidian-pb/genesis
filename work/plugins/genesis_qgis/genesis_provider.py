@@ -23,6 +23,7 @@ from .algs.a_arrival_matrix import ArrivalMatrixAlgorithm
 from .algs.a_blp_msa import BLPMSAAlgorithm
 from .algs.a_mclp import MCLPCommonAlgorithm
 from .algs.a_lscp import LSCPCommonAlgorithm
+from .algs.a_blp_add import BLPAddAlgorithm
 
 
 
@@ -54,6 +55,7 @@ class GenesisProvider(QgsProcessingProvider):
         self.addAlgorithm(ArrivalMatrixAlgorithm())
 
         self.addAlgorithm(BLPMSAAlgorithm())
+        self.addAlgorithm(BLPAddAlgorithm())
 
         self.addAlgorithm(MCLPCommonAlgorithm())
 
