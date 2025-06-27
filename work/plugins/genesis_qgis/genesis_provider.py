@@ -20,7 +20,7 @@ from .algs.g_precompile import GPrecompileAlgorithm
 from .algs.a_shotest_path_p2p import ShortestPathP2PAlgorithm
 from .algs.a_first_unit_arrive import FirstArrivalUnitAlgorithm
 from .algs.a_arrival_matrix import ArrivalMatrixAlgorithm
-from .algs.a_blp_msa import BLPMSAAlgorithm
+from .algs.a_blp_msa import BLPADDlgorithm
 from .algs.a_mclp import MCLPCommonAlgorithm
 from .algs.a_lscp import LSCPCommonAlgorithm
 
@@ -52,13 +52,13 @@ class GenesisProvider(QgsProcessingProvider):
 
         self.addAlgorithm(ShortestPathP2PAlgorithm())
         self.addAlgorithm(FirstArrivalUnitAlgorithm())
-        self.addAlgorithm(ArrivalMatrixAlgorithm())
+        # self.addAlgorithm(ArrivalMatrixAlgorithm())
 
-        self.addAlgorithm(BLPMSAAlgorithm())
+        self.addAlgorithm(BLPADDlgorithm())
 
-        self.addAlgorithm(MCLPCommonAlgorithm())
+        # self.addAlgorithm(MCLPCommonAlgorithm())
 
-        self.addAlgorithm(LSCPCommonAlgorithm())
+        # self.addAlgorithm(LSCPCommonAlgorithm())
 
     def id(self):
         return 'Genesis'

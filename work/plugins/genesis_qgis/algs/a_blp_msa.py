@@ -1,5 +1,5 @@
 """
-Определение оптимального размещения единственного подразделения
+Определение оптимального размещения n подразделений
 """
 
 import os
@@ -55,9 +55,9 @@ pluginPath = os.path.split(os.path.split(os.path.dirname(__file__))[0])[0]
 
 
 
-class BLPMSAAlgorithm(QgsProcessingAlgorithm):
+class BLPADDlgorithm(QgsProcessingAlgorithm):
     """
-    Расчет кратчайшего маршрута между двумя точками.
+    Алгоритм расчета мест размещения заданного количества подразделений.
     """
 
     INPUT              = 'INPUT'
@@ -66,11 +66,12 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
     AREA_POLYGON_LAYER = 'AREA_POLYGON_LAYER'
     SPEEDS             = 'SPEEDS'
     TRAVEL_TIME_FIELD  = 'TRAVEL_TIME_FIELD'
+    WEIGHT             = 'WEIGHT'
 
     OPTIMIZED_METRIC   = 'OPTIMIZED_METRIC'
-    GLOBAL_JUMPS       = 'GLOBAL_JUMPS'
-    LOCAL_JUMPS        = 'LOCAL_JUMPS'
-    JUMP_DISTANCE      = 'JUMP_DISTANCE'
+    #GLOBAL_JUMPS       = 'GLOBAL_JUMPS'
+    #LOCAL_JUMPS        = 'LOCAL_JUMPS'
+    #JUMP_DISTANCE      = 'JUMP_DISTANCE'
 
     RESULT_LAYER_NAME  = 'RESULT_LAYER_NAME'
     SIMPLIFY           = 'SIMPLIFY'
@@ -90,7 +91,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return BLPMSAAlgorithm()
+        return BLPADDlgorithm()
 
     def name(self):
         """
@@ -108,7 +109,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('Оптимальное размещение 1 подразделения')
+        return self.tr('Оптимальное размещение n подразделений')
 
     def groupId(self):
         """
@@ -134,16 +135,41 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         Все это будет указываться в окне интерфейса алгоритма.
         """
 
-        # Слой дорожной сети
+        # Слой улично-дорожной сети
         self.addParameter(QgsProcessingParameterFeatureSource (
             self.INPUT, self.tr('Слой улично-дорожной сети'),[QgsProcessing.TypeVectorLine]
             ))
+        # # Поле веса ребер графа
+        # self.addParameter(QgsProcessingParameterField(
+        #     'WEIGHT',
+        #     self.tr('Поле веса ребер графа'),
+        #     parentLayerParameterName=self.INPUT,
+        #     type=QgsProcessingParameterField.Numeric,
+        #     defaultValue='travel_time',            
+        #     optional=False
+        # ))
+        # Количество размещаемых подразделений
+        self.addParameter(QgsProcessingParameterNumber(
+            'TARGET_UNITS_COUNT',
+            self.tr('Количество размещаемых подразделений'),
+            QgsProcessingParameterNumber.Integer,
+            defaultValue=1,
+            optional=False
+        ))
         # Целевой слой прибытия
         self.addParameter(QgsProcessingParameterFeatureSource (
-            self.TARGET_LAYER, self.tr('Целевой слой прибытия (если не указан, рассчитывается для узлов графа)'),
+            self.TARGET_LAYER, self.tr('Целевой слой прибытия (например, здания))'),
             [QgsProcessing.TypeVectorPoint, QgsProcessing.TypeVectorPolygon],
-            optional=True,
+            optional=False,
             ))
+        # Расчетное время прибытия
+        self.addParameter(QgsProcessingParameterNumber(
+            'CUTOFF',
+            self.tr('Расчетное время прибытия (мин)'),
+            QgsProcessingParameterNumber.Integer,
+            defaultValue=10,
+            optional=False
+        ))
         # Слой существующих подразделений
         self.addParameter(QgsProcessingParameterFeatureSource (
             self.EXISTED_UNITS, self.tr('Существующие подразделения'),[QgsProcessing.TypeVectorPoint],
@@ -155,10 +181,10 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             [QgsProcessing.TypeVectorPoint, QgsProcessing.TypeVectorPolygon],
             optional=True,
             ))
-        # Целевая метрика для оптимизации
+        # Метрика для оценки (возможно имеет смысл убрать...)
         self.addParameter(QgsProcessingParameterEnum(
             self.OPTIMIZED_METRIC,
-            self.tr('Целевая метрика'),
+            self.tr('Метрика'),
             [
                 self.tr('Среднее время прибытия'),
                 self.tr('ИП-10'),
@@ -187,7 +213,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterBoolean(self.SIMPLIFY, self.tr('Упростить граф'), True))
 
         # Дополнительные параметры алгоритма
-        params = []
+        # params = []
         # params.append(QgsProcessingParameterNumber(self.GLOBAL_JUMPS,
         #                                            self.tr('Глобальных прыжков'),
         #                                            QgsProcessingParameterNumber.Integer,
@@ -215,6 +241,8 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
 
 
 
+
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Код алгоритма
@@ -224,6 +252,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
 
 
         DATA_NODE_FIELD     = 'node'
+        UNITS_NAME_FIELD    = 'name'
 
 
         feedback.pushDebugInfo('Версии библиотек:')
@@ -239,6 +268,9 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
         crs_start           = self.parameterAsExtentCrs(parameters, self.INPUT, context)
 
+        # Получаем количество размещаемых подразделений
+        target_units_count  = self.parameterAsInt(parameters, 'TARGET_UNITS_COUNT', context)
+
         target_layer        = self.parameterAsVectorLayer(parameters, self.TARGET_LAYER, context)
         existed_units_layer = self.parameterAsSource(parameters, self.EXISTED_UNITS, context)
         area_layer          = self.parameterAsVectorLayer(parameters, self.AREA_POLYGON_LAYER, context)
@@ -251,12 +283,18 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         result_layer_name   = self.parameterAsString(parameters, self.RESULT_LAYER_NAME, context)
         target_file         = self.parameterAsFile(parameters, self.OUTPUT, context)
         
+        # Получаем поле веса ребер графа
+        # weight = self.parameterAsString(parameters, 'WEIGHT', context)
+
+        # Получаем расчетное время прибытия
+        cutoff = self.parameterAsDouble(parameters, 'CUTOFF', context)
+
         # Параметры алгоритма
         # TODO - добавить в параметры алгоритма
+        ## Для графа:
+        weight              = 'travel_time'
         ## Для матрицы прибытия:
         data_sample_size    = 200
-        weight              = 'travel_time'
-        cutoff              = 10
         data_cutoff_field   = None
         target_set          = None
 
@@ -264,11 +302,9 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         ip_val              = 10
         names_pattern       = '{}'
         start_names_index   = 1
-        after_mclp_function = None
-        units_name_field    = 'name'
-        # global_jumps       = self.parameterAsInt(parameters, self.GLOBAL_JUMPS, context)
-        # local_jumps       = self.parameterAsInt(parameters, self.LOCAL_JUMPS, context)
-        # jump_distance     = self.parameterAsInt(parameters, self.JUMP_DISTANCE, context)
+        #after_mclp_function = None
+        # units_name_field    = 'name'
+
 
 
         # 1. Подготовка исходных данных
@@ -343,8 +379,10 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
                                                                existed_units_layer_gdf.geometry.x, 
                                                                existed_units_layer_gdf.geometry.y
                                                                )
+            if not UNITS_NAME_FIELD in existed_units_layer_gdf.columns:
+                existed_units_layer_gdf[UNITS_NAME_FIELD] = pd.Series([f'#{i}' for i in range(len(existed_units_layer_gdf))])
             existed_units_dict = dict(zip(existed_units_layer_gdf[DATA_NODE_FIELD], 
-                                          existed_units_layer_gdf[units_name_field]))
+                                          existed_units_layer_gdf[UNITS_NAME_FIELD]))
         else:
             existed_units_layer_gdf = None
             existed_units_dict      = None
@@ -399,16 +437,20 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             elif optimized_metric == 1:
                 metric_func =  CoverIndexBuilding(target_layer_gdf)
             elif optimized_metric == 2:
-                ip_val = 20
-                metric_func  = CoverIndexBuilding(target_layer_gdf, ip_val = ip_val)
+                metric_func  = CoverIndexBuilding(target_layer_gdf, ip_val = 20)
+
+        ## Функция обратного вызова при расчете подразделений
+        def after_mclp_function(best_metric, dynamic_nodes, **kwargs):
+            metric = round(best_metric, 2)
+            feedback.pushInfo(f'Подразделений: {len(dynamic_nodes)}, Метрика: {metric}')
 
         ## Сборка и инициализация алгоритма ADD
         add = LSCP_ADD(  
             state_function      = FirstArrivalUnitState(),
             matrix              = matrix,
             metric_function     = metric_func,
-            ip_val              = ip_val,
-            stop_case_function  = lambda dynamic_nodes, **kwargs: len(dynamic_nodes) >= 1,
+            ip_val              = cutoff,
+            stop_case_function  = lambda dynamic_nodes, **kwargs: len(dynamic_nodes) >= target_units_count,
             names_pattern       = names_pattern,
             start_names_index   = start_names_index,
             after_mclp_function = after_mclp_function,
@@ -442,7 +484,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         else:
             arr_time_mean = round(ArrivalTimeBuilding(target_layer_gdf)(times), 1)
             ip10 = round(CoverIndexBuilding(target_layer_gdf)(times), 1)
-            ip20 = round(CoverIndexBuilding(target_layer_gdf, ip_val = ip_val)(times), 1)
+            ip20 = round(CoverIndexBuilding(target_layer_gdf, ip_val = 20)(times), 1)
         feedback.pushWarning('Результирующие метрики:')
         feedback.pushWarning(f'Среднее время прибытия:     {arr_time_mean} мин.')
         feedback.pushWarning(f'Индекс прикрытия 10 мин:    {ip10} %')
@@ -451,10 +493,8 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
 
         # Формирование итоговых слоев
         feedback.setProgressText('Формирование итоговых слоев')
-        result_gdf = ox.graph_to_gdfs(G, edges=False).loc[[best_node]]
-        result_gdf.loc[best_node, 'Время прибытия среднее'] = arr_time_mean
-        result_gdf.loc[best_node, 'ИП-10'] = ip10
-        result_gdf.loc[best_node, 'ИП-20'] = ip20
+        result_gdf = ox.graph_to_gdfs(G, edges=False).loc[best_nodes.keys()]
+        result_gdf['name'] = pd.Series(best_nodes)
 
         # Перепроецируем датасет маршрутов в СК дорожной сети
         result_gdf = ox.projection.project_gdf(result_gdf, to_crs = crs_start.authid())

@@ -338,8 +338,11 @@ class LSCP_ADD(LSCPBase):
             if len(all_nodes) == 0:
                 # 1. Расчет оптимального размещения подразделений
                 node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+                while self.names_pattern.format(name_index) in best_dynamic_nodes.values():
+                    name_index += 1
                 best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
                 node_column = matrix_temp[node_id]
+                # name_index += 1
 
                 # 2. Отброс прикрытых узлов
                 matrix_temp = matrix_temp[node_column == False]
@@ -377,6 +380,8 @@ class LSCP_ADD(LSCPBase):
 
             # 1. Расчет оптимального размещения подразделений
             node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+            while self.names_pattern.format(name_index) in best_dynamic_nodes.values():
+                    name_index += 1
             best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
             node_column = matrix_temp[node_id]
 
@@ -385,7 +390,7 @@ class LSCP_ADD(LSCPBase):
 
             # ========================================================
             iteration += 1
-            name_index += 1
+            # name_index += 1
 
         return best_dynamic_nodes, current_metric
 

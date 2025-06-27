@@ -99,7 +99,7 @@ class ShortestPathP2PAlgorithm(QgsProcessingAlgorithm):
         """
         Отображаемое в списке имя группы
         """
-        return self.tr('Прибытие')
+        return self.tr('Моделирование')
 
     def groupId(self):
         """
