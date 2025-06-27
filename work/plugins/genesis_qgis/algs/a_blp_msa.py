@@ -41,12 +41,12 @@ from qgis.core import (
                        QgsCoordinateTransform,
                        )
 
-from genesis.metrics import ArrivalTime, CoverIndex
-from genesis.states import FirstArrivalUnitState
+from genesis.states import FirstArrivalUnitState, get_atm
 from graphs.speeds import kmh_to_mm, set_graph_travel_times
 from graphs.algorithms import graph_rise_from_gpkg
-from genesis.best_points import BestNodeMonkey, BestNodesHalfDiameter
+from genesis.metrics import ArrivalTime, CoverIndex, CoverIndexValue
 from fire_units.metrics import ArrivalTimeBuilding, CoverIndexBuilding
+from genesis.lscp import LSCP_ADD
 
 from ..graph_tools import check_file_exists
 
@@ -61,7 +61,8 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
     """
 
     INPUT              = 'INPUT'
-    TARGET_POINTS      = 'TARGET_POINTS'
+    TARGET_LAYER       = 'TARGET_LAYER'
+    EXISTED_UNITS      = 'EXISTED_UNITS'
     AREA_POLYGON_LAYER = 'AREA_POLYGON_LAYER'
     SPEEDS             = 'SPEEDS'
     TRAVEL_TIME_FIELD  = 'TRAVEL_TIME_FIELD'
@@ -101,7 +102,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         """
         Отображаемое в списке имя алгоритма
         """
-        return self.tr('Обезьяний поиск (MSA)')
+        return self.tr('Жадное добавление')
 
     def group(self):
         """
@@ -123,7 +124,7 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             '''
             Расчет оптимального размещения единственного подразделения.
 
-            Используется алгоритм обезьяньего поиска.
+            Используется алгоритм жадного добавления.
             '''
             )
 
@@ -139,8 +140,13 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             ))
         # Целевой слой прибытия
         self.addParameter(QgsProcessingParameterFeatureSource (
-            self.TARGET_POINTS, self.tr('Целевой слой прибытия (если не указан, рассчитывается для узлов графа)'),
+            self.TARGET_LAYER, self.tr('Целевой слой прибытия (если не указан, рассчитывается для узлов графа)'),
             [QgsProcessing.TypeVectorPoint, QgsProcessing.TypeVectorPolygon],
+            optional=True,
+            ))
+        # Слой существующих подразделений
+        self.addParameter(QgsProcessingParameterFeatureSource (
+            self.EXISTED_UNITS, self.tr('Существующие подразделения'),[QgsProcessing.TypeVectorPoint],
             optional=True,
             ))
         # Слой границ расчетной области
@@ -182,21 +188,21 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
 
         # Дополнительные параметры алгоритма
         params = []
-        params.append(QgsProcessingParameterNumber(self.GLOBAL_JUMPS,
-                                                   self.tr('Глобальных прыжков'),
-                                                   QgsProcessingParameterNumber.Integer,
-                                                   1, False, 0, 10))
-        params.append(QgsProcessingParameterNumber(self.LOCAL_JUMPS,
-                                                   self.tr('Локальных прыжков'),
-                                                   QgsProcessingParameterNumber.Integer,
-                                                   10, False, 1, 100))
-        params.append(QgsProcessingParameterNumber(self.JUMP_DISTANCE,
-                                                   self.tr('Дистанция локального прыжка'),
-                                                   QgsProcessingParameterNumber.Integer,
-                                                   1000, False, 50, 100000))
-        for p in params:
-            p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
-            self.addParameter(p)
+        # params.append(QgsProcessingParameterNumber(self.GLOBAL_JUMPS,
+        #                                            self.tr('Глобальных прыжков'),
+        #                                            QgsProcessingParameterNumber.Integer,
+        #                                            1, False, 0, 10))
+        # params.append(QgsProcessingParameterNumber(self.LOCAL_JUMPS,
+        #                                            self.tr('Локальных прыжков'),
+        #                                            QgsProcessingParameterNumber.Integer,
+        #                                            10, False, 1, 100))
+        # params.append(QgsProcessingParameterNumber(self.JUMP_DISTANCE,
+        #                                            self.tr('Дистанция локального прыжка'),
+        #                                            QgsProcessingParameterNumber.Integer,
+        #                                            1000, False, 50, 100000))
+        # for p in params:
+        #     p.setFlags(p.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        #     self.addParameter(p)
 
         # Поле названия итогового слоя
         self.addParameter(QgsProcessingParameterString (
@@ -213,11 +219,11 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         """
         Код алгоритма
         """
-        def after_local_jump(local_jump_number, best_metric, best_metric_current, **kwargs):
-            feedback.pushDebugInfo(f'# {local_jump_number}) значение целевой метрики: {best_metric}. Текущая {best_metric_current}')
+        #def after_local_jump(local_jump_number, best_metric, best_metric_current, **kwargs):
+        #    feedback.pushDebugInfo(f'# {local_jump_number}) значение целевой метрики: {best_metric}. Текущая {best_metric_current}')
 
 
-        travel_time_field = 'travel_time'
+        DATA_NODE_FIELD     = 'node'
 
 
         feedback.pushDebugInfo('Версии библиотек:')
@@ -225,32 +231,48 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
         feedback.pushDebugInfo(f'   networkx: {nx.__version__}')
         feedback.pushDebugInfo(f'   geopandas: {gpd.__version__}')
 
-        # Получение исходных параметров алгоритма
+        # 0. Получение исходных параметров алгоритма
+        # ================================================================================================
         ## Дорожная сеть
         network = self.parameterAsVectorLayer(parameters, self.INPUT, context)
         if network is None:
             raise QgsProcessingException(self.invalidSourceError(parameters, self.INPUT))
-        crs = self.parameterAsExtentCrs(parameters, self.INPUT, context)
+        crs_start           = self.parameterAsExtentCrs(parameters, self.INPUT, context)
 
-        target_points_layer = self.parameterAsVectorLayer(parameters, self.TARGET_POINTS, context)
+        target_layer        = self.parameterAsVectorLayer(parameters, self.TARGET_LAYER, context)
+        existed_units_layer = self.parameterAsSource(parameters, self.EXISTED_UNITS, context)
         area_layer          = self.parameterAsVectorLayer(parameters, self.AREA_POLYGON_LAYER, context)
 
         optimized_metric    = self.parameterAsEnum(parameters, self.OPTIMIZED_METRIC, context)
 
-        simplify          = self.parameterAsBoolean(parameters, self.SIMPLIFY, context)
-        speeds            = self.parameterAsMatrix(parameters, self.SPEEDS, context)[1::2]
-        speeds            = [float(s) for s in speeds]
-        result_layer_name = self.parameterAsString(parameters, self.RESULT_LAYER_NAME, context)
-        target_file       = self.parameterAsFile(parameters, self.OUTPUT, context)
+        simplify            = self.parameterAsBoolean(parameters, self.SIMPLIFY, context)
+        speeds              = self.parameterAsMatrix(parameters, self.SPEEDS, context)[1::2]
+        speeds              = [float(s) for s in speeds]
+        result_layer_name   = self.parameterAsString(parameters, self.RESULT_LAYER_NAME, context)
+        target_file         = self.parameterAsFile(parameters, self.OUTPUT, context)
         
         # Параметры алгоритма
-        global_jumps       = self.parameterAsInt(parameters, self.GLOBAL_JUMPS, context)
-        local_jumps       = self.parameterAsInt(parameters, self.LOCAL_JUMPS, context)
-        jump_distance     = self.parameterAsInt(parameters, self.JUMP_DISTANCE, context)
+        # TODO - добавить в параметры алгоритма
+        ## Для матрицы прибытия:
+        data_sample_size    = 200
+        weight              = 'travel_time'
+        cutoff              = 10
+        data_cutoff_field   = None
+        target_set          = None
+
+        ## Для ADD:
+        ip_val              = 10
+        names_pattern       = '{}'
+        start_names_index   = 1
+        after_mclp_function = None
+        units_name_field    = 'name'
+        # global_jumps       = self.parameterAsInt(parameters, self.GLOBAL_JUMPS, context)
+        # local_jumps       = self.parameterAsInt(parameters, self.LOCAL_JUMPS, context)
+        # jump_distance     = self.parameterAsInt(parameters, self.JUMP_DISTANCE, context)
 
 
+        # 1. Подготовка исходных данных
         # ================================================================================================
-        # Тело алгоритма
         feedback.setProgress(5)
 
         # Подготовка графа дорожной сети
@@ -274,122 +296,153 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
             ## Реконструкция графа
             G = graph_rise_from_gpkg(roads_gdf,
                                     columns_list = columns_list)
+
+        ## Установка скоростей следования
+        set_graph_travel_times(G, speeds, 
+                               morph_function = kmh_to_mm, 
+                               travel_time_field = weight)
+        
+        ## Упрощение графа
+        if not check_file_exists(pre_gds_file):
             if simplify:
                 feedback.setProgress(40)
                 feedback.setProgressText('Упрощаем граф дорожной сети')
                 G = ox.simplify_graph(G)
 
-        ## Установка скоростей следования
-        set_graph_travel_times(G, speeds, morph_function=kmh_to_mm, travel_time_field=travel_time_field)
+        ## Проецируем граф в локальную СК
+        G = ox.project_graph(G)
+
         ## Вывод
-        g_crs = G.graph['crs']
-        feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}. СК: {g_crs}')
+        estimated_utm_crs = G.graph['crs']
+        feedback.pushInfo(f'Получен граф дорог с количеством узлов - {G.number_of_nodes()} и ребер {G.number_of_edges()}. СК: {estimated_utm_crs}')
         feedback.setProgress(40)
 
 
-
-        # Подготавливаем геодатасеты
+        # Подготвока геоданных
         feedback.setProgressText('Подготавливаем данные')
-        if target_points_layer:
-            target_points_gdf = gpd.GeoDataFrame.from_features(
-                list(target_points_layer.getFeatures()),
-                crs = target_points_layer.sourceCrs().authid()
+        # Подготовка целевого слоя (здания или точки)
+        if target_layer:
+            target_layer_gdf = gpd.GeoDataFrame.from_features(
+                list(target_layer.getFeatures()),
+                crs = target_layer.sourceCrs().authid()
                 )
+            target_layer_gdf = ox.projection.project_gdf(target_layer_gdf, to_crs=estimated_utm_crs)
+            centroids                         = target_layer_gdf.geometry.centroid
+            target_layer_gdf[DATA_NODE_FIELD] = ox.nearest_nodes(G, centroids.x, centroids.y)
         else:
-            target_points_gdf = None
+            target_layer_gdf = None
+        
+        # Подготовка слоя существующих подразделений
+        if existed_units_layer:
+            existed_units_layer_gdf = gpd.GeoDataFrame.from_features(
+                list(existed_units_layer.getFeatures()),
+                crs = existed_units_layer.sourceCrs().authid()
+                )
+            existed_units_layer_gdf = ox.projection.project_gdf(existed_units_layer_gdf, to_crs=estimated_utm_crs)
+            existed_units_layer_gdf[DATA_NODE_FIELD] = ox.nearest_nodes(G, 
+                                                               existed_units_layer_gdf.geometry.x, 
+                                                               existed_units_layer_gdf.geometry.y
+                                                               )
+            existed_units_dict = dict(zip(existed_units_layer_gdf[DATA_NODE_FIELD], 
+                                          existed_units_layer_gdf[units_name_field]))
+        else:
+            existed_units_layer_gdf = None
+            existed_units_dict      = None
+
+        # Подготовка слоя границ расчетной зоны
         if area_layer:
-            area_gdf = gpd.GeoDataFrame.from_features(list(area_layer.getFeatures()), crs=area_layer.sourceCrs().authid())
+            area_layer_gdf = gpd.GeoDataFrame.from_features(
+                list(area_layer.getFeatures()), 
+                crs=area_layer.sourceCrs().authid()
+                )
+            area_layer_gdf = ox.projection.project_gdf(area_layer_gdf, to_crs=estimated_utm_crs)
+            g_nodes_gdf    = ox.graph_to_gdfs(G, edges=False)
+            points_mask    = g_nodes_gdf.within(unary_union(area_layer_gdf.geometry))
         else:
-            area_gdf = None
+            area_layer_gdf = None
+            points_mask    = None
         feedback.setProgress(50)
 
 
-        # Приводим все GeoDataFrame к единой СК
-        feedback.setProgressText('Приводим все данные к единой СК')
-        estimated_utm_crs = roads_gdf.estimate_utm_crs()
-        # if roads_gdf.crs != estimated_utm_crs: roads_gdf = ox.project_gdf(roads_gdf, to_crs=estimated_utm_crs)
-        if target_points_layer:
-            if target_points_gdf.crs != estimated_utm_crs: target_points_gdf = ox.projection.project_gdf(target_points_gdf, to_crs=estimated_utm_crs)
-        if area_layer:
-            if area_gdf.crs != estimated_utm_crs: area_gdf = ox.projection.project_gdf(area_gdf, to_crs=estimated_utm_crs)
-        feedback.setProgress(55)
-
-        
 
 
-        # Расчет
-        feedback.setProgressText('Расчет размещения')
 
-        ## Проецируем граф
-        G = ox.projection.project_graph(G)
+        # 2. Расчет
+        # ================================================================================================
+        ## Расчет матрицы прибытия
+        feedback.setProgressText('Расчет матрицы прибытия')
+        matrix = get_atm(G,
+                 data              = target_layer_gdf,
+                 data_sample_size  = data_sample_size,
+                 data_node_field   = DATA_NODE_FIELD,
+                 weight            = weight,
+                 cutoff            = cutoff,
+                 data_cutoff_field = data_cutoff_field,
+                 target_set        = target_set
+                 )
+        feedback.setProgress(80)
 
-        ## Определяем область для расчета, если передан area_layer (и получен area_gdf)
-        if not area_gdf is None:
-            area_poly   = unary_union(area_gdf.geometry)
-            g_nodes_gdf = ox.graph_to_gdfs(G, edges=False)
-            area        = g_nodes_gdf.within(area_poly)
-            # Если также передан целевой слой, дополнительно обрезаем и его
-            if not target_points_gdf is None:
-                target_points_gdf = target_points_gdf[target_points_gdf.within(area_poly)]
-        else:
-            area = None
-
-        ## Определение стартового узла
-        Warning    ('Сейчас выбирается узел по середине диаметра')
-        bnhd       = BestNodesHalfDiameter()
-        start_node, _ = bnhd(env=G)
-
-        ## Определяем объекты алгоритма
+        # 3. Сборка решения
+        # ================================================================================================
+        ## Выбор метрики
         metric_func = None
-        if target_points_gdf is None:
+        if target_layer_gdf is None:
             if optimized_metric   == 0:
-                metric_func  = ArrivalTime()
+                metric_func  =  ArrivalTime()
             elif optimized_metric == 1:
-                metric_func  = CoverIndex()
+                metric_func  =   CoverIndex()
             elif optimized_metric == 2:
                 metric_func  = CoverIndex(20)
         else:
-            centroids                 = target_points_gdf.geometry.centroid
-            target_points_gdf['node'] = ox.nearest_nodes(G, centroids.x, centroids.y)
             if optimized_metric   == 0:
-                metric_func = ArrivalTimeBuilding(target_points_gdf)
+                metric_func = ArrivalTimeBuilding(target_layer_gdf)
             elif optimized_metric == 1:
-                metric_func =  CoverIndexBuilding(target_points_gdf)
+                metric_func =  CoverIndexBuilding(target_layer_gdf)
             elif optimized_metric == 2:
-                metric_func  = CoverIndexBuilding(target_points_gdf, ip_val=20)
-        bnmsa = BestNodeMonkey(FirstArrivalUnitState(),
-                               metric_function           = metric_func,
-                               global_jumps_count        = global_jumps,
-                               local_jumps_count         = local_jumps,
-                               local_jump_max_distance   = jump_distance,
-                               after_local_jump_function = after_local_jump)
-        ## Проводим расчет
-        feedback.setProgressText('Расчет оптимального размещения')
-        best_node, best_metric = bnmsa(env         = G,
-                                        area       = area,
-                                        start_point = start_node)
-        best_nodes = {best_node: 'Оптимум'}
-        # feedback.pushWarning(f'Среднее время прибытия:     {round(best_metric,1)} мин.')
+                ip_val = 20
+                metric_func  = CoverIndexBuilding(target_layer_gdf, ip_val = ip_val)
+
+        ## Сборка и инициализация алгоритма ADD
+        add = LSCP_ADD(  
+            state_function      = FirstArrivalUnitState(),
+            matrix              = matrix,
+            metric_function     = metric_func,
+            ip_val              = ip_val,
+            stop_case_function  = lambda dynamic_nodes, **kwargs: len(dynamic_nodes) >= 1,
+            names_pattern       = names_pattern,
+            start_names_index   = start_names_index,
+            after_mclp_function = after_mclp_function,
+        )
+
+        # 4. Расчет
+        # ================================================================================================
+        best_nodes, best_metric = add(
+            env          = G,
+            dynamic_nodes = None,
+            static_nodes  = existed_units_dict,
+            area          = points_mask,
+        )
+        best_node = list(best_nodes.keys())[0]
         feedback.setProgress(90)
 
 
 
 
-
-
-
-        ## Вычисляем результирующие метрики
-        times, nearest = FirstArrivalUnitState()(env=G, points=best_nodes, area=area)
+        # 5. Анализ
+        # ================================================================================================
+        times, nearest = FirstArrivalUnitState()(env    = G,
+                                                 points = best_nodes,
+                                                 area   = points_mask)
 
         # Вычисляем основные метрики
-        if target_points_gdf is None:
+        if target_layer_gdf is None:
             arr_time_mean = round(ArrivalTime()(times), 1)
             ip10 = round(CoverIndex()(times), 1)
             ip20 = round(CoverIndex(20)(times), 1)
         else:
-            arr_time_mean = round(ArrivalTimeBuilding(target_points_gdf)(times), 1)
-            ip10 = round(CoverIndexBuilding(target_points_gdf)(times), 1)
-            ip20 = round(CoverIndexBuilding(target_points_gdf, ip_val=20)(times), 1)
+            arr_time_mean = round(ArrivalTimeBuilding(target_layer_gdf)(times), 1)
+            ip10 = round(CoverIndexBuilding(target_layer_gdf)(times), 1)
+            ip20 = round(CoverIndexBuilding(target_layer_gdf, ip_val = ip_val)(times), 1)
         feedback.pushWarning('Результирующие метрики:')
         feedback.pushWarning(f'Среднее время прибытия:     {arr_time_mean} мин.')
         feedback.pushWarning(f'Индекс прикрытия 10 мин:    {ip10} %')
@@ -398,13 +451,13 @@ class BLPMSAAlgorithm(QgsProcessingAlgorithm):
 
         # Формирование итоговых слоев
         feedback.setProgressText('Формирование итоговых слоев')
-        # Перепроецируем датасет маршрутов в СК дорожной сети
         result_gdf = ox.graph_to_gdfs(G, edges=False).loc[[best_node]]
         result_gdf.loc[best_node, 'Время прибытия среднее'] = arr_time_mean
         result_gdf.loc[best_node, 'ИП-10'] = ip10
         result_gdf.loc[best_node, 'ИП-20'] = ip20
 
-        result_gdf = ox.projection.project_gdf(result_gdf, to_crs=crs.authid())
+        # Перепроецируем датасет маршрутов в СК дорожной сети
+        result_gdf = ox.projection.project_gdf(result_gdf, to_crs = crs_start.authid())
 
         # Сохраняем в итоговый слой
         result_gdf.to_file(target_file)
