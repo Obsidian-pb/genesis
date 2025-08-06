@@ -4,6 +4,8 @@
 наилучшим образом расположенных узлов (LSCP)
 '''
 
+import warnings
+
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -173,12 +175,13 @@ class LSCP_ADD(LSCPBase):
                  state_function: StateBase,
                  matrix: pd.DataFrame,
                  metric_function: MetricBase,
-                 ip_val: int=10,
+                 ip_val: int = 10,
                  mclp_function: MCLPBase = None,
                  point_selector: PointSelectorBase = None,
-                 stop_case_function: StopCaseBase = None,
-                 names_pattern: str = '{}',
-                 start_names_index: int = 1,
+                 stop_case_function:  StopCaseBase = None,
+                 names_pattern:       str = '{}',
+                 start_names_index:   int = 1,
+                 target_weights:      pd.Series = None,
                  after_mclp_function: callable = None,
                  **kwargs):
         '''
@@ -241,6 +244,10 @@ class LSCP_ADD(LSCPBase):
         # Сохраняем матрицу прибытия в пределах максимального времени прибытия
         self.matrix = matrix
         self.ip_val = ip_val
+
+        if not target_weights is None:
+            warnings.warn("Учет веса целей в настоящее время не протестирован!", UserWarning)
+        self.target_weights = target_weights
 
         self.state_function = state_function
         self.after_mclp_function = after_mclp_function
@@ -305,10 +312,14 @@ class LSCP_ADD(LSCPBase):
         # Создание копии матрицы для использования в алгоритме
         matrix_temp = self.matrix.copy()
 
-        # Установка ля матрицы признака прикрытой исходя из
+        # Установка для матрицы признака прикрытой исходя из
         # максимально допустимого времени прибытия
         matrix_temp = matrix_temp <= self.ip_val #- self.delay
 
+        # Если следует учесть веса объектов, умножаем матрицу на них
+        if not self.target_weights is None:
+            weights = self.target_weights.loc[matrix.index]
+            matrix = matrix.mul(weights, axis=0)
 
         # 0.1. Если статические узлы не указаны - заменяем значение переменной с None на {}
         if static_nodes is None:
