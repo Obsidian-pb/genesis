@@ -358,6 +358,17 @@ class LSCP_ADD(LSCPBase):
                 # 2. Отброс прикрытых узлов
                 matrix_temp = matrix_temp[node_column == False]
 
+            # =============== Здесь проверить корректно ли удаляются ===================
+            # 1. Расчет оптимального размещения подразделений
+            node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+            while self.names_pattern.format(name_index) in best_dynamic_nodes.values():
+                    name_index += 1
+            best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
+            node_column = matrix_temp[node_id]
+
+            # 2. Отброс прикрытых узлов
+            matrix_temp = matrix_temp[node_column == False]
+            # ==========================================================================
             
             # 3. Расчет текущей метрики
             if static_nodes is None:
@@ -389,15 +400,15 @@ class LSCP_ADD(LSCPBase):
                                 static_nodes=static_nodes):
                     return best_dynamic_nodes, current_metric
 
-            # 1. Расчет оптимального размещения подразделений
-            node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
-            while self.names_pattern.format(name_index) in best_dynamic_nodes.values():
-                    name_index += 1
-            best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
-            node_column = matrix_temp[node_id]
+            # # 1. Расчет оптимального размещения подразделений
+            # node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+            # while self.names_pattern.format(name_index) in best_dynamic_nodes.values():
+            #         name_index += 1
+            # best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
+            # node_column = matrix_temp[node_id]
 
-            # 2. Отброс прикрытых узлов
-            matrix_temp = matrix_temp[node_column == False]
+            # # 2. Отброс прикрытых узлов
+            # matrix_temp = matrix_temp[node_column == False]
 
             # ========================================================
             iteration += 1
