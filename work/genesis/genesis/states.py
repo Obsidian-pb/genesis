@@ -603,7 +603,7 @@ def get_atm(G,
         `target_set`: set = None
             Целевой сет узлов графа, которые рассматриваются в качестве потенциальных мест размещения.
 
-    Вовзвращает:
+    Возвращает:
 
         `matrix`: pd.DataFrame
             Время прибытия первого подразделения в каждый из узлов графа. 
@@ -637,11 +637,27 @@ def get_atm(G,
             cutoff = ctf,
             weight = weight,
             )
-        if not target_set is None:
-            length = {k:v for k,v in length.items() if k in target_set}
+        # Удалить позже
+        # if not target_set is None:
+        #     length = {k:v for k,v in length.items() if k in target_set}
+            
         d[di] = pd.Series(length) + delay
         # d[node] = pd.Series(length) + delay
         pb()
 
+    # Формирование матрицы
+    matrix = pd.DataFrame(d).T
+
+    # Удаление зданий, к которым невозможно прибытия из перечня приемлемых узлов
+    if not target_set is None:
+        # Оставляем только узлы в которых можно разместить
+        matrix = matrix[list(set(matrix.columns) & target_set)]
+        # Здания к которым невозможно прибыть после отброса
+        zero_buildings = np.sum(matrix, axis=1)==0
+        zero_buildings_count = sum(zero_buildings)
+        if zero_buildings_count > 0:
+            print(f'!{zero_buildings_count} зданий не доступны из указанных мест размещения!')
+            matrix = matrix[zero_buildings == False]
+
     del GR
-    return pd.DataFrame(d).T
+    return matrix

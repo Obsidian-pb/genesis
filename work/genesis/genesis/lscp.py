@@ -307,7 +307,10 @@ class LSCP_ADD(LSCPBase):
                                 f'Имеет: {type(dynamic_nodes)}')
         if not area is None and not isinstance(area, pd.Series):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
-      
+
+        # Если передан список возможных для размещения узлов
+        if not nodes_list is None:
+            self.matrix = self.matrix[nodes_list]
 
         # Создание копии матрицы для использования в алгоритме
         matrix_temp = self.matrix.copy()
