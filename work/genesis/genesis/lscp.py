@@ -166,7 +166,6 @@ class LSCPCommon(LSCPBase):
         return best_dynamic_nodes, best_metric
 
 
-
 class LSCP_ADD(LSCPBase):
     '''
     Решение задачи LSCP алгоритмом жадного добавления.
@@ -183,6 +182,7 @@ class LSCP_ADD(LSCPBase):
                  start_names_index:   int = 1,
                  target_weights:      pd.Series = None,
                  after_mclp_function: callable = None,
+                 check_for_best_time: bool = True,
                  **kwargs):
         '''
         
@@ -239,6 +239,12 @@ class LSCP_ADD(LSCPBase):
                             dynamic_nodes,
                             static_nodes)
         
+        `check_for_best_time`: bool = True
+
+            Нужно ли проверять выбор оптимального узла по минимальному времени.
+            Если True, то при выборе оптимального узла будет проверяться 
+            Нужно для отладки и исследования. Потом будет удалено.
+        
         '''
 
         # Сохраняем матрицу прибытия в пределах максимального времени прибытия
@@ -249,8 +255,9 @@ class LSCP_ADD(LSCPBase):
             warnings.warn("Учет веса целей в настоящее время не протестирован!", UserWarning)
         self.target_weights = target_weights
 
-        self.state_function = state_function
+        self.state_function      = state_function
         self.after_mclp_function = after_mclp_function
+        self.check_for_best_time = check_for_best_time
         super().__init__(mclp_function, point_selector, stop_case_function, metric_function, names_pattern, start_names_index, **kwargs)
 
     def __call__(self,
@@ -364,7 +371,26 @@ class LSCP_ADD(LSCPBase):
 
             # =============== Здесь проверить корректно ли удаляются ===================
             # 1. Расчет оптимального размещения подразделений
-            node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+            if self.check_for_best_time:
+                max_value = np.max(np.sum(matrix_temp, axis=0))
+                max_indices = [i for i, val in enumerate(np.sum(matrix_temp, axis=0)) if val == max_value]
+                if len(max_indices) == 1:
+                    node_id = matrix_temp.columns[max_indices[0]]
+                else:
+                    tmp_matrix_cols = matrix_temp.columns[max_indices]
+                    tmp_matrix = self.matrix[tmp_matrix_cols]
+                    node_id = tmp_matrix.columns[np.argmin(np.max(tmp_matrix, axis=0), axis=0)]
+                    # print(node_id, tmp_matrix.shape)
+                    # Здесь корректный код! (потом удалить):
+                    # tmp_matrix_cols = matrix_temp.columns[max_indices]
+                    # tmp_matrix = matrix[tmp_matrix_cols]
+                    # npm = np.max(tmp_matrix, axis=0)
+                    # node_id = tmp_matrix.columns[np.argmin(npm)]
+                    # node_id
+            else:
+                node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
+
+
             while self.names_pattern.format(name_index) in best_dynamic_nodes.values():
                     name_index += 1
             best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
