@@ -171,12 +171,12 @@ class LSCP_ADD(LSCPBase):
     Решение задачи LSCP алгоритмом жадного добавления.
     '''
     def __init__(self,
-                 state_function: StateBase,
-                 matrix: pd.DataFrame,
-                 metric_function: MetricBase,
-                 ip_val: int = 10,
-                 mclp_function: MCLPBase = None,
-                 point_selector: PointSelectorBase = None,
+                 state_function:      StateBase,
+                 matrix:              pd.DataFrame,
+                 metric_function:     MetricBase,
+                 ip_val:              int = 10,
+                 mclp_function:       MCLPBase = None,
+                 point_selector:      PointSelectorBase = None,
                  stop_case_function:  StopCaseBase = None,
                  names_pattern:       str = '{}',
                  start_names_index:   int = 1,
@@ -190,7 +190,7 @@ class LSCP_ADD(LSCPBase):
 
         `state_function`: StateBase
 
-            Функция расчета состояния узла.
+            Функция расчета состояния парметров реагирования.
 
         `matrix`: pd.DataFrame
 
@@ -374,9 +374,23 @@ class LSCP_ADD(LSCPBase):
             if self.check_for_best_time:
                 max_value = np.max(np.sum(matrix_temp, axis=0))
                 max_indices = [i for i, val in enumerate(np.sum(matrix_temp, axis=0)) if val == max_value]
+                # Для случая если есть только один узел с максимальным значением
                 if len(max_indices) == 1:
                     node_id = matrix_temp.columns[max_indices[0]]
+                # Для случая если есть несколько узлов с максимальным значением (имеет место неопределенность размещения)
                 else:
+                    # Ситуация когда узлы с максимальным значениям покрывают различные здания 
+                    # (если брать по всем в таком случае, то оптимальное размещение будет находиться посередине зон,
+                    # что некорректно)
+                    # 1.1. Выбираем первый узел
+                    node_id_single = matrix_temp.columns[max_indices[0]]
+                    # 1.2. выбираем какие здания прикрыты из этого узла
+                    covered_buildings = matrix_temp[node_id_single]
+                    # 1.3. Оставляем в max_indices только те узлы которые обеспечивают прикрытие зданий из covered_buildings
+                    # Здесь мы обращаемся к столбцу по его порядковому номеру (индексу), а не по имени
+                    max_indices = [mi for mi in max_indices if matrix_temp.iloc[:, mi].equals(covered_buildings)]
+
+                    # Непосредственно выбираем узел с минимальным максимальным временем прибытия
                     tmp_matrix_cols = matrix_temp.columns[max_indices]
                     tmp_matrix = self.matrix[tmp_matrix_cols]
                     node_id = tmp_matrix.columns[np.argmin(np.max(tmp_matrix, axis=0), axis=0)]
