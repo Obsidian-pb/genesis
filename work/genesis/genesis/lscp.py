@@ -393,7 +393,9 @@ class LSCP_ADD(LSCPBase):
                     # Непосредственно выбираем узел с минимальным максимальным временем прибытия
                     tmp_matrix_cols = matrix_temp.columns[max_indices]
                     tmp_matrix = self.matrix[tmp_matrix_cols]
-                    node_id = tmp_matrix.columns[np.argmin(np.max(tmp_matrix, axis=0), axis=0)]
+                    # Здесь неопределенность выбранной метрики: np.max(tmp_matrix, axis=0) или np.mean(tmp_matrix, axis=0)
+                    # node_id = tmp_matrix.columns[np.argmin(np.max(tmp_matrix, axis=0), axis=0)]
+                    node_id = tmp_matrix.columns[np.argmin(np.mean(tmp_matrix, axis=0), axis=0)]
                     # print(node_id, tmp_matrix.shape)
                     # Здесь корректный код! (потом удалить):
                     # tmp_matrix_cols = matrix_temp.columns[max_indices]
