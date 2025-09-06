@@ -6,13 +6,13 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
-from genesis.metrics import ArrivalTime
-
+# Обработка использование как модуля QGIS
 try:
-    from ..genesis.core import MetricBase
-except:
     from genesis.core import MetricBase
-
+    from genesis.metrics import ArrivalTime
+except:
+    from ..genesis.core import MetricBase
+    from ..genesis.metrics import ArrivalTime
 
 
 
