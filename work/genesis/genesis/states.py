@@ -560,14 +560,15 @@ class ArrivalTimeMatrixState(StateBase):
 
 
 def get_atm(G,
-            data: gpd.GeoDataFrame = None,
-            data_sample_size: int  = None,
-            data_node_field: str   = 'node',
-            weight: str            = 'travel_time',
-            cutoff: float          = None,
-            data_cutoff_field: str = None,
-            delay: float           = DELAY_TIME,
-            target_set: set        = None,
+            data: gpd.GeoDataFrame  = None,
+            data_sample_size: int   = None,
+            data_node_field: str    = 'node',
+            weight: str             = 'travel_time',
+            cutoff: float           = None,
+            data_cutoff_field: str  = None,
+            delay: float            = DELAY_TIME,
+            target_set: set         = None,
+            print_calc_states: bool = True,
             ):
     '''
     Расчет матрицы времен прибытия.
@@ -603,6 +604,9 @@ def get_atm(G,
         `target_set`: set = None
             Целевой сет узлов графа, которые рассматриваются в качестве потенциальных мест размещения.
 
+        `print_calc_states`: bool = True
+            Флаг отображения прогресса расчета.
+
     Возвращает:
 
         `matrix`: pd.DataFrame
@@ -623,8 +627,9 @@ def get_atm(G,
     GR = nx.reverse(G, copy=True)
 
     # перебираем все записи в наборе данных
+    if print_calc_states:
+        pb = Progressbar(len(data), bins=40)
     d = {}
-    pb = Progressbar(len(data), bins=40)
     for di, dt in data.iterrows():
         node = dt[data_node_field]
         if not data_cutoff_field is None:
@@ -643,7 +648,8 @@ def get_atm(G,
             
         d[di] = pd.Series(length) + delay
         # d[node] = pd.Series(length) + delay
-        pb()
+        if print_calc_states:
+            pb()
 
     # Формирование матрицы
     matrix = pd.DataFrame(d).T
