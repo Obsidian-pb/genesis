@@ -569,6 +569,7 @@ def get_atm(G,
             delay: float            = DELAY_TIME,
             target_set: set         = None,
             print_calc_states: bool = True,
+            calc_function: callable = None,
             ):
     '''
     Расчет матрицы времен прибытия.
@@ -630,6 +631,7 @@ def get_atm(G,
     if print_calc_states:
         pb = Progressbar(len(data), bins=40)
     d = {}
+    i = 0
     for di, dt in data.iterrows():
         node = dt[data_node_field]
         if not data_cutoff_field is None:
@@ -650,6 +652,11 @@ def get_atm(G,
         # d[node] = pd.Series(length) + delay
         if print_calc_states:
             pb()
+        if calc_function:
+            value = i / len(data)
+            calc_function(value = value)
+
+        i += 1
 
     # Формирование матрицы
     matrix = pd.DataFrame(d).T

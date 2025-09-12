@@ -432,20 +432,25 @@ class LSCP_ADD(LSCPBase):
             # current_metric = self.metric_function(times)
             # 4. Печать отчета расчета
             if not self.after_mclp_function is None:
-                self.after_mclp_function(iteration=iteration,
-                            best_metric=current_metric,
-                            current_metric=current_metric,
-                            dynamic_nodes=best_dynamic_nodes,
-                            static_nodes=static_nodes)
+                self.after_mclp_function(
+                            iteration      = iteration,
+                            best_metric    = current_metric,
+                            current_metric = current_metric,
+                            dynamic_nodes  = best_dynamic_nodes,
+                            static_nodes   = static_nodes,
+                            matrix_        = matrix_temp,
+                            )
 
             # 5. Если достигнута цель расчета, выходим из цикла
             if not self.stop_case_function is None:
-                if self.stop_case_function(value=current_metric,
-                                iteration=iteration,
-                                best_metric=current_metric,
-                                current_metric=current_metric,
-                                dynamic_nodes=best_dynamic_nodes,
-                                static_nodes=static_nodes):
+                if self.stop_case_function(
+                                value          = current_metric,
+                                iteration      = iteration,
+                                best_metric    = current_metric,
+                                current_metric = current_metric,
+                                dynamic_nodes  = best_dynamic_nodes,
+                                static_nodes   = static_nodes,
+                                matrix_        = matrix_temp,):
                     return best_dynamic_nodes, current_metric
 
             # # ========================================================
