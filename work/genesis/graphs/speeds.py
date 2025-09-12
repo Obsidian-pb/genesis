@@ -49,7 +49,7 @@ def set_graph_travel_times(G: nx.MultiDiGraph,
                      length_field = 'length',
                      ):
     """
-    Добавление скоростей в граф
+    Добавление времен следования по участком дорог в граф
 
     Аргументы
     ---------
