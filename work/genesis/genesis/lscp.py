@@ -328,8 +328,10 @@ class LSCP_ADD(LSCPBase):
 
         # Если следует учесть веса объектов, умножаем матрицу на них
         if not self.target_weights is None:
+            warnings.warn("Учет веса целей в настоящее время не протестирован! Возможно следует использовать matrix_temp", UserWarning)
             weights = self.target_weights.loc[matrix.index]
             matrix = matrix.mul(weights, axis=0)
+
 
         # 0.1. Если статические узлы не указаны - заменяем значение переменной с None на {}
         if static_nodes is None:
@@ -338,8 +340,35 @@ class LSCP_ADD(LSCPBase):
             # Отброс узлов прикрытых имеющимися подразделениями
             node_column = matrix_temp[static_nodes.keys()]
             matrix_temp = matrix_temp[np.any(node_column, axis=1) == False]
+
+            # 0.2. Если статические узлы были переданы, проверяем, следует ли проводить расчет
+            # возможно условие расчета уже было достигнуто
+            # Расчет метрики
+            current_metric = NodesMetric(self.state_function,
+                                        self.metric_function
+                                        )(env,
+                                        list(static_nodes.keys()),
+                                        area=area)
+            if self.stop_case_function(value = current_metric,
+                        iteration      = 0,
+                        best_metric    = current_metric,
+                        current_metric = current_metric,
+                        dynamic_nodes  = {},
+                        static_nodes   = static_nodes,
+                        matrix_        = matrix_temp,
+                        ):
+                if not self.after_mclp_function is None:
+                    self.after_mclp_function(
+                            iteration      = 0,
+                            best_metric    = current_metric,
+                            current_metric = current_metric,
+                            dynamic_nodes  = {},
+                            static_nodes   = static_nodes,
+                            matrix_        = matrix_temp,
+                             )
+                return {}, current_metric
         
-        # 0.2. Если динамические узлы не указаны - заменяем значение переменной с None на {}
+        # 0.3. Если динамические узлы не указаны - заменяем значение переменной с None на {}
         if dynamic_nodes is None:
             best_dynamic_nodes = {}
         else:
@@ -357,6 +386,7 @@ class LSCP_ADD(LSCPBase):
                 all_nodes = best_dynamic_nodes
             else:
                 all_nodes = list_dict_concat(best_dynamic_nodes, static_nodes)
+                
             # if len(all_nodes) == 0:
             #     # 1. Расчет оптимального размещения подразделений
             #     node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
