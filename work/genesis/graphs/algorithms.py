@@ -6,13 +6,15 @@
 from collections import defaultdict
 
 import numpy as np
+import math
 
 import osmnx as ox
 from osmnx import utils
 import networkx as nx
 import geopandas as gpd
-from shapely.ops import unary_union
+from shapely.ops import unary_union, transform
 from shapely.geometry import MultiLineString
+
 
 
 
@@ -25,8 +27,19 @@ def fix_highway_list(edge):
     return edge
 
 
+def floor_coords(geom):
+    """Округляет координаты геометрии до целых чисел в меньшую сторону"""
+    def floor_coord(x, y):
+        return (math.floor(x), math.floor(y))
+    
+    return transform(floor_coord, geom)
+
+
 def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
-                         columns_list: list = ['name', 'highway', 'oneway', 'lanes', 'reversed']):
+                         oneway_field_name: str = 'oneway',
+                         # lanes_field_name: str = 'lanes',  # Сейча не реализовано
+                         reversed_field_name: str = 'reversed',
+                         ):
     '''
     Алгоритм собирает граф дорожной сети на основе геометрии входного векторного GeoDataFrame
 
@@ -34,8 +47,10 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     ---------
     `roads`: gpd.GeoDataFrame
         Датафрейм дорог
-    `columns_list`: list
-        Список полей, которые должны сохраниться в итоговом графе
+    `oneway_field_name`: str
+        Поле в котором хранятся сведения о односторонности дороги
+    `reversed_field_name`: str
+        Поле в котором хранятся сведения о направлении движения
 
     Возвращает
     ----------
@@ -46,9 +61,9 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     import warnings
 
     # Проверка наличия колонок
-    missing_cols = [col for col in columns_list if col not in roads.columns]
-    if missing_cols:
-        raise ValueError(f"В GeoDataFrame отсутствуют необходимые колонки: {missing_cols}")
+    #missing_cols = [col for col in [oneway_field_name, reversed_field_name] if col not in roads.columns]
+    #if missing_cols:
+    #    raise ValueError(f"В GeoDataFrame отсутствуют необходимые колонки: {missing_cols}")
 
     # Запомним исходную СК
     crs = roads.crs
@@ -59,6 +74,9 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     except Exception:
         roads_p = roads
         pass
+
+     # Округляем координаты геометрии до целых чисел
+    roads_p['geometry'] = roads_p['geometry'].apply(floor_coords)
 
     # Создаем пустой граф
     metadata = {
@@ -85,7 +103,7 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
         else:
             lines = [geometry]
 
-        road_data = road[columns_list]
+        road_data = road  #[columns_list]
         road_data = {k: v[0] if isinstance(v, list) else v for k, v in road_data.items()}
 
         # Перебираем все линии в геометрии (может быть несколько для MultiLineString)
@@ -105,7 +123,7 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                                               y2=coord2[1], x2=coord2[0])
 
                 # Универсальная обработка oneway
-                oneway = road_data.get('oneway', False)
+                oneway = road_data.get(oneway_field_name, False)
                 # Проверка на NaN
                 if isinstance(oneway, float) and np.isnan(oneway):
                     oneway = False
@@ -113,17 +131,17 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                     oneway = oneway.lower() in ['yes', 'true', '1']
                 elif isinstance(oneway, (int, float)):
                     oneway = bool(oneway)
-                road_data['oneway'] = oneway
+                road_data[oneway_field_name] = oneway
 
                 # Универсальная обработка reversed
-                reversed_val = road_data.get('reversed', False)
+                reversed_val = road_data.get(reversed_field_name, False)
                 if isinstance(reversed_val, float) and np.isnan(reversed_val):
                     reversed_val = False
                 elif isinstance(reversed_val, str):
                     reversed_val = reversed_val.lower() in ['yes', 'true', '1']
                 elif isinstance(reversed_val, (int, float)):
                     reversed_val = bool(reversed_val)
-                road_data['reversed'] = reversed_val
+                road_data[reversed_field_name] = reversed_val
 
                 if not oneway:
                     # Двусторонняя дорога — ребра в обе стороны

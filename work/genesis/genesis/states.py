@@ -644,9 +644,9 @@ def get_atm(G,
             cutoff = ctf,
             weight = weight,
             )
-        # Удалить позже
-        # if not target_set is None:
-        #     length = {k:v for k,v in length.items() if k in target_set}
+        # Оставляем только узлы в которых можно разместить [предполагалось удалить позже, но почему, пока не понятно]
+        if not target_set is None:
+            length = {k:v for k,v in length.items() if k in target_set}
             
         d[di] = pd.Series(length) + delay
         # d[node] = pd.Series(length) + delay
@@ -664,7 +664,7 @@ def get_atm(G,
     # Удаление зданий, к которым невозможно прибытия из перечня приемлемых узлов
     if not target_set is None:
         # Оставляем только узлы в которых можно разместить
-        matrix = matrix[list(set(matrix.columns) & target_set)]
+        # matrix = matrix[list(set(matrix.columns) & target_set)]
         # Здания к которым невозможно прибыть после отброса
         zero_buildings = np.sum(matrix, axis=1)==0
         zero_buildings_count = sum(zero_buildings)
