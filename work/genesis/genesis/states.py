@@ -659,7 +659,8 @@ def get_atm(G,
         i += 1
 
     # Формирование матрицы
-    matrix = pd.DataFrame(d).T
+    # matrix = pd.DataFrame(d).T
+    matrix = pd.DataFrame.from_dict(d, orient='index')
 
     # Удаление зданий, к которым невозможно прибытия из перечня приемлемых узлов
     if not target_set is None:
