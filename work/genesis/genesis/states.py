@@ -570,6 +570,7 @@ def get_atm(G,
             target_set: set         = None,
             print_calc_states: bool = True,
             calc_function: callable = None,
+            batch_size: int         = 1000,
             ):
     '''
     Расчет матрицы времен прибытия.
@@ -607,6 +608,12 @@ def get_atm(G,
 
         `print_calc_states`: bool = True
             Флаг отображения прогресса расчета.
+        
+        `calc_function`: callable
+            Функция запускаемая на каждой из добавленных подразделений
+
+        `batch_size`: int
+            Размер батча при расчете. Позволяет избежать проблемы переполнения памяти
 
     Возвращает:
 
@@ -625,42 +632,51 @@ def get_atm(G,
         data = data.sample(data_sample_size)
 
     # Реверсный граф
-    GR = nx.reverse(G, copy=True)
+    GR = nx.reverse(G, copy=False)
+
+    # Матрица
+    matrix = pd.DataFrame()
 
     # перебираем все записи в наборе данных
     if print_calc_states:
         pb = Progressbar(len(data), bins=40)
-    d = {}
     i = 0
-    for di, dt in data.iterrows():
-        node = dt[data_node_field]
-        if not data_cutoff_field is None:
-            ctf = dt[data_cutoff_field]
+    for bi in range(0, len(data), batch_size):
+        d = {}
+        data_batch = data.iloc[bi:bi+batch_size]
+
+        for di, dt in data_batch.iterrows():
+            node = dt[data_node_field]
+            if not data_cutoff_field is None:
+                ctf = dt[data_cutoff_field]
+            else:
+                ctf = cutoff - delay if not cutoff is None else None
+            length = nx.single_source_dijkstra_path_length(
+                GR,
+                source = node,
+                cutoff = ctf,
+                weight = weight,
+                )
+            # Оставляем только узлы в которых можно разместить [предполагалось удалить позже, но почему, пока не понятно]
+            if not target_set is None:
+                length = {k:v for k,v in length.items() if k in target_set}
+                
+            d[di] = pd.Series(length) + delay
+            # d[node] = pd.Series(length) + delay
+            if print_calc_states:
+                pb()
+            if calc_function:
+                value = i / len(data)
+                calc_function(value = value)
+
+            i += 1
+
+        dft = pd.DataFrame.from_dict(d, orient='index')
+        if len(matrix) == 0:
+            matrix = dft
         else:
-            ctf = cutoff - delay if not cutoff is None else None
-        length = nx.single_source_dijkstra_path_length(
-            GR,
-            source = node,
-            cutoff = ctf,
-            weight = weight,
-            )
-        # Оставляем только узлы в которых можно разместить [предполагалось удалить позже, но почему, пока не понятно]
-        if not target_set is None:
-            length = {k:v for k,v in length.items() if k in target_set}
-            
-        d[di] = pd.Series(length) + delay
-        # d[node] = pd.Series(length) + delay
-        if print_calc_states:
-            pb()
-        if calc_function:
-            value = i / len(data)
-            calc_function(value = value)
+            matrix = pd.concat([matrix, dft])
 
-        i += 1
-
-    # Формирование матрицы
-    # matrix = pd.DataFrame(d).T
-    matrix = pd.DataFrame.from_dict(d, orient='index')
 
     # Удаление зданий, к которым невозможно прибытия из перечня приемлемых узлов
     if not target_set is None:
@@ -673,5 +689,5 @@ def get_atm(G,
             print(f'!{zero_buildings_count} зданий не доступны из указанных мест размещения!')
             matrix = matrix[zero_buildings == False]
 
-    del GR
+    G = nx.reverse(GR, copy=False)
     return matrix
