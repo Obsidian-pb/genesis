@@ -338,8 +338,18 @@ class LSCP_ADD(LSCPBase):
             static_nodes = {}
         else:
             # Отброс узлов прикрытых имеющимися подразделениями
-            node_column = matrix_temp[static_nodes.keys()]
-            matrix_temp = matrix_temp[np.any(node_column, axis=1) == False]
+            # Отключил т.к. подразумевается, что учет влияния существующих подразделений 
+            # будет выполнен ранее - на этапе подготовки данных 
+            # (отброс прикрытых объектов до расчета матрицы прибытия)
+            try:
+                # node_column = matrix_temp[static_nodes.keys()]
+                # matrix_temp = matrix_temp[np.any(node_column, axis=1) == False]
+                node_cols = list(static_nodes.keys())
+                node_column = matrix_temp[node_cols]
+                mask = ~node_column.any(axis=1)
+                matrix_temp = matrix_temp[mask]
+            except KeyError:
+                warnings.warn('Влияние подразделений уже было учтено на этапе подготовки данных')
 
             # 0.2. Если статические узлы были переданы, проверяем, следует ли проводить расчет
             # возможно условие расчета уже было достигнуто
