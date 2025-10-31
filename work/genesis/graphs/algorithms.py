@@ -15,7 +15,7 @@ import geopandas as gpd
 from shapely.ops import unary_union, transform
 from shapely.geometry import MultiLineString
 
-
+from scipy.spatial import cKDTree
 
 
 def fix_highway_list(edge):
@@ -27,12 +27,20 @@ def fix_highway_list(edge):
     return edge
 
 
-def floor_coords(geom):
+def floor_coords(geoms):
     """Округляет координаты геометрии до целых чисел в меньшую сторону"""
     def floor_coord(x, y):
-        return (math.floor(x), math.floor(y))
+        #return (math.floor(x), math.floor(y))
+        return (round(x, -1), round(y, -1))
     
-    return transform(floor_coord, geom)
+    return transform(floor_coord, geoms)
+    # for geom in geoms:
+    #     for coord in geom.coords:
+    #         for i in range(len(coord)):
+    #             coord[i] = math.floor(coord[i])
+    #             return geom
+
+
 
 
 def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
@@ -73,9 +81,8 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
         roads_p = ox.projection.project_gdf(roads)
     except Exception:
         roads_p = roads
-        pass
 
-     # Округляем координаты геометрии до целых чисел
+    # Округляем координаты геометрии до целых чисел
     roads_p['geometry'] = roads_p['geometry'].apply(floor_coords)
 
     # Создаем пустой граф
@@ -112,6 +119,12 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
 
             # Добавляем узлы в граф
             for coord in coords:
+                # # Используем KD-дерево для быстрого поиска близких точек
+                # tree = cKDTree(list(nodes_dict.keys()))
+                # # Находим все пары близких точек
+                # nearest = tree.query_ball_point([coord], 1)
+
+                # if nearest:
                 if coord not in nodes_dict:
                     nodes_dict[coord] = node_id
                     node_id += 1
