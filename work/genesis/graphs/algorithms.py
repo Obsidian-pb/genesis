@@ -30,7 +30,7 @@ def floor_coords(geoms):
     """Округляет координаты геометрии до целых чисел в меньшую сторону"""
     def floor_coord(x, y):
         #return (math.floor(x), math.floor(y))
-        return (round(x, -1), round(y, -1))
+        return (round(x, 0), round(y, 0))
     
     return transform(floor_coord, geoms)
 
@@ -106,6 +106,21 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
         road_data = {k: v[0] if isinstance(v, list) else v for k, v in road_data.items()}
         del road_data['geometry']
 
+        # print('---общее')
+        road_length = 0
+        for line in lines:
+            coords = list(line.coords)
+            for coord1, coord2 in zip(coords[:-1], coords[1:]):
+                road_length_cur = ox.distance.euclidean(y1=coord1[1], x1=coord1[0],
+                                            y2=coord2[1], x2=coord2[0])
+                road_length += road_length_cur
+                # print(road_length, road_length_cur)
+        # print('======')
+
+        # Добавить интерполирвоание travel_time для каждой линии (А на будущее и иных данных)
+        travel_time = road_data.get('travel_time', 0)
+        # print(travel_time)
+                
         # Перебираем все линии в геометрии (может быть несколько для MultiLineString)
         for line in lines:
             coords = list(line.coords)
@@ -121,6 +136,12 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
             for coord1, coord2 in zip(coords[:-1], coords[1:]):
                 length = ox.distance.euclidean(y1=coord1[1], x1=coord1[0],
                                               y2=coord2[1], x2=coord2[0])
+                if travel_time > 0:
+                    travel_time_line = travel_time * length / road_length
+                    # создаем массив длинн для каждого фрагмента линии
+                    road_data['travel_time'] = travel_time_line
+                    # print('- ', travel_time_line, length, road_length)
+
 
                 # Универсальная обработка oneway
                 oneway = road_data.get(oneway_field_name, False)
