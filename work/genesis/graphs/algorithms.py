@@ -15,7 +15,6 @@ import geopandas as gpd
 from shapely.ops import unary_union, transform
 from shapely.geometry import MultiLineString
 
-from scipy.spatial import cKDTree
 
 
 def fix_highway_list(edge):
@@ -34,18 +33,13 @@ def floor_coords(geoms):
         return (round(x, -1), round(y, -1))
     
     return transform(floor_coord, geoms)
-    # for geom in geoms:
-    #     for coord in geom.coords:
-    #         for i in range(len(coord)):
-    #             coord[i] = math.floor(coord[i])
-    #             return geom
 
 
 
 
 def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                          oneway_field_name: str = 'oneway',
-                         # lanes_field_name: str = 'lanes',  # Сейча не реализовано
+                         # lanes_field_name: str = 'lanes',  # Сейчас не реализовано
                          reversed_field_name: str = 'reversed',
                          ):
     '''
@@ -66,8 +60,6 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
         Граф улично-дорожной сети
     ``
     '''
-    import warnings
-
     # Проверка наличия колонок
     #missing_cols = [col for col in [oneway_field_name, reversed_field_name] if col not in roads.columns]
     #if missing_cols:
@@ -112,6 +104,7 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
 
         road_data = road  #[columns_list]
         road_data = {k: v[0] if isinstance(v, list) else v for k, v in road_data.items()}
+        del road_data['geometry']
 
         # Перебираем все линии в геометрии (может быть несколько для MultiLineString)
         for line in lines:
@@ -119,12 +112,6 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
 
             # Добавляем узлы в граф
             for coord in coords:
-                # # Используем KD-дерево для быстрого поиска близких точек
-                # tree = cKDTree(list(nodes_dict.keys()))
-                # # Находим все пары близких точек
-                # nearest = tree.query_ball_point([coord], 1)
-
-                # if nearest:
                 if coord not in nodes_dict:
                     nodes_dict[coord] = node_id
                     node_id += 1
@@ -182,7 +169,7 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                                    **road_data, length=length)
                         existed_edges_dict[(nodes_dict[coord1], nodes_dict[coord2])] = key + 1
 
-    # перепроецируем граф к исходной системе координат
+    # Также вызываем project_graph для перепроецирования геометрии рёбер (если она есть)
     G = ox.projection.project_graph(G, to_crs=crs)
 
     return G
