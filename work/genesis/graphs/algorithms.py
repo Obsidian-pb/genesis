@@ -5,15 +5,16 @@
 
 from collections import defaultdict
 
-import numpy as np
 import math
+import random
 
+import numpy as np
 import osmnx as ox
 from osmnx import utils
 import networkx as nx
 import geopandas as gpd
 from shapely.ops import unary_union, transform
-from shapely.geometry import MultiLineString
+from shapely.geometry import Point, LineString, MultiLineString
 
 
 
@@ -324,3 +325,356 @@ def _paths_to_graph(G, paths, weight='length'):
     G_new.graph["crs"]='WGS 84'
     
     return G_new
+
+
+def generate_grid_graph(n: int,
+                        m: int,
+                        step: float = 100.0,
+                        speed: float = 50.0,
+                        crs = 'EPSG:3857',
+                        add_geometry: bool = True,
+                        diagonals: bool = False) -> nx.MultiDiGraph:
+    '''
+    Генерация графа улично-дорожной сети в виде прямоугольной сетки с опцией диагональных связей.
+    
+    Аргументы:
+        `n`: int
+            Количество узлов по оси X (ширина сетки)
+        
+        `m`: int
+            Количество узлов по оси Y (высота сетки)
+        
+        `step`: float = 100.0
+            Расстояние между соседними узлами (в метрах)
+        
+        `speed`: float или tuple = 50.0
+            Скорость движения по ребрам (км/ч) для расчета времени в пути.
+            Может быть:
+            - float: единственное значение скорости для всех ребер
+            - tuple: ((speed1, speed2, ...), (prob1, prob2, ...))
+              где первый кортеж содержит скорости, второй - вероятности их выбора.
+              Сумма вероятностей должна быть строго равна 1.0
+              Пример: ((30, 40, 50), (0.2, 0.5, 0.3))
+        
+        `crs`: str = 'EPSG:3857
+            Система координат
+        
+        `add_geometry`: bool = True
+            Добавлять ли геометрию (LineString) к ребрам
+        
+        `diagonals`: bool = False
+            Добавлять ли диагональные связи между узлами
+    
+    Возвращает:
+        `G`: nx.MultiDiGraph
+            Направленный мультиграф с узлами и ребрами в виде сетки
+    '''
+    
+    
+    # Валидация параметра speed
+    if isinstance(speed, tuple):
+        if len(speed) != 2:
+            raise ValueError("Параметр speed в формате tuple должен содержать 2 элемента: ((speeds...), (probs...))")
+        
+        speeds, probs = speed
+        
+        if len(speeds) != len(probs):
+            raise ValueError(f"Количество скоростей ({len(speeds)}) должно совпадать с количеством вероятностей ({len(probs)})")
+        
+        if not isinstance(speeds, (tuple, list)) or not isinstance(probs, (tuple, list)):
+            raise ValueError("Скорости и вероятности должны быть tuple или list")
+        
+        # Проверка суммы вероятностей
+        prob_sum = sum(probs)
+        if not np.isclose(prob_sum, 1.0, atol=1e-6):
+            raise ValueError(f"Сумма вероятностей должна быть равна 1.0, текущая сумма: {prob_sum}")
+        
+        # Проверка, что все вероятности неотрицательны
+        if any(p < 0 for p in probs):
+            raise ValueError("Все вероятности должны быть неотрицательными")
+        
+        # Проверка, что все скорости положительны
+        if any(s <= 0 for s in speeds):
+            raise ValueError("Все значения скорости должны быть положительными")
+    
+    # Создание пустого мультиграфа
+    metadata = {
+            "created_date": utils.ts(),
+            "created_with": f"OSMnx {ox.__version__}",
+            "crs": crs
+        }
+    G = nx.MultiDiGraph(**metadata)
+    
+    # Генерация узлов
+    node_id = 0
+    node_positions = {}  # Для хранения соответствия (i, j) -> node_id
+    
+    for i in range(n):
+        for j in range(m):
+            # Координаты узла
+            x = i * step
+            y = j * step
+            
+            # Добавление узла с атрибутами
+            G.add_node(node_id, 
+                      x=x, 
+                      y=y,
+                      pos=(x, y),
+                      geometry=Point(x, y) if add_geometry else None)
+            
+            node_positions[(i, j)] = node_id
+            node_id += 1
+    
+    # Генерация ребер между соседними узлами
+    for i in range(n):
+        for j in range(m):
+            current_node = node_positions[(i, j)]
+            
+            # Горизонтальные и вертикальные связи
+            # Соединяем с правым соседом (i+1, j)
+            if i + 1 < n:
+                right_node = node_positions[(i + 1, j)]
+                add_edge_with_attributes(G, current_node, right_node, step, speed, add_geometry)
+                add_edge_with_attributes(G, right_node, current_node, step, speed, add_geometry)
+            
+            # Соединяем с верхним соседом (i, j+1)
+            if j + 1 < m:
+                top_node = node_positions[(i, j + 1)]
+                add_edge_with_attributes(G, current_node, top_node, step, speed, add_geometry)
+                add_edge_with_attributes(G, top_node, current_node, step, speed, add_geometry)
+            
+            # Диагональные связи
+            if diagonals:
+                diagonal_length = step * math.sqrt(2)
+                
+                # Диагональ вправо-вверх (i+1, j+1)
+                if i + 1 < n and j + 1 < m:
+                    diag_node = node_positions[(i + 1, j + 1)]
+                    add_edge_with_attributes(G, current_node, diag_node, diagonal_length, speed, add_geometry)
+                    add_edge_with_attributes(G, diag_node, current_node, diagonal_length, speed, add_geometry)
+                
+                # Диагональ влево-вверх (i-1, j+1)
+                if i - 1 >= 0 and j + 1 < m:
+                    diag_node = node_positions[(i - 1, j + 1)]
+                    add_edge_with_attributes(G, current_node, diag_node, diagonal_length, speed, add_geometry)
+                    add_edge_with_attributes(G, diag_node, current_node, diagonal_length, speed, add_geometry)
+    
+    return G
+
+def add_edge_with_attributes(G, u, v, length, speed, add_geometry=True):
+    '''
+    Добавляет ребро с необходимыми атрибутами.
+    
+    Аргументы:
+        `G`: nx.MultiDiGraph
+            Граф
+        `u`, `v`: int
+            Узлы начала и конца ребра
+        `length`: float
+            Длина ребра (в метрах)
+        `speed`: float или tuple
+            Скорость движения (км/ч). Может быть:
+            - float: единственное значение скорости
+            - tuple: ((speed1, speed2, ...), (prob1, prob2, ...))
+        `add_geometry`: bool
+            Добавлять ли геометрию LineString
+    '''
+    
+    # Определение скорости для данного ребра
+    if isinstance(speed, tuple):
+        # Формат: ((speeds...), (probs...))
+        speeds, probs = speed
+        actual_speed = np.random.choice(speeds, p=probs)
+    else:
+        # Единственное значение скорости
+        actual_speed = speed
+    
+    # Расчет времени в пути (в секундах)
+    # length в метрах, actual_speed в км/ч
+    # travel_time = (length / 1000.0) / actual_speed * 3600.0  # секунды
+    travel_time = length / (actual_speed * 1000 / 60)        # минуты
+    
+    # Атрибуты ребра
+    edge_attrs = {
+        'length': length,
+        'travel_time': travel_time,
+        'speed_kph': actual_speed,
+    }
+    
+    # Добавление геометрии если требуется
+    if add_geometry:
+        u_data = G.nodes[u]
+        v_data = G.nodes[v]
+        edge_attrs['geometry'] = LineString([
+            (u_data['x'], u_data['y']),
+            (v_data['x'], v_data['y'])
+        ])
+    
+    G.add_edge(u, v, **edge_attrs)
+
+
+def remove_random_elements(G, 
+                          remove_nodes: int = 0, 
+                          remove_edges: int = 0,
+                          seed: int = None,
+                          copy: bool = True) -> nx.MultiDiGraph:
+    '''
+    Случайное удаление узлов или ребер из графа.
+    
+    Аргументы:
+        `G`: nx.MultiDiGraph
+            Исходный граф
+        
+        `remove_nodes`: int = 0
+            Количество узлов для удаления
+        
+        `remove_edges`: int = 0
+            Количество ребер для удаления
+
+        `seed`: int = None
+            Зерно случайного выбора
+        
+        `copy`: bool = True
+            Создавать копию графа (True) или изменять исходный (False)
+    
+    Возвращает:
+        `G_modified`: nx.MultiDiGraph
+            Граф с удаленными элементами
+    '''
+    
+    if copy:
+        G = G.copy()
+
+    if seed is not None:
+        random.seed(seed)
+    
+    # Удаление случайных узлов
+    if remove_nodes > 0:
+        nodes_list = list(G.nodes())
+        nodes_to_remove = random.sample(nodes_list, min(remove_nodes, len(nodes_list)))
+        G.remove_nodes_from(nodes_to_remove)
+    
+    # Удаление случайных ребер
+    if remove_edges > 0:
+        edges_list = list(G.edges(keys=True))
+        edges_to_remove = random.sample(edges_list, min(remove_edges, len(edges_list)))
+        for u, v, k in edges_to_remove:
+            G.remove_edge(u, v, k)
+    
+    return G
+
+def remove_edges_intersecting_lines(G: nx.MultiDiGraph,
+                                    lines: list,
+                                    copy: bool = True) -> nx.MultiDiGraph:
+    '''
+    Удаляет из графа все ребра, которые пересекаются с линиями (LineString) из переданного списка.
+    
+    Аргументы:
+        `G`: nx.MultiDiGraph
+            Исходный граф
+        
+        `lines`: list
+            Список объектов LineString (из shapely.geometry) или других геометрических объектов,
+            с которыми проверяется пересечение ребер графа
+        
+        `copy`: bool = True
+            Создавать копию графа (True) или изменять исходный (False)
+    
+    Возвращает:
+        `G_modified`: nx.MultiDiGraph
+            Граф с удаленными ребрами, которые пересекаются с линиями
+    '''
+
+    
+    if copy:
+        G = G.copy()
+    
+    # Если список линий пуст, возвращаем граф без изменений
+    if not lines:
+        return G
+    
+    # Список ребер для удаления
+    edges_to_remove = []
+    
+    # Проверяем каждое ребро графа
+    for u, v, key, data in G.edges(keys=True, data=True):
+        # Получаем геометрию ребра
+        edge_geometry = data.get('geometry')
+        
+        # Если у ребра нет геометрии, пропускаем его
+        if edge_geometry is None:
+            continue
+        
+        # Проверяем пересечение с каждой линией из списка
+        for line in lines:
+            # Проверяем пересечение
+            if edge_geometry.intersects(line):
+                edges_to_remove.append((u, v, key))
+                break  # Если пересечение найдено, не проверяем другие линии
+    
+    # Удаляем найденные ребра
+    for u, v, key in edges_to_remove:
+        G.remove_edge(u, v, key)
+    
+    return G
+
+
+def remove_nodes_in_polygons(G: nx.MultiDiGraph,
+                             polygons: list,
+                             copy: bool = True) -> nx.MultiDiGraph:
+    '''
+    Удаляет из графа все узлы, которые попадают в полигоны из переданного списка.
+    
+    Аргументы:
+        `G`: nx.MultiDiGraph
+            Исходный граф
+        
+        `polygons`: list
+            Список объектов Polygon (из shapely.geometry) или других геометрических объектов,
+            в которые проверяется попадание узлов графа
+        
+        `copy`: bool = True
+            Создавать копию графа (True) или изменять исходный (False)
+    
+    Возвращает:
+        `G_modified`: nx.MultiDiGraph
+            Граф с удаленными узлами, которые попадают в полигоны
+    '''
+
+    
+    if copy:
+        G = G.copy()
+    
+    # Если список полигонов пуст, возвращаем граф без изменений
+    if not polygons:
+        return G
+    
+    # Список узлов для удаления
+    nodes_to_remove = []
+    
+    # Проверяем каждый узел графа
+    for node, data in G.nodes(data=True):
+        # Получаем геометрию узла
+        node_geometry = data.get('geometry')
+        
+        # Если у узла нет геометрии, пытаемся создать Point из координат x, y
+        if node_geometry is None:
+            x = data.get('x')
+            y = data.get('y')
+            if x is not None and y is not None:
+                node_geometry = Point(x, y)
+            else:
+                # Если нет ни геометрии, ни координат, пропускаем узел
+                continue
+        
+        # Проверяем попадание в каждый полигон из списка
+        for polygon in polygons:
+            # Проверяем, попадает ли узел в полигон
+            if polygon.contains(node_geometry) or polygon.intersects(node_geometry):
+                nodes_to_remove.append(node)
+                break  # Если попадание найдено, не проверяем другие полигоны
+    
+    # Удаляем найденные узлы (при удалении узла автоматически удаляются все связанные ребра)
+    G.remove_nodes_from(nodes_to_remove)
+    
+    return G
