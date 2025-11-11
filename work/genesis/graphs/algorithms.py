@@ -118,7 +118,8 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                 # print(road_length, road_length_cur)
         # print('======')
 
-        # Добавить интерполирвоание travel_time для каждой линии (А на будущее и иных данных)
+        # Добавить интерполирование travel_time для каждой линии (А на будущее и иных данных)
+        # Реализовано ниже
         travel_time = road_data.get('travel_time', 0)
         # print(travel_time)
                 
@@ -267,7 +268,15 @@ def _paths_to_graph(G, paths, weight='length'):
     MultiDiGraph
         Упрощенный граф дорожной сети
     '''
-    G_new = ox.graph.nx.MultiDiGraph()
+    # G_new = ox.graph.nx.MultiDiGraph()
+    # Создание пустого мультиграфа
+    metadata = {
+            "created_date": utils.ts(),
+            "created_with": f"OSMnx {ox.__version__}",
+            "crs": G.graph['crs']
+        }
+    G_new = nx.MultiDiGraph(**metadata)
+
     g_edges = ox.graph_to_gdfs(G, edges=True, nodes=False)
     for path in paths:
         lines=[]
@@ -279,7 +288,7 @@ def _paths_to_graph(G, paths, weight='length'):
             for u, v in zip(path[:-1], path[1:]):
                 edge_data = g_edges.loc[u,v,0]
                 # if 'geometry' in G.edges[u,v,0].keys():
-                if 'geometry' in edge_data.keys():                    
+                if 'geometry' in edge_data.keys():
                     lines.append(edge_data['geometry'])
                     # print(edge_data['geometry'])
                 if 'length' in edge_data.keys():
@@ -308,7 +317,7 @@ def _paths_to_graph(G, paths, weight='length'):
                 'highway': max(hws, key=hws.get),     # 'tertiary' # до 11/01/2024: 
                 'oneway': False,
                 'length': length,
-                'geometry': unary_union(lines)
+                'geometry': unary_union(lines)  # РАЗОБРАТЬСЯ - при перепроецировании не работает
             }
             # print(unary_union(lines))
             # print(lines)
@@ -322,7 +331,7 @@ def _paths_to_graph(G, paths, weight='length'):
         except TypeError:
             print("gds._paths_to_graph: проверить работоспособность путей длиной 0", path)
         
-    G_new.graph["crs"]='WGS 84'
+    # G_new.graph["crs"]='WGS 84'
     
     return G_new
 
@@ -356,7 +365,7 @@ def generate_grid_graph(n: int,
               Сумма вероятностей должна быть строго равна 1.0
               Пример: ((30, 40, 50), (0.2, 0.5, 0.3))
         
-        `crs`: str = 'EPSG:3857
+        `crs`: str = 'EPSG:3857'
             Система координат
         
         `add_geometry`: bool = True
@@ -396,7 +405,7 @@ def generate_grid_graph(n: int,
         # Проверка, что все скорости положительны
         if any(s <= 0 for s in speeds):
             raise ValueError("Все значения скорости должны быть положительными")
-    
+
     # Создание пустого мультиграфа
     metadata = {
             "created_date": utils.ts(),
@@ -404,24 +413,24 @@ def generate_grid_graph(n: int,
             "crs": crs
         }
     G = nx.MultiDiGraph(**metadata)
-    
+
     # Генерация узлов
     node_id = 0
     node_positions = {}  # Для хранения соответствия (i, j) -> node_id
-    
+
     for i in range(n):
         for j in range(m):
             # Координаты узла
             x = i * step
             y = j * step
-            
+
             # Добавление узла с атрибутами
             G.add_node(node_id, 
                       x=x, 
                       y=y,
                       pos=(x, y),
                       geometry=Point(x, y) if add_geometry else None)
-            
+
             node_positions[(i, j)] = node_id
             node_id += 1
     
@@ -502,6 +511,7 @@ def add_edge_with_attributes(G, u, v, length, speed, add_geometry=True):
     }
     
     # Добавление геометрии если требуется
+    # По непонятной причине - это вызывает ошибку при перепроецироании, поэтому не используем
     if add_geometry:
         u_data = G.nodes[u]
         v_data = G.nodes[v]
@@ -509,8 +519,49 @@ def add_edge_with_attributes(G, u, v, length, speed, add_geometry=True):
             (u_data['x'], u_data['y']),
             (v_data['x'], v_data['y'])
         ])
+        
     
     G.add_edge(u, v, **edge_attrs)
+
+
+def update_edge_geometries_from_nodes(G: nx.MultiDiGraph) -> nx.MultiDiGraph:
+    '''
+    Возможно нет необходимости.
+
+    Обновляет геометрию ребер графа на основе текущих координат узлов.
+    
+    Эта функция полезна после перепроецирования графа (ox.project_graph()),
+    когда координаты узлов обновляются, но геометрия ребер остается в старой системе координат.
+    
+    Аргументы:
+        `G`: nx.MultiDiGraph
+            Граф с узлами, имеющими атрибуты x, y
+    
+    Возвращает:
+        `G`: nx.MultiDiGraph
+            Граф с обновленной геометрией ребер
+    '''
+    # Проходим по всем ребрам графа
+    for u, v, key, data in G.edges(keys=True, data=True):
+        # Если у ребра есть геометрия, обновляем её
+        if 'geometry' in data:
+            u_data = G.nodes[u]
+            v_data = G.nodes[v]
+            
+            # Получаем координаты узлов
+            u_x = u_data.get('x')
+            u_y = u_data.get('y')
+            v_x = v_data.get('x')
+            v_y = v_data.get('y')
+            
+            # Если координаты узлов доступны, пересоздаем геометрию
+            if u_x is not None and u_y is not None and v_x is not None and v_y is not None:
+                data['geometry'] = LineString([
+                    (u_x, u_y),
+                    (v_x, v_y)
+                ])
+    
+    return G
 
 
 def remove_random_elements(G, 
@@ -678,3 +729,159 @@ def remove_nodes_in_polygons(G: nx.MultiDiGraph,
     G.remove_nodes_from(nodes_to_remove)
     
     return G
+
+
+def update_speeds_on_random_routes(G: nx.MultiDiGraph,
+                                    num_nodes: int,
+                                    max_route_length: float,
+                                    weight: str = 'length',
+                                    max_routes_per_node: int = 5,
+                                    speed: float = 50.0,
+                                    seed: int = None,
+                                    copy: bool = True) -> nx.MultiDiGraph:
+    '''
+    Находит кратчайшие маршруты между случайными узлами графа и устанавливает
+    для всех ребер в каждом из маршрутов заданную скорость.
+    
+    Функция случайным образом выбирает узлы из графа, находит кратчайшие пути
+    между ними (с учетом максимальной протяженности) и обновляет скорость для
+    всех ребер, входящих в найденные маршруты.
+    
+    Аргументы:
+        `G`: nx.MultiDiGraph
+            Граф дорожной сети
+        `num_nodes`: int
+            Общее количество случайным образом взятых узлов графа
+        `max_route_length`: float
+            Максимальная протяженность маршрута (в единицах веса ребер)
+        `weight`: str = 'length'
+            Атрибут ребер, который следует рассматривать как вес для поиска
+            кратчайшего пути (например, 'length', 'travel_time')
+        `max_routes_per_node`: int = 10
+            Максимально возможное количество маршрутов из одного узла
+        `speed`: float = 50.0
+            Скорость движения (км/ч) для установки на ребрах маршрутов
+        `seed`: int = None
+            Зерно для генератора случайных чисел (для воспроизводимости)
+        `copy`: bool = True
+            Создавать копию графа (True) или изменять исходный (False)
+    
+    Возвращает:
+        `G`: nx.MultiDiGraph
+            Граф с обновленными скоростями на ребрах найденных маршрутов
+    '''
+    
+    if copy:
+        G = G.copy()
+    
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+    
+    # Получаем список всех узлов графа
+    all_nodes = list(G.nodes())
+    
+    if len(all_nodes) < num_nodes:
+        num_nodes = len(all_nodes)
+    
+    # Случайным образом выбираем узлы
+    selected_nodes = random.sample(all_nodes, num_nodes)
+    
+    # Словарь для подсчета количества маршрутов из каждого узла
+    routes_from_node = defaultdict(int)
+    
+    # Множество всех ребер, которые нужно обновить
+    edges_to_update = set()
+    
+    # Находим кратчайшие пути между случайными парами узлов
+    #for i in range(len(selected_nodes)):
+    #    source = selected_nodes[i]
+    for source in selected_nodes:
+        
+        # Проверяем, не превышен ли лимит маршрутов из этого узла
+        if routes_from_node[source] >= max_routes_per_node:
+            continue
+        
+        # Выбираем случайные целевые узлы (исключая сам источник)
+        possible_targets = [n for n in selected_nodes if n != source]
+        
+        if not possible_targets:
+            continue
+        
+        # Случайным образом выбираем целевой узел
+        # target = random.choice(possible_targets)
+        
+        for target in possible_targets:
+            try:
+                # Проверяем, не превышен ли лимит маршрутов из этого узла
+                if routes_from_node[source] >= max_routes_per_node:
+                    break
+                    
+                # Пытаемся найти кратчайший путь
+                # Используем cutoff для ограничения максимальной длины пути
+                path = nx.shortest_path(
+                    G,
+                    source=source,
+                    target=target,
+                    weight=weight,
+                    method='dijkstra'
+                )
+                
+                # Вычисляем длину пути
+                path_length = 0
+                for u, v in zip(path[:-1], path[1:]):
+                    # Берем первое ребро между узлами (key=0)
+                    edge_data = G[u][v][0]
+                    edge_weight = edge_data.get(weight, 1.0)
+                    path_length += edge_weight
+                
+                # Проверяем, не превышает ли путь максимальную длину
+                if path_length <= max_route_length:
+                    # Добавляем все ребра пути в множество для обновления
+                    for u, v in zip(path[:-1], path[1:]):
+                        # В MultiDiGraph может быть несколько ребер между узлами
+                        # Добавляем все ключи
+                        for key in G[u][v].keys():
+                            edges_to_update.add((u, v, key))
+                    
+                    # Увеличиваем счетчик маршрутов из исходного узла
+                    routes_from_node[source] += 1
+            
+            
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                # Если путь не найден, пропускаем эту пару узлов
+                continue
+    
+    # Обновляем скорость для всех найденных ребер
+    for u, v, key in edges_to_update:
+        data = G[u][v][key]
+        
+        # Получаем длину ребра
+        length = data.get('length')
+        if length is None:
+            # Если длины нет, вычисляем из геометрии или координат узлов
+            edge_geometry = data.get('geometry')
+            if edge_geometry is not None:
+                length = edge_geometry.length
+            else:
+                u_data = G.nodes[u]
+                v_data = G.nodes[v]
+                if 'x' in u_data and 'y' in u_data and 'x' in v_data and 'y' in v_data:
+                    length = ox.distance.euclidean(
+                        y1=u_data['y'], x1=u_data['x'],
+                        y2=v_data['y'], x2=v_data['x']
+                    )
+                else:
+                    # Если не можем вычислить длину, пропускаем это ребро
+                    continue
+        
+        # Пересчитываем travel_time
+        # length в метрах, speed в км/ч
+        travel_time = length / (speed * 1000 / 60)  # минуты
+        
+        # Обновляем атрибуты ребра
+        data['speed_kph'] = speed
+        data['travel_time'] = travel_time
+    
+    return G
+
