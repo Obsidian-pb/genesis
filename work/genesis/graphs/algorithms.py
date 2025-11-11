@@ -738,7 +738,8 @@ def update_speeds_on_random_routes(G: nx.MultiDiGraph,
                                     max_routes_per_node: int = 5,
                                     speed: float = 50.0,
                                     seed: int = None,
-                                    copy: bool = True) -> nx.MultiDiGraph:
+                                    copy: bool = True,
+                                    selected_nodes: list = None) -> nx.MultiDiGraph:
     '''
     Находит кратчайшие маршруты между случайными узлами графа и устанавливает
     для всех ребер в каждом из маршрутов заданную скорость.
@@ -785,7 +786,8 @@ def update_speeds_on_random_routes(G: nx.MultiDiGraph,
         num_nodes = len(all_nodes)
     
     # Случайным образом выбираем узлы
-    selected_nodes = random.sample(all_nodes, num_nodes)
+    if selected_nodes is None:
+        selected_nodes = random.sample(all_nodes, num_nodes)
     
     # Словарь для подсчета количества маршрутов из каждого узла
     routes_from_node = defaultdict(int)
