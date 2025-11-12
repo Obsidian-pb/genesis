@@ -116,7 +116,9 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
                                             y2=coord2[1], x2=coord2[0])
                 road_length += road_length_cur
                 # print(road_length, road_length_cur)
-        # print('======')
+        # Предотвращение ошибки нулевой длины участка (временное решение)
+        if road_length == 0:
+            road_length = 1
 
         # Добавить интерполирование travel_time для каждой линии (А на будущее и иных данных)
         # Реализовано ниже
