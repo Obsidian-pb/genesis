@@ -156,6 +156,8 @@ class LSCPCommon(LSCPBase):
             # print(new_node)
 
             # 2.3. Добавление нового узла в словарь динамических узлов:
+            while self.names_pattern.format(name_index) in all_nodes.values():
+                name_index += 1
             best_dynamic_nodes[new_node] = self.names_pattern.format(name_index)
             # print(best_dynamic_nodes)
 
@@ -447,7 +449,7 @@ class LSCP_ADD(LSCPBase):
                 node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
 
 
-            while self.names_pattern.format(name_index) in best_dynamic_nodes.values():
+            while self.names_pattern.format(name_index) in all_nodes.values():
                     name_index += 1
             best_dynamic_nodes[node_id] = self.names_pattern.format(name_index)
             node_column = matrix_temp[node_id]
