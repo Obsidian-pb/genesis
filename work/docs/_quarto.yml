@@ -8,7 +8,7 @@ book:
   title: "genesis docs"
   description: |
     Документация библиотеки genesis
-  version: 0.0.3
+  version: 0.1.0
   author: "Малютин О.С., Матеров Е.Н., Бабенышев С.В."
   date: today
   repo-url: https://github.com/Obsidian-pb/genesis
