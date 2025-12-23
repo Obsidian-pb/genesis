@@ -137,9 +137,8 @@ class BestNodeHillClimbing_HD_Max_Mean(BestNodeHillClimbing):
 class BestNodeHillClimbingHD(BestNodeHillClimbing):
     '''
     Расчет лучшего узла с использованием алгоритма
-    Hill Climbing и предварительным определением центра диаметра графа.
-
-    
+    Hill Climbing по метрике и
+    предварительным определением центра диаметра графа (Half Diameter).
     '''
     def __init__(self,
                  state_function: StateBase,
