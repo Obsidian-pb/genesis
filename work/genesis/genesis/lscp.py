@@ -331,8 +331,8 @@ class LSCP_ADD(LSCPBase):
         # Если следует учесть веса объектов, умножаем матрицу на них
         if not self.target_weights is None:
             warnings.warn("Учет веса целей в настоящее время не протестирован! Возможно следует использовать matrix_temp", UserWarning)
-            weights = self.target_weights.loc[matrix.index]
-            matrix = matrix.mul(weights, axis=0)
+            weights = self.target_weights.loc[matrix_temp.index]
+            matrix_temp = matrix_temp.mul(weights, axis=0)
 
 
         # 0.1. Если статические узлы не указаны - заменяем значение переменной с None на {}
