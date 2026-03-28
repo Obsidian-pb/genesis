@@ -258,13 +258,15 @@ class BestNodesKoptG(MCLPBase):
                     node_area_nodes = [n for n,v in nearest.items() if v==dynamic_node]
 
                     # Определяем подграф зоны обслуживания для узла dynamic_node
-                    node_area_G = nx.subgraph(env, node_area_nodes)
+                    node_area_G = nx.subgraph(env, node_area_nodes).copy()
 
                     # Определяем лучший узел
                     best_nodes, _ = self.best_point_function(env=node_area_G, 
                                                                     start_point=dynamic_node,  # start_point
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
+                    del node_area_G
+
                     if isinstance(best_nodes, list):
                         best_nodes = best_nodes[0]
                     # Добавляем полученный узел в новый список
@@ -278,13 +280,14 @@ class BestNodesKoptG(MCLPBase):
                     node_area_nodes = [k for k,v in nearest.items() if v==dynamic_node_key]
 
                     # Определяем подграф зоны обслуживания для узла dynamic_node
-                    node_area_G = nx.subgraph(env, node_area_nodes)
+                    node_area_G = nx.subgraph(env, node_area_nodes).copy()
 
                     # Определяем лучший узел
                     best_nodes, _ = self.best_point_function(env=node_area_G,
                                                                     start_point=dynamic_node_id,
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
+                    del node_area_G
 
                     if isinstance(best_nodes, list):
                         best_nodes = best_nodes[0]
@@ -292,7 +295,7 @@ class BestNodesKoptG(MCLPBase):
                     new_dynamic_nodes[best_nodes] = dynamic_node_key
 
             # 2. Заменяем список dynamic_nodes списком с новыми, лучшими узлами
-            dynamic_nodes = new_dynamic_nodes
+            dynamic_nodes = new_dynamic_nodes.copy()
 
             # 3. Приведение к типу переменной в соответствии с типом `dynamic_nodes`
             start_nodes = list_dict_concat(dynamic_nodes, static_nodes)

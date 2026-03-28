@@ -113,7 +113,10 @@ class BestPointsBase:
     '''
     Базовый класс алгоритма расчета оптимальной точки
     '''
-    def __init__(self, state_function: StateBase, metric_function: MetricBase,  **kwargs) -> None:
+    def __init__(self, 
+                 state_function: StateBase, 
+                 metric_function: MetricBase, 
+                 **kwargs) -> None:
         '''
         `state_function`: StateBase
             функция расчета состояния окружения

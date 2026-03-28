@@ -28,14 +28,15 @@ class BestNodeHillClimbing_HD_Max_Mean_Metric(BestNodeHillClimbing):
                  metric_function: MetricBase = None,
                  appr_val: float = 0.95,
                  all_neighbors: bool = True,
+                 node_calc_end_function: callable = None,
                  **kwargs) -> None:
+        self.node_calc_end_function = node_calc_end_function
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
     def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_node: int = None,
                  debug_route: bool = False,
-                 node_calc_end_function: callable = None,
                  **kwargs):
 
         bnch_d = BestNodesHalfDiameter()
@@ -55,8 +56,8 @@ class BestNodeHillClimbing_HD_Max_Mean_Metric(BestNodeHillClimbing):
         best_node, best_metric     =    bnch_meetric(env=env, area=area, start_point=best_node)
 
         # выполняем функцию завершения расчета для узла
-        if node_calc_end_function:
-            node_calc_end_function()
+        if self.node_calc_end_function:
+            self.node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
         return best_node, best_metric
 
@@ -67,14 +68,15 @@ class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):
                  metric_function: MetricBase = None,
                  appr_val: float = 0.95,
                  all_neighbors: bool = True,
+                 node_calc_end_function: callable = None,
                  **kwargs) -> None:
+        self.node_calc_end_function = node_calc_end_function
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
     def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_point: int = None,
                  debug_route: bool = False,
-                 node_calc_end_function: callable = None,
                  **kwargs):
 
         bnch_max = BestNodeHillClimbing(state_function=self.state_function,
@@ -89,8 +91,8 @@ class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):
         best_node, best_metric = bnch_meetric(env=env, area=area, start_point=best_node)
 
         # выполняем функцию завершения расчета для узла
-        if node_calc_end_function:
-            node_calc_end_function()
+        if self.node_calc_end_function:
+            self.node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
         return best_node, best_metric
     
@@ -101,14 +103,15 @@ class BestNodeHillClimbing_HD_Max_Mean(BestNodeHillClimbing):
                  metric_function: MetricBase = None,
                  appr_val: float = 0.95,
                  all_neighbors: bool = True,
+                 node_calc_end_function: callable = None,
                  **kwargs) -> None:
+        self.node_calc_end_function = node_calc_end_function
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
     def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_node: int = None,
                  debug_route: bool = False,
-                 node_calc_end_function: callable = None,
                  **kwargs):
 
         bnch_d = BestNodesHalfDiameter()
@@ -126,8 +129,8 @@ class BestNodeHillClimbing_HD_Max_Mean(BestNodeHillClimbing):
 
 
         # выполняем функцию завершения расчета для узла
-        if node_calc_end_function:
-            node_calc_end_function()
+        if self.node_calc_end_function:
+            self.node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
         return best_node, best_metric
 
@@ -145,14 +148,15 @@ class BestNodeHillClimbingHD(BestNodeHillClimbing):
                  metric_function: MetricBase = None,
                  appr_val: float = 0.95,
                  all_neighbors: bool = True,
+                 node_calc_end_function: callable = None,
                  **kwargs) -> None:
+        self.node_calc_end_function = node_calc_end_function
         super().__init__(state_function, metric_function, appr_val, all_neighbors, **kwargs)
 
     def __call__(self, env: nx.Graph,
                  area: pd.Series = None,
                  start_point: int = None,
                  debug_route: bool = False,
-                 node_calc_end_function: callable = None,
                  **kwargs):
 
         bnhd = BestNodesHalfDiameter()
@@ -165,7 +169,7 @@ class BestNodeHillClimbingHD(BestNodeHillClimbing):
         best_node, best_metric = bnhc(env=env, area=area, start_point=start_node)
 
         # выполняем функцию завершения расчета для узла
-        if node_calc_end_function:
-            node_calc_end_function()
+        if self.node_calc_end_function:
+            self.node_calc_end_function(best_node=best_node, best_metric=best_metric)
 
         return best_node, best_metric
