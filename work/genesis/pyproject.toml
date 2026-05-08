@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# ВНИМАНИЕ: имя дистрибутива (project.name) в PyPI должно быть уникальным.
+# Пакет при этом может называться `genesis` (это имя импортируемого модуля).
+name = "genesis-spatial-opt"
+dynamic = ["version"]
+description = "genesis: библиотека пространственной оптимизации размещения подразделений пожарной охраны"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "Apache-2.0"}
+authors = [{name = "Maliutin O.S."}]
+
+dependencies = [
+  "numpy",
+  "pandas",
+  "networkx",
+  "geopandas",
+  "shapely",
+  "osmnx",
+]
+
+[project.urls]
+Repository = "https://github.com/Obsidian-pb/genesis"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = {attr = "genesis._version.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+  "genesis*",
+  "graphs*",
+  "fire_units*",
+  "lists*",
+]
+

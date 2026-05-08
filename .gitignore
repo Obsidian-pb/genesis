@@ -28,3 +28,6 @@ work/documentation/*
 /work/docs/venv
 /work/docs/pages/data
 /work/genesis/_data
+/work/genesis/.venv
+/work/genesis/dist
+/work/genesis/genesis_spatial_opt.egg-info
