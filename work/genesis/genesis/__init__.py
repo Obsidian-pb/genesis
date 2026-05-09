@@ -21,5 +21,3 @@ from . import graphs as graphs  # noqa: F401
 from . import fire_units as fire_units  # noqa: F401
 from . import lists as lists  # noqa: F401
 
-# Тесты - при публикации закомментировать!
-# from . import tests
