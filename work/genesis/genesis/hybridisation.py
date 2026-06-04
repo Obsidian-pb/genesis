@@ -73,27 +73,6 @@ class Hybridization(MCLPBase):
         self.type_of_hybrid        = type_of_hybrid
         self.function_end_function = function_end_function
         super().__init__(state_function, metric_function, **kwargs)
-        
-
-    def set_type_of_hybrid(self, type_of_hybrid: str):
-        '''
-        Установить тип гибридизации
-
-        Аргументы:
-
-        `type_of_hybrid`: str = 'Boosting'  
-
-            Тип гибридизации. Возможные варианты: 'Boosting' или 'Stacking'.
-
-            'Boosting' - метод бустинга, т.е. последовательного выполнения функций и передачи полученного 
-            результата далее.
-
-            'Stacking' - метод стекинга, т.е. параллельного выполнения функций и выбора лучшего результата.  
-
-        '''
-        if type_of_hybrid not in ['Boosting', 'Stacking']:
-            raise ValueError('Аргумент `type_of_hybrid` должен быть типа str и иметь значение "Boosting" или "Stacking"!')
-        self.type_of_hybrid = type_of_hybrid
 
 
     def append(self, func):
@@ -104,27 +83,8 @@ class Hybridization(MCLPBase):
             self.functions.append(func)
         else:
             raise TypeError('Аргумент `func` должен быть типом класса BestPoints, MCLP или LSCP!')
-        
 
-    def _main_metric(self, env, nodes, area=None, **kwargs):
-        '''
-        Расчет функции приспособленности
-        '''
-        # Расчет состояния
-        times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
 
-        if not area is None:
-            appr_nodes_count = area.sum() * self.appr_val_in_area
-            if len(times) < appr_nodes_count:
-                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
-                return self.bad_val_in_area
-
-        # Расчет стартовой метрики состояния и определение стартового размещения
-        best_metric = self.metric_function(times, **kwargs)
-
-        return best_metric
-
-    
     def __call__(self,
                  env:           nx.Graph,
                  dynamic_nodes: dict,
@@ -190,23 +150,33 @@ class Hybridization(MCLPBase):
                                        dynamic_nodes = dynamic_nodes.copy(),
                                        static_nodes  = static_nodes,
                                        **kwargs)
+            
             # Оценка основной метрики
+            # if self.metric_function and self.state_function:
             if not static_nodes is None:
                 all_nodes = {**best_nodes, **static_nodes}
             else:
                 all_nodes = best_nodes
-            best_metric = self._main_metric(env, all_nodes, area, **kwargs)
+            # all_nodes  = list_dict_concat(best_nodes, static_nodes)
+            times, nearest = self.state_function(env=env, points=all_nodes, **kwargs)
+            cur_metric = self.metric_function(times, area=area, **kwargs)
+
             # Проверяем улучшилась ли основная метрика, если да, то сохраняем результат
-            if main_best_metric is None or \
-                    self.metric_function.compare(main_best_metric, best_metric) == best_metric:
+            # print('!', main_best_metric, cur_metric)
+            if main_best_metric is None:
                 main_best_nodes  = best_nodes
-                main_best_metric = best_metric
+                main_best_metric = cur_metric
+            elif self.metric_function.compare(main_best_metric, cur_metric) == cur_metric:
+                main_best_nodes  = best_nodes
+                main_best_metric = cur_metric
+            
+
             # Печать результатов
             if self.function_end_function:
                 self.function_end_function(turn = i,
                             best_metric = main_best_metric,
-                            cur_metric = cur_metric,
-                            best_nodes = main_best_nodes)
+                            cur_metric  = cur_metric,
+                            best_nodes  = best_nodes)
             i += 1
 
         # 3. Возвращаем результат

@@ -250,6 +250,7 @@ class BestNodeHillClimbing(BestPointsBase):
                  metric_function: MetricBase,
                  appr_val: float = 0.95,
                  all_neighbors: bool=True,
+                 first_node_random: bool = False,
                  node_calc_end_function:callable=None,
                  **kwargs) -> None:
         """
@@ -266,6 +267,7 @@ class BestNodeHillClimbing(BestPointsBase):
                              f'Сейчас {appr_val}')
         self.appr_val = appr_val
         self.all_neighbors=all_neighbors
+        self.first_node_random = first_node_random
         self.node_calc_end_function = node_calc_end_function
         super().__init__(state_function, metric_function, **kwargs)
 
@@ -310,7 +312,7 @@ class BestNodeHillClimbing(BestPointsBase):
         #     appr_nodes_count = int(sum(area) * self.appr_val)
 
         start_node = start_point
-        if start_node is None:
+        if start_node is None or self.first_node_random:
             # Поиск первого узла из которого можно попасть во все остальные узлы ГДС !ВАЖНО!
             # Иначе можно оказаться в тупике из которого нет выхода
             node_metric = None
@@ -320,7 +322,11 @@ class BestNodeHillClimbing(BestPointsBase):
                 if i>=env.number_of_nodes():
                     raise ValueError('Определить наиболее выгодный стартовый узел невозможно, ' \
                     'в связи с неприемлемой несвязностью графа')
-                start_node = nodes_list[i]
+                # Если указано, что стартовый узел должен выбираться рандомно
+                if self.first_node_random:
+                    start_node = random.choice(nodes_list)
+                else:
+                    start_node = nodes_list[i]
 
                 # Расчет метрики для узла `start_node`
                 node_metric = node_metric_func(env=env, node=start_node, area=area, **kwargs)
@@ -348,7 +354,7 @@ class BestNodeHillClimbing(BestPointsBase):
                         'связностью с остальной частью графа')
 
             nodes_metric[start_node] = node_metric
-
+        
         route[start_node] = node_metric
         # logging.debug('ПЕРВЫЙ УЗЕЛ {}, метрика {}'.format(start_node, node_metric))
 
@@ -389,6 +395,36 @@ class BestNodeHillClimbing(BestPointsBase):
         # if debug_route:
         #     return best_node, best_metric, route
         return best_node, best_metric
+
+# class BestNodeHillClimbingZero(BestPointsBase):
+#     def __init__(self,  
+#                  state_function: StateBase,
+#                  metric_function: MetricBase,
+#                  appr_val: float = 0.95,
+#                  all_neighbors: bool = True,
+#                  node_calc_end_function: callable = None,
+#                  **kwargs) -> None:
+#         super().__init__(
+#             state_function, 
+#             metric_function, 
+#             appr_val, 
+#             all_neighbors, 
+#             node_calc_end_function,
+#             **kwargs)
+    
+#     def __call__(self, env:   nx.Graph,
+#                  area:        pd.Series = None,
+#                  start_point: int = None,
+#                  points_list: set = None,
+#                  **kwargs):
+        
+#         return super().__call__(
+#             env=env, 
+#             area=area, 
+#             start_point=None, 
+#             points_list=points_list, 
+#             **kwargs)
+
 
 
 # Временно здесь - потом вынести в отдельный модуль для кастомизированных решений
