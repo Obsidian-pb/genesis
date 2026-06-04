@@ -12,7 +12,7 @@ import warnings
 import networkx as nx
 import pandas as pd
 
-from genesis.core import BestPointsBase, LSCPBase, MCLPBase, MetricBase, StateBase
+from .core import BestPointsBase, LSCPBase, MCLPBase, MetricBase, StateBase
 
 
 
