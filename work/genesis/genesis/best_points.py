@@ -780,7 +780,7 @@ class BestNodeMonkey(BestNodeHillClimbing):
                         self.metric_function.compare(best_metric, best_metric_after_jump) == best_metric_after_jump:
                     best_node = best_node_after_jump
                     best_metric = best_metric_after_jump
-                    jump_number = -1
+                    # jump_number = -1
                     # Переход к новой вершине
                     buffer = g_nodes.loc[best_node_after_jump:best_node_after_jump].geometry.buffer(self.local_jump_max_distance)
                     nodes_in_buffer = g_nodes[g_nodes.within(buffer.iloc[0])]
