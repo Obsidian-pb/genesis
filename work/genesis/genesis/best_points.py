@@ -1104,26 +1104,26 @@ class BestNodeGWO(BestPointsBase):
 
         # Если списка узлов изначально не передано, рассматриваются все узлы графа
         nodes_list = list(points_list) if points_list is not None else list(env.nodes())
-        
+
         if len(nodes_list) < 3:
             raise ValueError("Для работы алгоритма GWO необходимо минимум 3 узла-кандидата")
 
         # Инициализация популяции волков (случайные узлы графа)
         population = []
         population_metrics = []
-        
+
         # Заполняем популяцию случайными узлами
         for _ in range(self.population_size):
             # Выбираем случайный узел, для которого можно рассчитать метрику
             node_metric = None
             attempts = 0
             max_attempts = min(100, len(nodes_list))  # Ограничение на количество попыток
-            
+
             while node_metric is None and attempts < max_attempts:
                 node = random.choice(nodes_list)
                 node_metric = self.node_metric_func(env=env, node=node, area=area, **kwargs)
                 attempts += 1
-                
+
             if node_metric is not None:
                 population.append(node)
                 population_metrics.append(node_metric)
