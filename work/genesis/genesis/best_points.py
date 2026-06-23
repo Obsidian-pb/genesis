@@ -5,6 +5,8 @@
 import random
 import math
 
+from collections import Counter
+
 import networkx as nx
 import osmnx as ox
 import numpy as np
@@ -1038,190 +1040,6 @@ class BestNodeSquareZoom(BestPointsBase):
         return best_node, best_metric
 
 
-class BestNodeGWO(BestPointsBase):
-    """
-    Поиск лучших узлов графа с использованием алгоритма серых волков (Grey Wolf Optimizer, GWO).
-
-    Алгоритм имитирует поведение стаи серых волков при охоте, где три лучших волка (альфа, бета, дельта)
-    ведут остальных волков к оптимальному решению.
-
-    Args:
-        state_function (StateBase): Функция расчета состояния окружения.
-        metric_function (MetricBase): Функция расчета метрики.
-        appr_val (float, optional): Доля узлов графа для приемлемого покрытия. По умолчанию 0.95.
-        max_iter (int, optional): Максимальное количество итераций. По умолчанию 50.
-        population_size (int, optional): Размер популяции волков. По умолчанию 20.
-        **kwargs: Дополнительные параметры.
-    """
-    def __init__(self,
-                 state_function: StateBase,
-                 metric_function: MetricBase,
-                 appr_val: float = 0.95,
-                 max_iter: int = 50,
-                 population_size: int = 20,
-                 **kwargs) -> None:
-        '''
-        ## Аргументы
-        `state_function`: StateBase
-            функция расчета состояния окружения
-        `metric_function`: MetricBase
-            Функция расчета метрики
-        `appr_val`: = 0.95
-            Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики.
-            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
-            то такой узел не рассматривается.
-        `max_iter`: int = 50
-            Максимальное количество итераций алгоритма.
-        `population_size`: int = 20
-            Размер популяции волков.
-        '''
-        self.appr_val = appr_val
-        self.max_iter = max_iter
-        self.population_size = population_size
-        self.node_metric_func = NodeMetric(state_function, metric_function, appr_val, err_val=None, **kwargs)
-        super().__init__(state_function, metric_function, **kwargs)
-
-    def __call__(self, env: nx.Graph,
-                 area=None,
-                 start_point: int = None,
-                 points_list: set = None,
-                 **kwargs) -> tuple[int | None, float | None]:
-        """
-        Основной цикл алгоритма GWO для поиска оптимального размещения пожарного подразделения.
-
-        Args:
-            env (nx.Graph): Граф улично-дорожной сети
-            area (pd.Series, optional): Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
-            Если не указана, расчет производится для всех узлов графа.
-            start_point (int, optional): Не используется.
-            points_list (set, optional): Множество узлов-кандидатов. Если не указано, используются все узлы графа.
-
-        Returns:
-            tuple: (best_node, best_metric) — лучший узел и значение метрики.
-        """
-        if not isinstance(env, nx.Graph):
-            raise TypeError("Тип переменной `env` должен быть Graph!")
-
-        # Если списка узлов изначально не передано, рассматриваются все узлы графа
-        nodes_list = list(points_list) if points_list is not None else list(env.nodes())
-
-        if len(nodes_list) < 3:
-            raise ValueError("Для работы алгоритма GWO необходимо минимум 3 узла-кандидата")
-
-        # Инициализация популяции волков (случайные узлы графа)
-        population = []
-        population_metrics = []
-
-        # Заполняем популяцию случайными узлами
-        for _ in range(self.population_size):
-            # Выбираем случайный узел, для которого можно рассчитать метрику
-            node_metric = None
-            attempts = 0
-            max_attempts = min(100, len(nodes_list))  # Ограничение на количество попыток
-
-            while node_metric is None and attempts < max_attempts:
-                node = random.choice(nodes_list)
-                node_metric = self.node_metric_func(env=env, node=node, area=area, **kwargs)
-                attempts += 1
-
-            if node_metric is not None:
-                population.append(node)
-                population_metrics.append(node_metric)
-
-        # Если не удалось инициализировать достаточное количество особей
-        if len(population) < 3:
-            raise ValueError("Не удалось инициализировать популяцию с достаточным количеством допустимых узлов")
-
-        # Основной цикл оптимизации
-        for iter_num in range(self.max_iter):
-            # Сортировка волков по значению метрики (лучшие первые)
-            # Предполагаем, что лучшая метрика - минимальная (для времени прибытия)
-            sorted_indices = sorted(range(len(population_metrics)), 
-                                  key=lambda i: population_metrics[i])
-            
-            # Определение альфа, бета и дельта волков (три лучших решения)
-            alpha_idx = sorted_indices[0]
-            alpha_pos = population[alpha_idx]
-            alpha_fitness = population_metrics[alpha_idx]
-            
-            beta_idx = sorted_indices[1]
-            beta_pos = population[beta_idx]
-            beta_fitness = population_metrics[beta_idx]
-            
-            delta_idx = sorted_indices[2]
-            delta_pos = population[delta_idx]
-            delta_fitness = population_metrics[delta_idx]
-            
-            # Обновление позиций всех волков (кроме трех лидеров)
-            a = 2 - iter_num * (2 / self.max_iter)  # Коэффициент уменьшающийся от 2 до 0
-            
-            for i in range(len(population)):
-                # Пропускаем трех лидеров
-                if i in [alpha_idx, beta_idx, delta_idx]:
-                    continue
-                    
-                # Расчет коэффициентов A и C для каждого волка
-                r1 = random.random()
-                r2 = random.random()
-                
-                A1 = 2 * a * r1 - a  # Коэффициент A для альфа
-                C1 = 2 * r2          # Коэффициент C для альфа
-                
-                r1 = random.random()
-                r2 = random.random()
-                
-                A2 = 2 * a * r1 - a  # Коэффициент A для бета
-                C2 = 2 * r2          # Коэффициент C для бета
-                
-                r1 = random.random()
-                r2 = random.random()
-                
-                A3 = 2 * a * r1 - a  # Коэффициент A для дельта
-                C3 = 2 * r2          # Коэффициент C для дельта
-                
-                # Расчет расстояний до трех лидеров
-                # Поскольку мы работаем с дискретными узлами графа, 
-                # будем использовать случайное блуждание в направлении лидеров
-                
-                # Выбираем случайного соседа одного из лидеров как новую позицию
-                candidates = []
-                
-                # Соседи альфа
-                alpha_neighbors = get_all_neighbor_nodes(env, alpha_pos)
-                if alpha_neighbors:
-                    candidates.extend(alpha_neighbors)
-                    
-                # Соседи бета
-                beta_neighbors = get_all_neighbor_nodes(env, beta_pos)
-                if beta_neighbors:
-                    candidates.extend(beta_neighbors)
-                    
-                # Соседи дельта
-                delta_neighbors = get_all_neighbor_nodes(env, delta_pos)
-                if delta_neighbors:
-                    candidates.extend(delta_neighbors)
-                
-                # Если есть кандидаты, выбираем одного случайно
-                if candidates:
-                    new_pos = random.choice(candidates)
-                    
-                    # Проверяем, что новый узел допустим
-                    new_metric = self.node_metric_func(env=env, node=new_pos, area=area, **kwargs)
-                    
-                    # Если метрика рассчитана успешно и она лучше текущей, обновляем позицию
-                    if new_metric is not None:
-                        if self.metric_function.compare(population_metrics[i], new_metric) == new_metric:
-                            population[i] = new_pos
-                            population_metrics[i] = new_metric
-
-        # После завершения всех итераций находим лучшее решение
-        best_idx = 0
-        for i in range(1, len(population_metrics)):
-            if self.metric_function.compare(population_metrics[best_idx], population_metrics[i]) == population_metrics[i]:
-                best_idx = i
-        
-        return population[best_idx], population_metrics[best_idx]
-
 
 class BestNodeCircleZoom(BestPointsBase):
     """
@@ -1342,3 +1160,343 @@ class BestNodeCircleZoom(BestPointsBase):
             level += 1
         return best_node, best_metric
 
+
+class BestNodeGWO(BestPointsBase):
+    """
+    Поиск лучших узлов графа с использованием алгоритма серых волков (Grey Wolf Optimizer, GWO).
+
+    Алгоритм имитирует поведение стаи серых волков при охоте, где три лучших волка (альфа, бета, дельта)
+    ведут остальных волков к оптимальному решению.
+
+    Args:
+        state_function (StateBase): Функция расчета состояния окружения.
+        metric_function (MetricBase): Функция расчета метрики.
+        appr_val (float, optional): Доля узлов графа для приемлемого покрытия. По умолчанию 0.95.
+        max_iter (int, optional): Максимальное количество итераций. По умолчанию 50.
+        pack_size (int, optional): Размер стаи волков. По умолчанию 20.
+        **kwargs: Дополнительные параметры.
+    """
+    def __init__(self,
+                 state_function:         StateBase,
+                 metric_function:        MetricBase,
+                 appr_val:               float    = 0.95,
+                 max_iter:               int      = 20,
+                 pack_size:              int      = 10,
+                 hunt_bound:             float    = 1,
+                 weight:                 str      = 'travel_time',
+                 consensus_value:        float    = 0.75,
+                 iteration_end_function: callable = None,
+                 **kwargs) -> None:
+        '''
+        ## Аргументы
+        `state_function`: StateBase
+            функция расчета состояния окружения
+        `metric_function`: MetricBase
+            Функция расчета метрики
+        `appr_val`: = 0.95
+            Доля узлов графа, покрытие которой считается приемлемой для принятия расчетной метрики.
+            Если при расчете метрик, из стартового узла (узлов) достижимо меньшее количество узлов,
+            то такой узел не рассматривается.
+        `max_iter`: int = 50
+            Максимальное количество итераций алгоритма.
+        `pack_size`: int = 20
+            Размер стаи волков.
+        `hunt_bound`: float = 1
+            Порог начала фазы охоты.
+        `weight`: str = 'travel_time'
+            Имя поля содержащего вес ребер, или функция позволяющая вычислять 
+            вес динамически.
+        `consensus_value`: float = 0.75
+            Количество волков, находящихся в одном месте (жертве),
+            при котором считается, что алгоритм успешно завершен.
+        `iteration_end_function`: callable = None
+            Функция, вызываемая в конце каждой итерации.
+        '''
+        if hunt_bound < 0 or hunt_bound > 2:
+            raise ValueError(f"Порог охоты не может выходить за пределы диапазона [0, 2]. Сейчас {hunt_bound}")
+        if consensus_value < 0 or consensus_value > 1:
+            raise ValueError(f"Порог охоты не может выходить за пределы диапазона [0, 1]. Сейчас {consensus_value}")
+
+        self.appr_val = appr_val
+        self.max_iter = max_iter
+        self.pack_size = pack_size
+        self.hunt_bound = hunt_bound
+        self.node_metric_func = NodeMetric(state_function, metric_function, appr_val, err_val=None, **kwargs)
+        self.weight = weight
+        self.consensus_value = consensus_value
+        self.iteration_end_function = iteration_end_function
+        super().__init__(state_function, metric_function, **kwargs)
+
+
+    def _find_closest_node_to_three_weighted(self, env, 
+                                            nodes,
+                                            weight='travel_time'):
+        """
+        Находит узел графа env, находящийся ближе всего к трем переданным узлам (для взвешенного графа).
+        
+        Параметры:
+        env : networkx.Graph
+            Взвешенный граф, в котором происходит поиск
+        nodes : list
+            Список из трех узлов графа
+        weight : str, optional
+            Название атрибута ребра, представляющего вес (по умолчанию 'travel_time')
+            
+        Возвращает:
+        int или str
+            Идентификатор узла, сумма расстояний от которого до трех заданных узлов минимальна
+        """
+        if len(nodes) != 3:
+            raise ValueError("Должно быть передано ровно три узла")
+        
+        # Проверяем, что все узлы существуют в графе
+        for node in nodes:
+            if node not in env.nodes():
+                raise ValueError(f"Узел {node} не существует в графе")
+        
+        # Вычисляем кратчайшие пути от каждого из трех узлов до всех остальных
+        distances = {}
+        for node in nodes:
+            distances[node] = nx.single_source_dijkstra_path_length(env, node, weight=weight)
+        
+        # Находим узел с минимальной суммой расстояний до трех заданных узлов
+        min_sum = float('inf')
+        closest_node = None
+        
+        for node in env.nodes():
+            # Сумма расстояний от текущего узла до трех заданных
+            distance_sum = max(distances[source_node].get(node, float('inf')) for source_node in nodes)
+
+            # Если сумма конечная (все пути существуют) и меньше текущего минимума
+            if distance_sum < min_sum:
+                min_sum = distance_sum
+                closest_node = node
+        
+        return closest_node
+
+
+    def _shortest_path_within_distance(self, env, source, target, max_distance, weight='travel_time'):
+        """
+        Находит кратчайший путь между исходной и целевой вершинами и возвращает
+        только ту часть пути, которая находится в пределах максимального расстояния от источника.
+        
+        Параметры:
+        env : networkx.Graph
+            Граф для поиска
+        source : node
+            Начальная вершина
+        target : node
+            Целевая вершина
+        max_distance : float
+            Максимально допустимое расстояние от начальной вершины
+        weight : str, optional
+            Название атрибута ребра для весов (по умолчанию 'travel_time')
+            
+        Возвращает:
+        list или None
+            Частичный путь как список вершин (от источника до самой дальней вершины в пределах расстояния),
+            или None, если путь не существует
+        """
+        try:
+            # Найти кратчайший путь между источником и целью
+            full_path = nx.shortest_path(env, source=source, target=target, weight=weight)
+            
+            # Вычислить совокупные расстояния от источника вдоль пути
+            cumulative_distances = [0]  # Distance to source is 0
+            for i in range(1, len(full_path)):
+                prev_node = full_path[i-1]
+                curr_node = full_path[i]
+                # Получить данные ребра и извлечь вес
+                edge_weight = env.get_edge_data(prev_node, curr_node, 0)[weight]
+                cumulative_distances.append(cumulative_distances[-1] + edge_weight)
+            
+            # Найти часть пути в пределах max_distance
+            truncated_path = []
+            for i, distance in enumerate(cumulative_distances):
+                if distance <= max_distance:
+                    truncated_path.append(full_path[i])
+                else:
+                    break
+            
+            # Вернуть None, если нет вершин в пределах расстояния
+            return truncated_path if truncated_path else None
+            
+        except nx.NetworkXNoPath:
+            # Путь между источником и целью не существует
+            return None
+
+
+    def _search(self, env, cur_node, dist_to_prey, **kwargs):
+        """
+            Поиск узлов в заданном радиусе от текущего узла.
+        """
+        g_nodes = ox.graph_to_gdfs(env, edges=False)
+        if not ox.projection.is_projected(g_nodes.crs):
+            g_nodes = ox.projection.project_gdf(g_nodes)
+        search_area = g_nodes.loc[[cur_node]].geometry.buffer(dist_to_prey)
+        local_nodes = g_nodes[g_nodes.within(search_area.iloc[0])]
+        return list(local_nodes.index)
+
+    def __call__(self, 
+                env: nx.Graph,
+                area=None,
+                start_point: int = None,
+                points_list: set = None,
+                **kwargs) -> tuple[int | None, float | None]:
+        """
+        Основной цикл алгоритма GWO для поиска оптимального размещения пожарного подразделения.
+
+        Args:
+            env (nx.Graph): Граф улично-дорожной сети
+            area (pd.Series, optional): Маска узлов графа. Значениями True отмечены узлы графа - цели расчета леса Вороного.
+            Если не указана, расчет производится для всех узлов графа.
+            start_point (int, optional): Не используется.
+            points_list (set, optional): Множество узлов-кандидатов. Если не указано, используются все узлы графа.
+
+        Returns:
+            tuple: (best_node, best_metric) — лучший узел и значение метрики.
+        """
+        if not isinstance(env, nx.Graph):
+            raise TypeError("Тип переменной `env` должен быть Graph!")
+
+        # Если списка узлов изначально не передано, рассматриваются все узлы графа
+        nodes_list = list(points_list) if points_list is not None else list(env.nodes())
+
+        if len(nodes_list) < 3:
+            raise ValueError("Для работы алгоритма GWO необходимо минимум 3 узла-кандидата")
+
+        # Инициализация стаи волков (случайные узлы графа)
+        pack = []
+        pack_metrics = []
+        alpha_metric = None
+        alpha_node = None
+
+        # Заполняем популяцию случайными узлами
+        for _ in range(self.pack_size):
+            # Выбираем случайный узел, для которого можно рассчитать метрику
+            node_metric = None
+            attempts = 0
+            max_attempts = min(100, len(nodes_list))  # Ограничение на количество попыток
+
+            while node_metric is None and attempts < max_attempts:
+                node = random.choice(nodes_list)
+                node_metric = self.node_metric_func(env=env, node=node, area=area, **kwargs)
+                attempts += 1
+
+            if node_metric is not None:
+                pack.append(node)
+                pack_metrics.append(node_metric)
+
+        # Если не удалось инициализировать достаточное количество особей
+        if len(pack) < 3:
+            raise ValueError("Не удалось инициализировать популяцию с достаточным количеством допустимых узлов")
+
+        # Основной цикл оптимизации
+        for iter_num in range(self.max_iter):
+            # Сортировка волков по значению метрики (лучшие первые)
+            sorted_indices = sorted(range(len(pack_metrics)), 
+                                  key=lambda i: pack_metrics[i])
+
+            # Предполагаем, что лучшая метрика - минимальная (для времени прибытия)
+            # Если лучшая метрика - максимальная (для индекса прикрытия), то разворачиваем список
+            if self.metric_function.compare(1, 2) == 2:
+                sorted_indices = sorted_indices[::-1]
+            
+            # Определение альфа, бета и дельта волков (три лучших решения)
+            alpha_idx = sorted_indices[0]
+            alpha_pos = pack[alpha_idx]
+            
+            beta_idx = sorted_indices[1]
+            beta_pos = pack[beta_idx]
+            
+            delta_idx = sorted_indices[2]
+            delta_pos = pack[delta_idx]
+
+            # Определяем предполагаемую позицию жертвы
+            prey_node = self._find_closest_node_to_three_weighted(
+                    env = env,
+                    nodes = [alpha_pos, beta_pos, delta_pos],
+                    weight      = self.weight
+            )
+
+            # Обновление позиций всех волков (кроме трех лидеров)
+            a = 2 - iter_num * (2 / self.max_iter)  # Коэффициент уменьшающийся от 2 до 0
+            
+            for i, cur_node in enumerate(pack):
+                # Пропускаем трех лидеров
+                if cur_node in [alpha_pos, beta_pos, delta_pos]:
+                    continue
+                    
+                # Расчет коэффициентов A и C для каждого волка
+                r1 = random.random()
+                r2 = random.random()
+                
+                A = 2 * a * r1 - a  # Коэффициент A
+                dist_to_prey = nx.shortest_path_length(env, cur_node, prey_node, weight='length') * r2
+
+                if abs(A) > self.hunt_bound:
+                    # глобальный поиск
+                    candidates = self._search(
+                        env = env, 
+                        cur_node = cur_node, 
+                        dist_to_prey = dist_to_prey,
+                    )
+
+                else:
+                    # движение в сторону жертвы
+                    candidates = self._shortest_path_within_distance(
+                        env = env,
+                        source = cur_node, 
+                        target = prey_node, 
+                        max_distance = dist_to_prey, 
+                        weight='travel_time'
+                    )
+
+                    if candidates:
+                        # разворачиваем маршрут, так, чтобы последний узел был первым
+                        candidates = candidates[::-1]
+                    else:
+                        # Если путь найти не удалось, то выполняем глобальный поиск
+                        candidates = self._search(
+                            env = env, 
+                            cur_node = cur_node, 
+                            dist_to_prey = dist_to_prey,
+                        )
+
+                # Оценка кандидатов
+                if candidates:
+                    new_pos = random.choice(candidates)
+                    
+                    # Проверяем, что новый узел допустим
+                    new_metric = self.node_metric_func(env=env, node=new_pos, area=area, **kwargs)
+                    
+                    # Если метрика рассчитана успешно и она лучше текущей, обновляем позицию
+                    if new_metric is not None:
+                        if self.metric_function.compare(pack_metrics[i], new_metric) == new_metric:
+                            pack[i] = new_pos
+                            pack_metrics[i] = new_metric
+                            if alpha_metric is None or self.metric_function.compare(alpha_metric, new_metric) == new_metric:
+                                alpha_metric = new_metric
+                                alpha_node = new_pos
+
+            # Вызов функции обработки завершения итерации
+            if self.iteration_end_function:
+                self.iteration_end_function(
+                    value      = alpha_metric,                          # Лучшая метрика
+                    abw_nodes = [alpha_pos, beta_pos, delta_pos],       # Позиция Альфы, Беты и Дельты
+                    iteration  = iter_num,                              # Номер итерации
+                    pack       = pack,                                  # Текущее положение волков
+                    prey_node  = prey_node,                             # Текущая предположительная позиция жертвы
+                    )
+            
+            # Если заданное количество волков нашло одну и ту же жертву, заканчиваем алгоритм
+            if int(len(pack) * self.consensus_value) <= max(Counter(pack).values()):
+                break
+            
+        # После завершения всех итераций находим лучшее решение
+        best_idx = 0
+        for i in range(1, len(pack_metrics)):
+            if self.metric_function.compare(pack_metrics[best_idx], pack_metrics[i]) == pack_metrics[i]:
+                best_idx = i
+        
+        return pack[best_idx], pack_metrics[best_idx]
