@@ -24,6 +24,28 @@ python -m pip install -U pip
 python -m pip install -e .
 ```
 
+## Установка через uv
+
+Из каталога `work/genesis/`:
+
+```bash
+uv pip install -e .
+```
+
+Если нужно в конкретное окружение:
+
+```bash
+# Создать окружение
+uv venv .venv
+
+# Активировать
+.venv\Scripts\activate   # Windows
+
+# Установить пакет
+uv pip install -e .
+```
+
+
 ## Сборка пакета
 
 ```bash
