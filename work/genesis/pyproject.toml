@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+# PEP 639 (`license` = SPDX-выражение и `license-files`) поддерживается setuptools >= 77.
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,8 +11,62 @@ dynamic = ["version"]
 description = "genesis: библиотека пространственной оптимизации размещения подразделений пожарной охраны"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "Apache-2.0"}
+
+# PEP 639: SPDX-идентификатор лицензии вместо устаревшей таблицы license = {text = "..."}.
+# Классификатор `License :: ...` по PEP 639 указывать НЕЛЬЗЯ — он исключён намеренно,
+# иначе PyPI/twine сообщают о конфликте с SPDX-выражением.
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+
 authors = [{name = "Maliutin O.S."}]
+maintainers = [{name = "Maliutin O.S."}]
+
+keywords = [
+  "optimization",
+  "spatial-analysis",
+  "gis",
+  "fire-protection",
+  "location-allocation",
+  "coverage",
+  "networkx",
+  "osmnx",
+]
+
+classifiers = [
+  # Статус разработки
+  "Development Status :: 4 - Beta",
+
+  # Аудитория
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: Manufacturing",
+
+  # Тематика
+  "Topic :: Scientific/Engineering :: GIS",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Utilities",
+
+  # Операционные системы
+  "Operating System :: OS Independent",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+
+  # Языки
+  "Natural Language :: English",
+  "Natural Language :: Russian",
+
+  # Python (без классификатора License :: -- см. комментарий к полю license выше)
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
 
 dependencies = [
   "numpy",
@@ -24,6 +79,8 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/Obsidian-pb/genesis"
+Homepage = "https://github.com/Obsidian-pb/genesis"
+Issues = "https://github.com/Obsidian-pb/genesis/issues"
 
 [tool.setuptools]
 include-package-data = true
@@ -39,4 +96,3 @@ include = [
   "fire_units*",
   "lists*",
 ]
-
