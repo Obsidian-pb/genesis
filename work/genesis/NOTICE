@@ -1,0 +1,79 @@
+genesis-spatial-opt
+Copyright 2025 Maliutin O.S.
+Copyright 2025 Academy of Civil Protection of the EMERCOM of Russia
+  (ФГКОУ ВО «Академия гражданской защиты МЧС России»)
+
+This product includes software developed as part of the genesis project
+(https://github.com/Obsidian-pb/genesis).
+
+================================================================================
+THIRD-PARTY ATTRIBUTIONS
+================================================================================
+
+This product depends on the third-party components listed below. Each component
+is distributed under its own license and copyright terms; the full text of each
+license is shipped with the corresponding distribution and is not reproduced
+here. These notices are provided in accordance with Section 4(d) of the Apache
+License, Version 2.0.
+
+Recipients receive each third-party component under its original terms and are
+responsible for complying with them.
+
+  numpy        BSD-3-Clause   https://numpy.org
+  pandas       BSD-3-Clause   https://pandas.pydata.org
+  networkx     BSD-3-Clause   https://networkx.org
+  geopandas    BSD-3-Clause   https://geopandas.org
+  shapely      BSD-3-Clause   https://shapely.readthedocs.io
+  osmnx        MIT            https://github.com/gboeing/osmnx
+  requests     Apache-2.0     https://requests.readthedocs.io
+  pyproj       MIT            https://pyproj4.github.io/pyproj
+  fiona        BSD-3-Clause   https://fiona.readthedocs.io
+  pyogrio      MIT            https://pyogrio.readthedocs.io
+
+Transitive geospatial libraries:
+
+  GEOS         LGPL-2.1-or-later  https://trac.osgeo.org/geos/   (via shapely)
+  GDAL/OGR     MIT                https://gdal.org               (via fiona/pyogrio)
+  PROJ         MIT-like           https://proj.org               (via pyproj)
+  SQLite       public domain      https://www.sqlite.org         (via GDAL)
+
+================================================================================
+OPENSTREETMAP DATA
+================================================================================
+
+Functions of this package that rely on `osmnx` download geographic data
+(streets, buildings, places, administrative boundaries) at runtime from the
+OpenStreetMap project.
+
+OpenStreetMap data is (c) OpenStreetMap contributors and is made available
+under the Open Data Commons Open Database License (ODbL) v1.0. It is NOT
+licensed under the Apache License 2.0 and is NOT redistributed within this
+package.
+
+If you use these functions, you must attribute OpenStreetMap as required by
+the ODbL, for example:
+
+    Contains information copyrighted by (c) OpenStreetMap contributors,
+    https://www.openstreetmap.org/copyright
+
+Full text of the ODbL:  https://opendatacommons.org/licenses/odbl/1-0/
+OSM Foundation terms:   https://osmfoundation.org/wiki/Terms_of_Use
+
+Any raster basemap or tile service used for visualization remains under the
+terms of the respective provider and is outside the scope of this package.
+
+================================================================================
+TRADEMARKS
+================================================================================
+
+"МЧС России", "МЧС", and related official symbols are state heraldic signs and
+service marks of the EMERCOM of Russia. Nothing in this package or in the
+Apache License 2.0 grants any right to use them.
+
+================================================================================
+NO WARRANTY
+================================================================================
+
+This package is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the Apache License 2.0 in the LICENSE file for details.
