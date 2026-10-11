@@ -318,11 +318,13 @@ class LSCP_ADD(LSCPBase):
             raise TypeError(f'Аргумент `area` должен иметь тип `pd.Series`! Имеет {type(area)}')
 
         # Если передан список возможных для размещения узлов
+        # (матрица объекта не меняется, иначе следующий вызов работал бы с урезанной матрицей)
+        matrix = self.matrix
         if not nodes_list is None:
-            self.matrix = self.matrix[nodes_list]
+            matrix = matrix[list(nodes_list)]
 
         # Создание копии матрицы для использования в алгоритме
-        matrix_temp = self.matrix.copy()
+        matrix_temp = matrix.copy()
 
         # Установка для матрицы признака прикрытой исходя из
         # максимально допустимого времени прибытия
@@ -334,6 +336,8 @@ class LSCP_ADD(LSCPBase):
             weights = self.target_weights.loc[matrix_temp.index]
             matrix_temp = matrix_temp.mul(weights, axis=0)
 
+        # Метрика возвращается, даже если расчет остановится на первой итерации
+        current_metric = None
 
         # 0.1. Если статические узлы не указаны - заменяем значение переменной с None на {}
         if static_nodes is None:
@@ -435,7 +439,7 @@ class LSCP_ADD(LSCPBase):
 
                     # Непосредственно выбираем узел с минимальным максимальным временем прибытия
                     tmp_matrix_cols = matrix_temp.columns[max_indices]
-                    tmp_matrix = self.matrix[tmp_matrix_cols]
+                    tmp_matrix = matrix[tmp_matrix_cols]
                     # Здесь неопределенность выбранной метрики: np.max(tmp_matrix, axis=0) или np.mean(tmp_matrix, axis=0)
                     # node_id = tmp_matrix.columns[np.argmin(np.max(tmp_matrix, axis=0), axis=0)]
                     node_id = tmp_matrix.columns[np.argmin(np.mean(tmp_matrix, axis=0), axis=0)]
@@ -449,6 +453,12 @@ class LSCP_ADD(LSCPBase):
             else:
                 node_id = matrix_temp.columns[np.argmax(np.sum(matrix_temp, axis=0))]
 
+            # Если лучший из допустимых узлов не прикрывает ни один из оставшихся объектов,
+            # матрица больше не сокращается и цикл не закончится
+            if not matrix_temp[node_id].any():
+                warnings.warn(f'{len(matrix_temp)} объектов не могут быть прикрыты из допустимых узлов. '
+                              f'Расчет остановлен')
+                break
 
             while self.names_pattern.format(name_index) in all_nodes.values():
                     name_index += 1

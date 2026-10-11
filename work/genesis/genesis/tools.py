@@ -50,7 +50,7 @@ def list_dict_concat(a:list|dict,b:list|dict) -> list|dict:
     elif isinstance(a,dict) and isinstance(b,dict):
         return {**a, **b}
     else:
-        raise TypeError(f'Аргументы имеют различный тип данных: {a:type(a)}, {b:type(b)}')
+        raise TypeError(f'Аргументы имеют различный тип данных: {type(a)}, {type(b)}')
 
 def k_v_dict(d, f=min):
     '''

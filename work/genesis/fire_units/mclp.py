@@ -85,8 +85,10 @@ class BestNodesGAKopt(MCLPBase):
         `epoch_end_function`: callable = None
             Функция вызываемая после каждой эпохи расчета.
         '''
-        if population_size <= 5:
-            raise ValueError('Размер популяции должен быть > 0, так же не рекомендуется использовать размер популяции < 5')
+        if population_size < 1:
+            raise ValueError('Размер популяции должен быть > 0')
+        if population_size < 5:
+            warnings.warn('Не рекомендуется использовать размер популяции < 5')
         if epochs  <=  0:
             raise ValueError('Количество эпох должно быть > 0')
         # if mutation_max_count  <=  0:
