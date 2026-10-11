@@ -361,7 +361,8 @@ class LSCP_ADD(LSCPBase):
                                         )(env,
                                         list(static_nodes.keys()),
                                         area=area)
-            if self.stop_case_function(value = current_metric,
+            if not self.stop_case_function is None and \
+                    self.stop_case_function(value = current_metric,
                         iteration      = 0,
                         best_metric    = current_metric,
                         current_metric = current_metric,

@@ -15,11 +15,11 @@ import pandas as pd
 try:
     from ..genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
     from ..genesis.mclp import BestNodesKoptG
-    from ..genesis.tools import list_dict_concat
+    from ..genesis.tools import ga_crossover, list_dict_concat, normalize_weights
 except:
     from genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
     from genesis.mclp import BestNodesKoptG
-    from genesis.tools import list_dict_concat
+    from genesis.tools import ga_crossover, list_dict_concat, normalize_weights
 
 
 
@@ -252,12 +252,7 @@ class BestNodesGAKopt(MCLPBase):
                     raise Exception('***')
 
                 # Скрещивание (одноточечное)
-                split_point = int(len(parent_bot_1)/2)
-                left_gen_vals = list(parent_bot_1.values())[:split_point]
-                right_gen_vals  = list(parent_bot_1.values())[split_point:]
-                left_genome_part = {k:v for k, v in parent_bot_1.items() if v in left_gen_vals}
-                right_genome_part = {k:v for k, v in parent_bot_2.items() if v in right_gen_vals}
-                new_dynamic_nodes = {**left_genome_part, **right_genome_part}
+                new_dynamic_nodes = ga_crossover(parent_bot_1, parent_bot_2)
 
                 # Мутация (выбор произвольного узла)
                 # new_dynamic_nodes = self._mutate(new_dynamic_nodes, g_nodes)
@@ -287,7 +282,7 @@ class BestNodesGAKopt(MCLPBase):
                 weights = bot_fit
                 cur_metric = max(bot_fit)
             # 2.5 Нормализация весов (для более выраженной точности расчета)
-            weights = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
+            weights = normalize_weights(weights)
 
             # 2.6 Определяем лучше ли лучшее на эпохе решение чем имеющееся
             if self.metric_function.compare(best_metric, cur_metric) == cur_metric:

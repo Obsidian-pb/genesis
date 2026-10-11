@@ -41,11 +41,11 @@ class BestNodeHillClimbing_HD_Max_Mean_Metric(BestNodeHillClimbing):
 
         bnch_d = BestNodesHalfDiameter()
         bnch_max = BestNodeHillClimbing(state_function=self.state_function,
-                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
         bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
-                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
         bnch_meetric = BestNodeHillClimbing(state_function=self.state_function,
-                                         metric_function=self.metric_function, appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                         metric_function=self.metric_function, appr_val=self.appr_val, all_neighbors=self.all_neighbors)
 
         best_node, _               =    bnch_d(env=env, area=area)
         try:
@@ -80,11 +80,11 @@ class BestNodeHillClimbing_maxMean_Metric(BestNodeHillClimbing):
                  **kwargs):
 
         bnch_max = BestNodeHillClimbing(state_function=self.state_function,
-                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
         bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
-                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
         bnch_meetric = BestNodeHillClimbing(state_function=self.state_function,
-                                         metric_function=self.metric_function, appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                         metric_function=self.metric_function, appr_val=self.appr_val, all_neighbors=self.all_neighbors)
 
         best_node, best_metric =     bnch_max(env=env, area=area, start_point=start_point)
         best_node, best_metric =    bnch_mean(env=env, area=area, start_point=best_node)
@@ -116,9 +116,9 @@ class BestNodeHillClimbing_HD_Max_Mean(BestNodeHillClimbing):
 
         bnch_d = BestNodesHalfDiameter()
         bnch_max = BestNodeHillClimbing(state_function=self.state_function,
-                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
         bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
-                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
 
         best_node, _               =    bnch_d(env=env, area=area)
         try:
@@ -163,7 +163,7 @@ class BestNodeHillClimbingHD(BestNodeHillClimbing):
         bnhc = BestNodeHillClimbing(state_function=self.state_function,
                                          metric_function=self.metric_function,
                                          appr_val=self.appr_val,
-                                         all_nodes=self.all_neighbors)
+                                         all_neighbors=self.all_neighbors)
 
         start_node, _ = bnhd(env=env, area=area)
         best_node, best_metric = bnhc(env=env, area=area, start_point=start_node)

@@ -5,6 +5,7 @@
 from typing import Any
 
 import time
+import numpy as np
 import pandas as pd
 import geopandas as gpd
 import logging as lg
@@ -95,3 +96,43 @@ def get_duplicates_list(seq: list):
         else:
             duplicates.append(s)
     return duplicates
+
+
+def normalize_weights(weights) -> np.ndarray:
+    '''
+    Приводит веса отбора к диапазону [0, 1].
+    Если все веса равны, всем особям даются равные веса 1.
+
+    Аргументы
+    ---------
+    `weights` (list)  
+        Веса особей
+    '''
+    weights = np.asarray(weights, dtype=float)
+    w_min, w_max = np.min(weights), np.max(weights)
+    if w_max == w_min:
+        return np.ones_like(weights)
+    return (weights - w_min) / (w_max - w_min)
+
+
+def ga_crossover(parent_1: dict, parent_2: dict) -> dict:
+    '''
+    Одноточечное скрещивание особей вида {узел: подразделение}.
+    Первая половина подразделений (в порядке `parent_1`) остается в узлах `parent_1`,
+    вторая переходит в узлы `parent_2`. Если узел из `parent_2` уже занят,
+    подразделение остается в своем узле из `parent_1`.
+    Потомок содержит все подразделения родителей, каждое в отдельном узле.
+
+    Аргументы
+    ---------
+    `parent_1`, `parent_2` (dict)  
+        Родительские особи с одинаковым набором подразделений
+    '''
+    split_point = int(len(parent_1)/2)
+    unit_nodes = {unit: node for node, unit in parent_1.items()}
+    parent_2_nodes = {unit: node for node, unit in parent_2.items()}
+    for unit in list(unit_nodes)[split_point:]:
+        node = parent_2_nodes.get(unit)
+        if node is not None and node not in unit_nodes.values():
+            unit_nodes[unit] = node
+    return {node: unit for unit, node in unit_nodes.items()}

@@ -10,7 +10,7 @@ name = "genesis-spatial-opt"
 dynamic = ["version"]
 description = "genesis: библиотека пространственной оптимизации размещения подразделений пожарной охраны"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 
 # PEP 639: SPDX-идентификатор лицензии вместо устаревшей таблицы license = {text = "..."}.
 # Классификатор `License :: ...` по PEP 639 указывать НЕЛЬЗЯ — он исключён намеренно,
@@ -60,8 +60,6 @@ classifiers = [
   # Python (без классификатора License :: -- см. комментарий к полю license выше)
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -75,6 +73,7 @@ dependencies = [
   "geopandas",
   "shapely",
   "osmnx",
+  "matplotlib",
 ]
 
 [project.urls]

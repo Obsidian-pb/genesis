@@ -17,7 +17,7 @@ from genesis.best_points import BestNodeMonkey, BestNodesFull, BestNodeHillClimb
 
 from genesis.metrics import ArrivalTime, CoverIndex
 from genesis.states import FirstArrivalUnitState
-from genesis.mclp import AdapterBLP2MCLP
+from genesis.hybridisation import AdapterBLP2MCLP
 
 @pytest.fixture(scope='module')
 def load_G():

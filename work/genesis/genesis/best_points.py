@@ -200,8 +200,8 @@ class BestNodesFull(BestPointsBase):
             node_metric_func = NodeMetric(self.state_function, self.metric_function, self.appr_val, err_val=None)
             node_metric = node_metric_func(env=env, node=node, area=area)
 
-            # проверка на корректность охвата графа
-            if node_metric:
+            # проверка на корректность охвата графа (значение 0 - допустимая метрика)
+            if node_metric is not None:
 
                 # если лучшая метрика еще не указана, присваиваем текущее значение
                 if best_metric is None:
@@ -226,6 +226,9 @@ class BestNodesFull(BestPointsBase):
             if self.node_calc_end_function:
                 self.node_calc_end_function()
 
+        if not best_nodes_list:
+            raise ValueError('Ни один узел не обеспечивает требуемый охват графа (`appr_val`). '
+                             'Проверьте связность графа и значение `appr_val`')
         if self.return_list:
             return best_nodes_list, best_metric
         return best_nodes_list[0], best_metric
@@ -434,12 +437,12 @@ class BestNodeHillClimbing_maxMean(BestNodeHillClimbing):
             tuple: (best_node, best_metric) — лучший узел и значение метрики.
         """
         bnch_max = BestNodeHillClimbing(state_function=self.state_function,
-                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                        metric_function=ArrivalTime(np.max), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
         bnch_mean = BestNodeHillClimbing(state_function=self.state_function,
-                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_nodes=self.all_neighbors)
+                                         metric_function=ArrivalTime(), appr_val=self.appr_val, all_neighbors=self.all_neighbors)
 
         best_node, best_metric = bnch_max(env=env, area=area, start_point=start_point, points_list=points_list)
-        best_node, best_metric = bnch_mean(env=env, area=area, start_point=start_point, points_list=points_list)
+        best_node, best_metric = bnch_mean(env=env, area=area, start_point=best_node, points_list=points_list)
 
         # выполняем функцию завершения расчета для узла
         if node_calc_end_function:
