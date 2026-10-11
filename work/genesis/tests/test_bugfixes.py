@@ -160,3 +160,20 @@ class TestFullSearchZeroMetric:
         node, metric = BestNodesFull(state, CoverIndex(0.5))(env=grid)
         assert node in grid.nodes()
         assert metric == 0
+
+
+class TestMisnamedArguments:
+    '''
+    Н5. Аргумент с ошибочным именем не уходит молча в **kwargs
+    '''
+    def test_nodes_list_in_call(self, grid, state):
+        with pytest.raises(TypeError, match='points_list'):
+            BestNodesFull(state, ArrivalTime())(env=grid, nodes_list={0, 7, 56})
+
+    def test_all_nodes_in_init(self, state):
+        with pytest.raises(TypeError, match='all_neighbors'):
+            BestNodeHillClimbing(state, ArrivalTime(), all_nodes=False)
+
+    def test_points_list(self, grid, state):
+        node, _ = BestNodesFull(state, ArrivalTime())(env=grid, points_list={0, 7, 56})
+        assert node in {0, 7, 56}
