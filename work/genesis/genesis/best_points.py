@@ -635,7 +635,8 @@ class BestNodeMonkey(BestNodeHillClimbing):
         if points_list is None:
             nodes_list = list(env.nodes())
         else:
-            nodes_list = points_list
+            # random.choice не работает с set
+            nodes_list = list(points_list)
         while node_metric is None:
             if i>=env.number_of_nodes():
                 raise ValueError('Определить наиболее выгодный стартовый узел невозможно, ' \

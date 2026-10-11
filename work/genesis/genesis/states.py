@@ -202,18 +202,32 @@ class FirstArrivalUnitCacheState(StateBase):
             nearest - Соответствие узлов первому подразделению. 
         '''
 
+        # Без кэша расчет идет как в FirstArrivalUnitState
+        times_cache = self.times_cache
+        nearest_cache = self.nearest_cache
+        if times_cache is None:
+            times_cache = pd.Series(dtype=float, name='times')
+        if nearest_cache is None:
+            nearest_cache = pd.Series(dtype=str, name='nearest')
+
+        # Кэш хранит времена с задержкой, а алгоритм Дейкстры сравнивает с ним расстояния без нее.
+        # Без вычета задержки принимались пути, худшие кэша меньше чем на `delay`
+        dists_cache = (times_cache - self.delay).to_dict()
         state_func = FirstArrivalUnitState(
-            self.multi_source_dijkstra_cache(dists_cache=self.times_cache.to_dict()),
+            self.multi_source_dijkstra_cache(dists_cache=dists_cache),
             weight = self.weight,
             delay  = self.delay
             )
-        times, nearest = state_func(env=env, points=points, area=area, **kwargs)
+        times, nearest = state_func(env=env, points=points, **kwargs)
 
-        times_total = self.times_cache.copy()
-        times_total.update(times)
+        # Рассчитанные времена не хуже кэша. Объединение сохраняет и узлы,
+        # которых нет в кэше (`update` их отбрасывал)
+        times_total = times.combine_first(times_cache).rename('times')
+        nearest_total = nearest.combine_first(nearest_cache).rename('nearest')
 
-        nearest_total = self.nearest_cache.copy()
-        nearest_total.update(nearest)
+        if not area is None:
+            times_total = times_total[area]
+            nearest_total = nearest_total[area]
 
         return times_total, nearest_total
 

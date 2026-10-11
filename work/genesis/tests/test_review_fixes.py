@@ -120,3 +120,66 @@ class TestGraphRiseFromGpkg:
             graph_rise_from_gpkg(roads)
 
         assert roads.geometry.equals(geometry)
+
+
+class TestFirstArrivalUnitCacheState:
+    '''
+    Расчет с кэшем статических подразделений совпадает с полным расчетом
+    '''
+    def test_fractional_times(self):
+        '''
+        На графе с дробными временами кэш давал завышенное время в части узлов:
+        задержка из кэша не вычиталась перед сравнением с расстояниями алгоритма Дейкстры
+        '''
+        import osmnx as ox
+        from genesis.states import FirstArrivalUnitCacheState
+
+        G = ox.load_graphml('tests/data/test_rng.ml')
+        nodes = list(G.nodes())
+        static = {nodes[1]: 'A', nodes[len(nodes) // 3]: 'B'}
+        dynamic = {nodes[len(nodes) // 2]: 'C', nodes[-2]: 'D'}
+        state = FirstArrivalUnitState()
+        times_cache, nearest_cache = state(env=G, points=static)
+
+        times, _ = FirstArrivalUnitCacheState(times_cache=times_cache,
+                                              nearest_cache=nearest_cache)(env=G, points=dynamic)
+        times_full, _ = state(env=G, points={**static, **dynamic})
+
+        pd.testing.assert_series_equal(times.sort_index(), times_full.sort_index(), check_names=False)
+
+    def test_without_cache(self, grid):
+        from genesis.states import FirstArrivalUnitCacheState
+
+        times, nearest = FirstArrivalUnitCacheState()(env=grid, points={0: 'A'})
+        times_plain, nearest_plain = FirstArrivalUnitState()(env=grid, points={0: 'A'})
+
+        pd.testing.assert_series_equal(times.sort_index(), times_plain.sort_index(), check_names=False)
+        assert (nearest == 'A').all()
+
+    def test_area(self, grid):
+        from genesis.states import FirstArrivalUnitCacheState
+
+        state = FirstArrivalUnitState()
+        times_cache, nearest_cache = state(env=grid, points={0: 'A'})
+        area = pd.Series([n < 32 for n in grid.nodes()], index=list(grid.nodes()))
+        times, nearest = FirstArrivalUnitCacheState(times_cache=times_cache,
+                                                    nearest_cache=nearest_cache)(env=grid, points={63: 'B'}, area=area)
+        assert set(times.index) == set(range(32))
+        assert set(nearest.index) == set(range(32))
+
+
+class TestMonkeyPointsListSet:
+    def test_set(self, grid, state):
+        from genesis.best_points import BestNodeMonkey
+
+        node, _ = BestNodeMonkey(state, ArrivalTime())(env=grid, points_list={0, 7, 56, 63, 9})
+        assert node in grid.nodes()
+
+
+class TestKmhToMmNumpy:
+    def test_numpy_number(self):
+        import numpy as np
+        from graphs.speeds import kmh_to_mm
+
+        assert kmh_to_mm(np.int64(60)) == 1000.0
+        assert kmh_to_mm(np.float64(30)) == 500.0
