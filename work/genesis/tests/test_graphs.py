@@ -75,7 +75,7 @@ class TestSetGraphTimes:
         assert 'travel_time' in list(edges.columns)
         assert edges.maxspeed.min() == speeds[-1]
         assert edges.maxspeed.max() == speeds[1]
-        assert edges['travel_time'].mean() == 0.22407020395479973
+        assert edges['travel_time'].mean() == pytest.approx(0.22407020395479973)
 
     def test_set_graph_travel_times_simple(self, load_G_simplyfied):
         '''

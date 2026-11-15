@@ -3,6 +3,7 @@
 '''
 
 
+import copy
 import random
 import warnings
 import math
@@ -13,7 +14,7 @@ import pandas as pd
 
 from .core import BestPointsBase, MetricBase, PointSelectorBase, StateBase, MCLPBase
 from .best_points import NodeMetric
-from .tools import list_dict_concat
+from .tools import ga_crossover, list_dict_concat, normalize_weights
 
 
 
@@ -218,9 +219,11 @@ class BestNodesKoptG(MCLPBase):
         # Если передана область которую следует учитывать в расчете
         # установить для нее приемлемый охват равный `self.appr_val_in_area`
         # (0 по умолчанию)
+        # (на копии, чтобы не менять объект, переданный пользователем)
+        best_point_function = self.best_point_function
         if not area is None:
-            self.best_point_function.__setattr__('appr_val',
-                                                 self.appr_val_in_area)
+            best_point_function = copy.copy(self.best_point_function)
+            best_point_function.appr_val = self.appr_val_in_area
 
         # 1.1. Если статические узлы не указаны - заменяем значение переменной с None
         # на {}
@@ -261,7 +264,7 @@ class BestNodesKoptG(MCLPBase):
                     node_area_G = nx.subgraph(env, node_area_nodes).copy()
 
                     # Определяем лучший узел
-                    best_nodes, _ = self.best_point_function(env=node_area_G, 
+                    best_nodes, _ = best_point_function(env=node_area_G,
                                                                     start_point=dynamic_node,  # start_point
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
@@ -283,7 +286,7 @@ class BestNodesKoptG(MCLPBase):
                     node_area_G = nx.subgraph(env, node_area_nodes).copy()
 
                     # Определяем лучший узел
-                    best_nodes, _ = self.best_point_function(env=node_area_G,
+                    best_nodes, _ = best_point_function(env=node_area_G,
                                                                     start_point=dynamic_node_id,
                                                                     area=area,
                                                                     **kwargs)[:2] # [:2] Это для ограничения вывода дебаг-данных в некоторых функциях
@@ -393,8 +396,10 @@ class BestNodesGA(MCLPBase):
         `stop_case_function`: callable = None
             Функция проверки достигнута ли цель расчета
         '''
-        if population_size <= 5:
-            raise ValueError('Размер популяции должен быть > 0, так же не рекомендуется использовать размер популяции < 5')
+        if population_size < 1:
+            raise ValueError('Размер популяции должен быть > 0')
+        if population_size < 5:
+            warnings.warn('Не рекомендуется использовать размер популяции < 5')
         if epochs  <=  0:
             raise ValueError('Количество эпох должно быть > 0')
         if mutation_max_count  <=  0:
@@ -548,12 +553,7 @@ class BestNodesGA(MCLPBase):
                 parent_bot_2 = random.choices(population, weights=weights)[0]
 
                 # Скрещивание (одноточечное)
-                split_point = int(len(parent_bot_1)/2)
-                left_gen_vals = list(parent_bot_1.values())[:split_point]
-                right_gen_vals  = list(parent_bot_1.values())[split_point:]
-                left_genome_part = {k:v for k, v in parent_bot_1.items() if v in left_gen_vals}
-                right_genome_part = {k:v for k, v in parent_bot_2.items() if v in right_gen_vals}
-                new_dynamic_nodes = {**left_genome_part, **right_genome_part}
+                new_dynamic_nodes = ga_crossover(parent_bot_1, parent_bot_2)
 
                 # Мутация (выбор произвольного узла)
                 new_dynamic_nodes = self._mutate(env=env,
@@ -583,7 +583,7 @@ class BestNodesGA(MCLPBase):
                 cur_metric = max(bot_fit)
             
             # 2.5 Нормализация весов (для более выраженной точности расчета)
-            weights = (weights - np.min(weights)) / (np.max(weights) - np.min(weights))
+            weights = normalize_weights(weights)
 
             # 2.6 Определяем лучше ли лучшее на эпохе решение чем имеющееся
             if self.metric_function.compare(best_metric, cur_metric) == cur_metric:
@@ -733,7 +733,8 @@ class BestNodesSA(MCLPBase):
         Функция расчета вероятности перехода из состояния i в состояние j
 
         ## Аргументы
-        `dE` - энергия перехода
+        `dE` - энергия перехода. Вызывается только для кандидата не лучше текущего,
+        поэтому берется модуль: величина ухудшения не зависит от направления метрики (мин/макс)
 
         `T` - температура
 
@@ -741,7 +742,7 @@ class BestNodesSA(MCLPBase):
         Вероятность перехода
         '''
         try:
-            return math.exp(-dE/T)
+            return math.exp(-abs(dE)/T)
         except OverflowError as _:
             # print(dE, T)
             return 0

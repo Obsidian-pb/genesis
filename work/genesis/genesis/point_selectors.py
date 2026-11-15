@@ -36,7 +36,7 @@ class RandomNodesSelector(PointSelectorBase):
             try:
                 nodes_list = set(nodes_list)
             except Exception as e:
-                TypeError(f'Не удалось преобразовать аргумент `nodes_list` в `set`! {e}')
+                raise TypeError(f'Не удалось преобразовать аргумент `nodes_list` в `set`! {e}') from e
 
         self.nodes_list = nodes_list
         super().__init__(**kwargs)
@@ -94,7 +94,8 @@ class RandomNodesSelector(PointSelectorBase):
             nodes_set = set(env.nodes()) - points_set
         else:
             nodes_set = set(env.nodes()) & self.nodes_list - points_set            
-        new_nodes = random.choices(list(nodes_set), k=k)
+        # Выбор без повторов: один узел не может быть выбран дважды
+        new_nodes = random.sample(list(nodes_set), k=k)
 
         # Если нужно получить один узел, возвращаем вместо списка значение int
         if len(new_nodes)==1:

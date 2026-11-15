@@ -3,7 +3,23 @@
 '''
 
 from typing import Any
+import functools
 import numpy as np
+
+
+# Частые ошибки в именах аргументов. Без проверки такие аргументы
+# молча уходят в **kwargs и расчет идет с другими параметрами.
+MISNAMED_ARGUMENTS = {'nodes_list': 'points_list',
+                      'all_nodes': 'all_neighbors'}
+
+
+def check_misnamed_arguments(kwargs: dict):
+    '''
+    Выбрасывает TypeError, если в `kwargs` есть аргумент с ошибочным именем
+    '''
+    for name, correct_name in MISNAMED_ARGUMENTS.items():
+        if name in kwargs:
+            raise TypeError(f'Аргумент `{name}` не поддерживается, используйте `{correct_name}`')
 
 
 class MetricBase:
@@ -123,8 +139,24 @@ class BestPointsBase:
         `metric_function`: MetricBase
             Функция расчета метрики
         '''
+        check_misnamed_arguments(kwargs)
         self.state_function = state_function
         self.metric_function = metric_function
+
+    def __init_subclass__(cls, **kwargs):
+        '''
+        Добавляет проверку имен аргументов в `__call__` всех наследников
+        '''
+        super().__init_subclass__(**kwargs)
+        if '__call__' in cls.__dict__:
+            call = cls.__dict__['__call__']
+
+            @functools.wraps(call)
+            def checked_call(self, *args, **kwargs):
+                check_misnamed_arguments(kwargs)
+                return call(self, *args, **kwargs)
+
+            cls.__call__ = checked_call
 
     def __call__(self,
                  env,
