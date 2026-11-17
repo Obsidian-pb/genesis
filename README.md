@@ -13,7 +13,7 @@
 
 ## Основные зависимости
 
-Python ≥ 3.9, numpy, pandas, networkx, geopandas, shapely, osmnx
+Python ≥ 3.11, numpy, pandas, networkx, geopandas, shapely, osmnx, matplotlib
 
 ## Структура репозитория
 

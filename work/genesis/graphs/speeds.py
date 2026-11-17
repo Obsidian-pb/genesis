@@ -7,6 +7,7 @@
 
 
 # tools:
+import numbers
 import warnings
 
 import networkx as nx
@@ -34,8 +35,9 @@ def kmh_to_mm(kmh: float, precision: int = 2) -> float:
     
         Скорость в метрах в минуту
     """
-    if not isinstance(kmh, (int, float)):
-        raise TypeError("Аргумент kmh должен иметь тип данных int или float")
+    # numbers.Real включает и числа numpy (например, speed_kph из generate_grid_graph)
+    if not isinstance(kmh, numbers.Real):
+        raise TypeError("Аргумент kmh должен быть числом")
 
     return round(kmh * 1000 / 60, precision)
 

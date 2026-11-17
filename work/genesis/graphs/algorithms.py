@@ -73,7 +73,8 @@ def graph_rise_from_gpkg(roads: gpd.GeoDataFrame,
     try:
         roads_p = ox.projection.project_gdf(roads)
     except Exception:
-        roads_p = roads
+        # Копия, чтобы округление координат не меняло данные вызывающей стороны
+        roads_p = roads.copy()
 
     # Округляем координаты геометрии до целых чисел
     roads_p['geometry'] = roads_p['geometry'].apply(floor_coords)
