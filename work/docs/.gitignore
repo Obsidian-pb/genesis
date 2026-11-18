@@ -1,2 +1,3 @@
 /.quarto/
 /documentation/
+**/*.quarto_ipynb

@@ -74,6 +74,7 @@ dependencies = [
   "shapely",
   "osmnx",
   "matplotlib",
+  "ipykernel",
 ]
 
 [project.urls]
