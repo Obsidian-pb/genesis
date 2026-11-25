@@ -22,11 +22,14 @@ def matrix(grid):
     return get_atm(grid, print_calc_states=False)
 
 
-def unambiguous(times_a, times_b):
+def unambiguous(grid, units):
     '''
-    Узлы, в которые подразделения прибывают за разное время: ближайшее подразделение определено однозначно
+    Узлы, в которые первое подразделение прибывает раньше всех остальных: ближайшее определено
+    однозначно. При равенстве времени выбор подразделения зависит от реализации алгоритма Дейкстры
     '''
-    return times_a.index[(times_a - times_b.reindex(times_a.index)).abs() > 1e-9]
+    per_unit = pd.DataFrame({u: FirstArrivalUnitState()(env=grid, points=[u])[0] for u in units})
+    ordered = np.sort(per_unit.to_numpy(), axis=1)
+    return per_unit.index[ordered[:, 1] - ordered[:, 0] > 1e-9] if len(units) > 1 else per_unit.index
 
 
 class TestGetAtm:
@@ -68,7 +71,8 @@ class TestArrivalTimeMatrixState:
         times_g, nearest_g = FirstArrivalUnitState()(env=grid, points=UNITS)
 
         pd.testing.assert_series_equal(times.sort_index(), times_g.sort_index(), check_names=False, check_dtype=False)
-        assert (nearest.sort_index() == nearest_g.sort_index()).all()
+        nodes = unambiguous(grid, UNITS)
+        assert (nearest[nodes] == nearest_g[nodes]).all()
 
     def test_list_points(self, grid, matrix):
         times, nearest = ArrivalTimeMatrixState(matrix)(env=grid, points=[0, 63])
@@ -106,5 +110,5 @@ class TestFirstArrivalUnitCacheState:
 
         pd.testing.assert_series_equal(times.sort_index(), times_full.sort_index(), check_names=False, check_dtype=False)
         # При равном времени прибытия выбор подразделения произволен - сравниваются только однозначные узлы
-        nodes = unambiguous(times_cache, state(env=grid, points=dynamic)[0])
+        nodes = unambiguous(grid, list(static) + list(dynamic))
         assert (nearest[nodes] == nearest_full[nodes]).all()

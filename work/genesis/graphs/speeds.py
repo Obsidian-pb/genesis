@@ -167,3 +167,7 @@ def set_graph_travel_times(G: nx.MultiDiGraph,
         attributes[*edge] = {travel_time_field: weight, speed_field: speed}
 
     nx.set_edge_attributes(G, attributes)
+
+    # Веса ребер изменились: индекс графа в кэше вычислительного ядра устарел
+    from genesis.backends import clear_cache
+    clear_cache(G)

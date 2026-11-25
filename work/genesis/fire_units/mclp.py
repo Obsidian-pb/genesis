@@ -13,10 +13,12 @@ import networkx as nx
 import pandas as pd
 
 try:
+    from ..genesis.backends import get_engine, scipy_enabled
     from ..genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
     from ..genesis.mclp import BestNodesKoptG
     from ..genesis.tools import ga_crossover, list_dict_concat, normalize_weights
 except:
+    from genesis.backends import get_engine, scipy_enabled
     from genesis.core import MCLPBase, PointSelectorBase, StateBase, MetricBase
     from genesis.mclp import BestNodesKoptG
     from genesis.tools import ga_crossover, list_dict_concat, normalize_weights
@@ -117,6 +119,15 @@ class BestNodesGAKopt(MCLPBase):
         '''
         Расчет функции приспособленности
         '''
+        # Быстрый путь: строки расстояний из кэша и метрика на numpy
+        native = get_engine().evaluate(self.state_function, self.metric_function, env, nodes, area, **kwargs) if scipy_enabled() else None
+        if native is not None:
+            reached, value = native
+            if not area is None and reached < area.sum() * self.appr_val_in_area:
+                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
+                return self.bad_val_in_area
+            return value
+
         # 2.1. Расчет состояния
         times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
 

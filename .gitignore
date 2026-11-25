@@ -34,3 +34,7 @@ work/documentation/*
 /work/genesis/.qwen
 /work/genesis/.vscode
 /work/genesis/_imgs
+
+# Окружение и сырые результаты бенчмарка
+/.venv/
+/bench/results/

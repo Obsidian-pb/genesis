@@ -16,6 +16,7 @@ import osmnx as ox
 from .utils import Progressbar
 from ._errors import KeyNotInMatrixError
 
+from .backends import get_engine, scipy_enabled
 from .core import StateBase
 from .swiss_knife import DELAY_TIME, MSF
 from .tools import get_duplicates_list
@@ -103,6 +104,11 @@ class FirstArrivalUnitState(StateBase):
         # Возможно лучшим вариантом будет просто передавать **kwargs
         # Либо переопределять в каждом отдельном случае именно State, а не state_algorithm.
         # т.е. вместо FirstArrivalUnitState будет FirstArrivalUnitStateForG или FirstArrivalUnitStateForGAndBuildings ...
+        # Быстрый путь: стандартный алгоритм Дейкстры, вес - имя поля ребра.
+        # Расчет на матрице смежности scipy (кэшируется на граф) вместо networkx
+        if scipy_enabled() and self.state_algorithm is MSF and isinstance(self.weight, str) and set(kwargs) <= {'cutoff'}:
+            return self._fast(env, points, area, kwargs.get('cutoff'))
+
         times, routes = self.state_algorithm(G=env, sources = points, weight = self.weight, **kwargs)
 
         # # Дополнение строками узлов в которые нет возможности попасть
@@ -130,6 +136,30 @@ class FirstArrivalUnitState(StateBase):
             times = times[area]
             nearest = nearest[area]
 
+        return times, nearest
+
+    def _fast(self, env, points, area, cutoff):
+        '''
+        Расчет через genesis.engine; результат - как у расчета через networkx
+        '''
+        nodes = list(points.keys()) if isinstance(points, dict) else list(points)
+        if len(nodes) == 0:
+            raise ValueError('sources must not be empty')
+        engine = get_engine()
+        index = engine.graph_index(env, self.weight)
+        reached, values, source = engine.first_arrival(index, index.positions(nodes), self.delay, cutoff)
+        reached_nodes = index.nodes[reached]
+
+        times = pd.Series(values, index=reached_nodes, dtype=float, name='times')
+        if isinstance(points, dict):
+            names = pd.array(list(points.values()), dtype=str)
+            nearest = pd.Series(names.take(source), index=reached_nodes, name='nearest')
+        else:
+            nearest = pd.Series(np.array(nodes)[source], index=reached_nodes, dtype='int64', name='nearest')
+
+        if not area is None:
+            times = times[area]
+            nearest = nearest[area]
         return times, nearest
 
 
@@ -650,6 +680,33 @@ def get_atm(G,
 
     # Реверсный граф
     GR = nx.reverse(G, copy=False)
+
+    # Быстрый путь: расстояния от всех записей одним расчетом scipy по обратному графу,
+    # матрица собирается сразу из массива. Порядок столбцов - как при сборке из результатов
+    # networkx: в порядке первого появления, внутри строки - по возрастанию времени
+    if scipy_enabled() and isinstance(weight, str):
+        engine = get_engine()
+        index = engine.graph_index(G, weight)
+        nodes = data[data_node_field].tolist()
+        if data_cutoff_field is None:
+            limits = None if cutoff is None else np.full(len(nodes), cutoff - delay)
+        else:
+            limits = data[data_cutoff_field].to_numpy(dtype=float)
+        dist = engine.arrival_distances(index, index.positions(nodes), limits, target_set)
+        rows, columns = engine.atm_layout(dist, batch_size)
+        values = engine.fill_dense(dist, rows, columns, delay)
+        del dist
+        matrix = pd.DataFrame(values, index=data.index[rows], columns=index.nodes[columns], copy=False)
+        if calc_function:
+            for i in range(len(data)):
+                calc_function(value = i / len(data))
+        if not target_set is None:
+            zero_buildings = np.sum(matrix, axis=1)==0
+            zero_buildings_count = sum(zero_buildings)
+            if zero_buildings_count > 0:
+                print(f'!{zero_buildings_count} зданий не доступны из указанных мест размещения!')
+                matrix = matrix[zero_buildings == False]
+        return matrix
 
     # Матрица
     matrix = pd.DataFrame()

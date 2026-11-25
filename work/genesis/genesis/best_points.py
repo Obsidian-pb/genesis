@@ -12,6 +12,7 @@ import osmnx as ox
 import numpy as np
 import pandas as pd
 
+from .backends import get_engine, scipy_enabled
 from .core import BestPointsBase, MetricBase, StateBase
 from .metrics import ArrivalTime
 from .tools import get_all_neighbor_nodes
@@ -78,6 +79,12 @@ class NodeMetric(BestPointsBase):
         # appr_nodes_count = int(env.number_of_nodes() * self.appr_val)
 
         # Собственно расчет
+        # Быстрый путь: строки расстояний из кэша и метрика на numpy
+        native = get_engine().evaluate(self.state_function, self.metric_function, env, [node], area, **kwargs) if scipy_enabled() else None
+        if native is not None:
+            reached, value = native
+            return value if reached >= appr_nodes_count else self.err_val
+
         times, _ = self.state_function(env=env, points=[node], area=area, **kwargs)
         if len(times)>=appr_nodes_count:
             cur_val = self.metric_function(times, **kwargs)
@@ -727,9 +734,12 @@ class BestNodeMonkey(BestNodeHillClimbing):
 
             # 2 Локальные прыжки
             # 2.1 Определение узлов в округе
-            g_nodes = ox.graph_to_gdfs(env, edges=False)
-            if not ox.projection.is_projected(g_nodes.crs):
-                g_nodes = ox.projection.project_gdf(g_nodes)
+            if scipy_enabled():
+                g_nodes = get_engine().projected_nodes(env)
+            else:
+                g_nodes = ox.graph_to_gdfs(env, edges=False)
+                if not ox.projection.is_projected(g_nodes.crs):
+                    g_nodes = ox.projection.project_gdf(g_nodes)
             buffer = g_nodes.loc[best_node_local:best_node_local].geometry.buffer(self.local_jump_max_distance)
             nodes_in_buffer = g_nodes[g_nodes.within(buffer.iloc[0])]
             nodes_in_buffer = list(nodes_in_buffer.index)
@@ -971,7 +981,7 @@ class BestNodeSquareZoom(BestPointsBase):
         # Проекция графа
         # Проекция графа только если он в географической системе координат
         if env.graph['crs'] == 'epsg:4326':
-            G = ox.project_graph(env)
+            G = get_engine().projected_graph(env) if scipy_enabled() else ox.project_graph(env)
         else:
             G = env
         node_metric_fn = NodeMetric(self.state_function, self.metric_function)
@@ -1100,7 +1110,7 @@ class BestNodeCircleZoom(BestPointsBase):
             current_nodes = list(points_list)
         # Проекция графа
         if env.graph.get('crs') == 'epsg:4326':
-            G = ox.project_graph(env)
+            G = get_engine().projected_graph(env) if scipy_enabled() else ox.project_graph(env)
         else:
             G = env
         # Координаты узлов
@@ -1258,23 +1268,26 @@ class BestNodeGWO(BestPointsBase):
             if node not in env.nodes():
                 raise ValueError(f"Узел {node} не существует в графе")
         
-        # Вычисляем кратчайшие пути от каждого из трех узлов до всех остальных
-        distances = {}
-        for node in nodes:
-            distances[node] = nx.single_source_dijkstra_path_length(env, node, weight=weight)
-        
-        # Находим узел с минимальной суммой расстояний до трех заданных узлов
-        min_sum = float('inf')
-        closest_node = None
-        
-        for node in env.nodes():
-            # Сумма расстояний от текущего узла до трех заданных
-            distance_sum = max(distances[source_node].get(node, float('inf')) for source_node in nodes)
-
-            # Если сумма конечная (все пути существуют) и меньше текущего минимума
-            if distance_sum < min_sum:
-                min_sum = distance_sum
-                closest_node = node
+        # Callable-веса остаются на исходном пути и в ускоренном режиме.
+        if scipy_enabled() and isinstance(weight, str):
+            engine = get_engine()
+            index = engine.graph_index(env, weight)
+            worst = engine.distance_rows(index, index.positions(list(nodes))).max(axis=0)
+            closest_node = None
+            if np.isfinite(worst).any():
+                closest_node = index.nodes[int(np.argmin(worst))]
+                closest_node = closest_node.item() if isinstance(closest_node, np.generic) else closest_node
+        else:
+            distances = {}
+            for node in nodes:
+                distances[node] = nx.single_source_dijkstra_path_length(env, node, weight=weight)
+            min_sum = float('inf')
+            closest_node = None
+            for node in env.nodes():
+                distance_sum = max(distances[source_node].get(node, float('inf')) for source_node in nodes)
+                if distance_sum < min_sum:
+                    min_sum = distance_sum
+                    closest_node = node
         
         return closest_node
 
@@ -1303,7 +1316,15 @@ class BestNodeGWO(BestPointsBase):
         """
         try:
             # Найти кратчайший путь между источником и целью
-            full_path = nx.shortest_path(env, source=source, target=target, weight=weight)
+            if scipy_enabled() and isinstance(weight, str):
+                engine = get_engine()
+                index = engine.graph_index(env, weight)
+                positions = index.positions([source, target])
+                full_path = engine.shortest_path(index, *positions)
+                if full_path is None:
+                    raise nx.NetworkXNoPath(f'No path between {source} and {target}.')
+            else:
+                full_path = nx.shortest_path(env, source=source, target=target, weight=weight)
             
             # Вычислить совокупные расстояния от источника вдоль пути
             cumulative_distances = [0]  # Distance to source is 0
@@ -1334,9 +1355,12 @@ class BestNodeGWO(BestPointsBase):
         """
             Поиск узлов в заданном радиусе от текущего узла.
         """
-        g_nodes = ox.graph_to_gdfs(env, edges=False)
-        if not ox.projection.is_projected(g_nodes.crs):
-            g_nodes = ox.projection.project_gdf(g_nodes)
+        if scipy_enabled():
+            g_nodes = get_engine().projected_nodes(env)
+        else:
+            g_nodes = ox.graph_to_gdfs(env, edges=False)
+            if not ox.projection.is_projected(g_nodes.crs):
+                g_nodes = ox.projection.project_gdf(g_nodes)
         search_area = g_nodes.loc[[cur_node]].geometry.buffer(dist_to_prey)
         local_nodes = g_nodes[g_nodes.within(search_area.iloc[0])]
         return list(local_nodes.index)
@@ -1436,7 +1460,16 @@ class BestNodeGWO(BestPointsBase):
                 r2 = random.random()
                 
                 A = 2 * a * r1 - a  # Коэффициент A
-                dist_to_prey = nx.shortest_path_length(env, cur_node, prey_node, weight='length') * r2
+                if scipy_enabled():
+                    engine = get_engine()
+                    length_index = engine.graph_index(env, 'length')
+                    positions = length_index.positions([cur_node, prey_node])
+                    to_prey = engine.distance_rows(length_index, positions[:1])[0][positions[1]]
+                    if not np.isfinite(to_prey):
+                        raise nx.NetworkXNoPath(f'Node {prey_node} not reachable from {cur_node}')
+                    dist_to_prey = to_prey * r2
+                else:
+                    dist_to_prey = nx.shortest_path_length(env, cur_node, prey_node, weight='length') * r2
 
                 if abs(A) > self.hunt_bound:
                     # глобальный поиск
