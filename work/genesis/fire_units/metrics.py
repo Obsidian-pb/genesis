@@ -8,9 +8,11 @@ import geopandas as gpd
 
 # Обработка использование как модуля QGIS
 try:
+    from genesis.backends import get_engine
     from genesis.core import MetricBase
     from genesis.metrics import ArrivalTime
 except:
+    from ..genesis.backends import get_engine
     from ..genesis.core import MetricBase
     from ..genesis.metrics import ArrivalTime
 
@@ -100,6 +102,19 @@ class CoverIndexBuilding(MetricBase):
 
         return 100*ip_len/tot_len
 
+    def _native(self, values, positions, index):
+        '''
+        Значение по массиву времен достижимых узлов (genesis.engine.evaluate):
+        каждое здание узла считается отдельно
+        '''
+        if len(values) == 0:
+            return self.zero_val
+        w = get_engine().node_weights(self, index, self.buildings, self.buildings_node_id_field)[positions]
+        total = w.sum()
+        if total == 0:
+            return self.zero_val
+        return 100 * w[values <= self.ip_val].sum() / total
+
 
         # # Расчет собственно состояния удовлетворенности спроса
         # return merged_df['times']
@@ -181,6 +196,23 @@ class ArrivalTimeBuilding(MetricBase):
             return self.zero_val
 
         return self.f(state_c)
+
+    _NATIVE_F = (np.mean, np.max, np.min, np.median, np.amax, np.amin)
+
+    def _native(self, values, positions, index):
+        '''
+        Значение по массиву времен достижимых узлов (genesis.engine.evaluate):
+        время узла повторяется по числу его зданий
+        '''
+        if not any(self.f is f for f in self._NATIVE_F):
+            return NotImplemented
+        if len(values) == 0:
+            return self.zero_val
+        w = get_engine().node_weights(self, index, self.buildings, self.buildings_node_id_field)[positions]
+        per_building = np.repeat(values, w.astype(np.int64))
+        if len(per_building) == 0:
+            return self.zero_val
+        return self.f(per_building)
 
 
 # Метрики для ADD
@@ -269,3 +301,14 @@ class CoverIndexBuildingADD(MetricBase):
         tot_len = len(self.buildings)
 
         return 100*ip_len/tot_len
+
+    def _native(self, values, positions, index):
+        '''
+        Значение по массиву времен достижимых узлов (genesis.engine.evaluate)
+        '''
+        if len(values) == 0:
+            return self.zero_val
+        w = get_engine().node_weights(self, index, self.buildings, self.buildings_node_id_field)[positions]
+        if w.sum() == 0:
+            return self.zero_val
+        return 100 * w[values <= self.ip_val].sum() / len(self.buildings)

@@ -77,6 +77,9 @@ dependencies = [
   "ipykernel",
 ]
 
+[project.optional-dependencies]
+fast = ["scipy"]
+
 [project.urls]
 Repository = "https://github.com/Obsidian-pb/genesis"
 Homepage = "https://github.com/Obsidian-pb/genesis"

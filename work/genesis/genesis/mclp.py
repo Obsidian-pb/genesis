@@ -12,6 +12,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
+from .backends import get_engine, scipy_enabled
 from .core import BestPointsBase, MetricBase, PointSelectorBase, StateBase, MCLPBase
 from .best_points import NodeMetric
 from .tools import ga_crossover, list_dict_concat, normalize_weights
@@ -75,6 +76,9 @@ class NodesMetric(BestPointsBase):
         # # Приемлемое количество узлов считается от количества узлов в графе
 
         # Собственно расчет
+        native = get_engine().evaluate(self.state_function, self.metric_function, env, nodes, area, **kwargs) if scipy_enabled() else None
+        if native is not None:
+            return native[1]
         times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
         cur_val = self.metric_function(times, **kwargs)
         # if len(times)>=appr_nodes_count:
@@ -260,8 +264,10 @@ class BestNodesKoptG(MCLPBase):
                     # Определяем список узлов в которые из узла dynamic_node можно прибыть первым
                     node_area_nodes = [n for n,v in nearest.items() if v==dynamic_node]
 
-                    # Определяем подграф зоны обслуживания для узла dynamic_node
-                    node_area_G = nx.subgraph(env, node_area_nodes).copy()
+                    # Только ускоренный режим использует представление вместо копии.
+                    node_area_G = nx.subgraph(env, node_area_nodes)
+                    if not scipy_enabled():
+                        node_area_G = node_area_G.copy()
 
                     # Определяем лучший узел
                     best_nodes, _ = best_point_function(env=node_area_G,
@@ -282,8 +288,10 @@ class BestNodesKoptG(MCLPBase):
                     # Определяем список узлов в которые из узла dynamic_node можно прибыть первым
                     node_area_nodes = [k for k,v in nearest.items() if v==dynamic_node_key]
 
-                    # Определяем подграф зоны обслуживания для узла dynamic_node
-                    node_area_G = nx.subgraph(env, node_area_nodes).copy()
+                    # Только ускоренный режим использует представление вместо копии.
+                    node_area_G = nx.subgraph(env, node_area_nodes)
+                    if not scipy_enabled():
+                        node_area_G = node_area_G.copy()
 
                     # Определяем лучший узел
                     best_nodes, _ = best_point_function(env=node_area_G,
@@ -427,6 +435,15 @@ class BestNodesGA(MCLPBase):
         '''
         Расчет функции приспособленности
         '''
+        # Быстрый путь включается только явно.
+        native = get_engine().evaluate(self.state_function, self.metric_function, env, nodes, area, **kwargs) if scipy_enabled() else None
+        if native is not None:
+            reached, value = native
+            if not area is None and reached < area.sum() * self.appr_val_in_area:
+                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
+                return self.bad_val_in_area
+            return value
+
         # 2.1. Расчет состояния
         times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
 
@@ -762,6 +779,15 @@ class BestNodesSA(MCLPBase):
             маска доступности узлов
         `**kwargs` - дополнительные аргументы
         '''
+        # Быстрый путь включается только явно.
+        native = get_engine().evaluate(self.state_function, self.metric_function, env, nodes, area, **kwargs) if scipy_enabled() else None
+        if native is not None:
+            reached, value = native
+            if not area is None and reached < area.sum() * self.appr_val_in_area:
+                print('Расстановка не обеспечивает требуемую степень прикрытия территории area')
+                return self.bad_val_in_area
+            return value
+
         # 1. Расчет состояния
         times, _ = self.state_function(env=env, points=nodes, area=area, **kwargs)
 

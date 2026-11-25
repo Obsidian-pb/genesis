@@ -368,7 +368,7 @@ class TestBestNodeHillClimbing:
         bnhc = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime())
         best_nodes, best_metric = bnhc(env=G,  area=points_mask)
         assert best_nodes == 1577701962
-        assert best_metric == 4.328401644772975
+        assert best_metric == pytest.approx(4.328401644772975, rel=1e-12)
         bnhc = BestNodeHillClimbing(FirstArrivalUnitState(), ArrivalTime(np.max))
         best_nodes, best_metric = bnhc(env=G,  area=points_mask)
         assert best_nodes == 2034401285
@@ -407,7 +407,7 @@ class TestBestNodeHillClimbing:
 
         best_node, best_metric = BestNodeHillClimbing_MaxMean(G, area=points_mask)
         assert best_node == 1577701962
-        assert best_metric == 4.328401644772975
+        assert best_metric == pytest.approx(4.328401644772975, rel=1e-12)
 
 class TestBestNodeHalfDiameter:
     '''

@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 import geopandas as gpd
 
+from .backends import get_engine, scipy_enabled
 from .core import MetricBase
 
 
@@ -59,6 +60,19 @@ class ArrivalTime(MetricBase):
         if len(state_c)==0:
             return self.zero_val
         return self.f(state_c)
+
+    # Функции, которые дают одинаковый результат для pd.Series и np.ndarray
+    _NATIVE_F = (np.mean, np.max, np.min, np.median, np.amax, np.amin)
+
+    def _native(self, values, positions, index):
+        '''
+        Значение по массиву времен достижимых узлов (genesis.engine.evaluate)
+        '''
+        if not any(self.f is f for f in self._NATIVE_F):
+            return NotImplemented
+        if len(values) == 0:
+            return self.zero_val
+        return self.f(values)
 
 
 class CoverIndex(MetricBase):
@@ -112,11 +126,23 @@ class CoverIndex(MetricBase):
         # Расчет
         if len(state_c)==0:
             return self.zero_val
-        ip_len = sum([1 for t in state_c if t <= self.ip_val])
+        if scipy_enabled() and isinstance(state_c, pd.Series):
+            # Векторное сравнение применяется только в ускоренном режиме.
+            ip_len = int((state_c.to_numpy() <= self.ip_val).sum())
+        else:
+            ip_len = sum([1 for t in state_c if t <= self.ip_val])
         tot_len = len(state_c)
 
 
         return 100 * ip_len / tot_len
+
+    def _native(self, values, positions, index):
+        '''
+        Значение по массиву времен достижимых узлов (genesis.engine.evaluate)
+        '''
+        if len(values) == 0:
+            return self.zero_val
+        return 100 * int((values <= self.ip_val).sum()) / len(values)
 
 
 
@@ -213,6 +239,20 @@ class CoverIndexValue(MetricBase):
 
 
         return 100 * merged_df[self.value_field].sum() / total_value
+
+    def _native(self, values, positions, index):
+        '''
+        Значение по массиву времен достижимых узлов (genesis.engine.evaluate)
+        '''
+        if len(values) == 0:
+            return self.zero_val
+        engine = get_engine()
+        counts = engine.node_weights(self, index, self.data, self.data_node_id_field)[positions]
+        covered = (values <= self.ip_val) & (counts > 0)
+        if not covered.any():
+            return self.zero_val
+        w = engine.node_weights(self, index, self.data, self.data_node_id_field, self.value_field)[positions]
+        return 100 * w[covered].sum() / w.sum()
 
 
 

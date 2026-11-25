@@ -8,6 +8,18 @@ import numpy as np
 import pytest
 
 
+def pytest_addoption(parser):
+    parser.addoption('--backend', choices=('networkx', 'scipy'), default='networkx',
+                     help='Вычислительный режим для всего набора тестов')
+
+
+@pytest.fixture(scope='session', autouse=True)
+def selected_backend(request):
+    from genesis.backends import use_backend
+    with use_backend(request.config.getoption('--backend')):
+        yield
+
+
 @pytest.fixture(autouse=True)
 def fixed_seed():
     '''
